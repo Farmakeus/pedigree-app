@@ -520,7 +520,13 @@ function addOrUpdateMember() {
 
     if (editingMemberId) {
         const idx = familyData.members.findIndex(m => m.id === editingMemberId);
-        if (idx >= 0) familyData.members[idx] = member;
+        if (idx >= 0) {
+            // Preserve position data from existing member (status change = visual only)
+            const existing = familyData.members[idx];
+            member.customX = existing.customX;
+            member.customY = existing.customY;
+            familyData.members[idx] = member;
+        }
         editingMemberId = null;
         document.getElementById('addMemberBtn').textContent = 'Üye Ekle';
         document.getElementById('cancelEditBtn').style.display = 'none';
