@@ -1534,23 +1534,20 @@ function cancelPlaceMode() { clearAllModes(); }
 // Convert mouse/touch event to SVG viewBox coordinates
 function getSVGPos(e) {
     const svg = document.getElementById('pedigree-svg');
-    // Use SVG's own coordinate transform — most reliable method
-    const pt = svg.createSVGPoint();
     const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
-    pt.x = touch.clientX;
-    pt.y = touch.clientY;
-    const ctm = svg.getScreenCTM();
-    if (ctm) {
-        const svgPt = pt.matrixTransform(ctm.inverse());
-        return { x: svgPt.x, y: svgPt.y };
-    }
-    // Fallback
     const rect = svg.getBoundingClientRect();
-    const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, rect.width, rect.height];
-    return {
-        x: ((touch.clientX - rect.left) / rect.width) * vb[2] + vb[0],
-        y: ((touch.clientY - rect.top) / rect.height) * vb[3] + vb[1]
-    };
+    // Position relative to the SVG element on screen
+    const relX = touch.clientX - rect.left;
+    const relY = touch.clientY - rect.top;
+    // Scale to viewBox coordinates
+    const vb = svg.getAttribute('viewBox')?.split(' ').map(Number);
+    if (vb && vb.length === 4 && rect.width > 0 && rect.height > 0) {
+        return {
+            x: (relX / rect.width) * vb[2] + vb[0],
+            y: (relY / rect.height) * vb[3] + vb[1]
+        };
+    }
+    return { x: relX, y: relY };
 }
 
 function findMemberAtPos(pos) {
