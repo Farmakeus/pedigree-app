@@ -108,7 +108,7 @@
         }
         .canvas-container:active { cursor: grabbing; }
         #pedigree-svg {
-            min-width: 100%; min-height: 100%;
+            display: block;
         }
 
         .zoom-controls {
@@ -398,8 +398,8 @@
 
     <div class="right-panel">
         <div class="canvas-container" id="canvasContainer">
-            <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet"></svg>
-            <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet"></svg>
+            <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <div class="zoom-controls">
             <button onclick="zoomIn()" title="Yakınlaştır">+</button>
@@ -1049,9 +1049,16 @@ function renderPedigree() {
     }
 
     const { positions, width, height } = layout;
-    svg.setAttribute('width', width * zoomLevel);
-    svg.setAttribute('height', height * zoomLevel);
-    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const container = document.getElementById('canvasContainer');
+    // SVG pixel size: at least as big as container, or content size * zoom
+    const svgW = Math.max(width * zoomLevel, container.clientWidth);
+    const svgH = Math.max(height * zoomLevel, container.clientHeight);
+    // ViewBox matches pixel size / zoom so 1:1 mapping (no aspect ratio distortion)
+    const vbW = svgW / zoomLevel;
+    const vbH = svgH / zoomLevel;
+    svg.setAttribute('width', svgW);
+    svg.setAttribute('height', svgH);
+    svg.setAttribute('viewBox', `0 0 ${vbW} ${vbH}`);
 
     let svgContent = '';
     const NODE_R = 25;
