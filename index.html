@@ -1491,32 +1491,35 @@ function loadTemplateDeNovo() {
 function loadTemplateConsanguineous() {
     clearAllSilent();
 
-    // Generation I - Ortak büyükanne/büyükbaba
-    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1
-    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 2
+    // Generation I - İki ayrı büyük ebeveyn ailesi
+    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1 - Büyükbaba A
+    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 2 - Büyükanne A
+    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 3 - Büyükbaba B
+    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 4 - Büyükanne B
 
-    // Generation II - Taşıyıcı ebeveynler (akraba - kuzenler)
-    addMemberDirect('', 'male', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');   // 3
-    addMemberDirect('', 'female', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı'); // 4
+    // Generation II - Taşıyıcı ebeveynler (kuzen evliliği: biri Aile A'dan, diğeri Aile B'den)
+    addMemberDirect('', 'male', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');   // 5 - Aile A çocuğu
+    addMemberDirect('', 'female', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı'); // 6 - Aile B çocuğu
 
     // Generation III - Çocuklar: 1 etkilenmiş (proband), 1 taşıyıcı, 1 sağlıklı
-    addMemberDirect('', 'female', 3, null, true, false, false, true, [], 'none', null, 'Proband - Homozigot');  // 5
-    addMemberDirect('', 'male', 3, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');             // 6
-    addMemberDirect('', 'male', 3, null, false, false, false, false, [], 'none', null, '');                     // 7
+    addMemberDirect('', 'female', 3, null, true, false, false, true, [], 'none', null, 'Proband - Homozigot');  // 7
+    addMemberDirect('', 'male', 3, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');             // 8
+    addMemberDirect('', 'male', 3, null, false, false, false, false, [], 'none', null, '');                     // 9
 
-    // Partnership (akraba evliliği)
+    // Partnerships
     familyData.partnerships.push(
-        { partner1: 1, partner2: 2, consanguinity: false },
-        { partner1: 3, partner2: 4, consanguinity: true }
+        { partner1: 1, partner2: 2, consanguinity: false },  // Büyük ebeveyn A
+        { partner1: 3, partner2: 4, consanguinity: false },  // Büyük ebeveyn B
+        { partner1: 5, partner2: 6, consanguinity: true }    // Kuzen evliliği (akraba)
     );
 
     // Parent-child
     familyData.parentChildLinks.push(
-        { parent1: 1, parent2: 2, childId: 3 },
-        { parent1: 1, parent2: 2, childId: 4 },
-        { parent1: 3, parent2: 4, childId: 5 },
-        { parent1: 3, parent2: 4, childId: 6 },
-        { parent1: 3, parent2: 4, childId: 7 }
+        { parent1: 1, parent2: 2, childId: 5 },  // Aile A → oğul (taşıyıcı baba)
+        { parent1: 3, parent2: 4, childId: 6 },  // Aile B → kız (taşıyıcı anne)
+        { parent1: 5, parent2: 6, childId: 7 },  // Kuzen çift → etkilenmiş çocuk
+        { parent1: 5, parent2: 6, childId: 8 },  // Kuzen çift → taşıyıcı çocuk
+        { parent1: 5, parent2: 6, childId: 9 }   // Kuzen çift → sağlıklı çocuk
     );
 
     updateUI();
