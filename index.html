@@ -858,7 +858,8 @@ function computeLayout() {
     const NODE_H = 60;
     const H_GAP = 40;
     const V_GAP = 140;
-    const MARGIN = 120;
+    const MARGIN = 80;
+    const NODE_R = 25;
 
     // Group by generation
     const generations = {};
@@ -975,7 +976,7 @@ function computeLayout() {
         });
     });
 
-    // Resolve overlaps within generations (skip custom-placed members)
+    // Resolve overlaps within generations — only shift the overlapping node, not the entire tail
     genKeys.forEach(gen => {
         const genMembers = generations[gen];
         const autoMembers = genMembers.filter(m => m.customX == null);
@@ -983,9 +984,11 @@ function computeLayout() {
         genPositions.sort((a, b) => a.x - b.x);
 
         for (let i = 1; i < genPositions.length; i++) {
-            const minX = genPositions[i - 1].x + NODE_W + H_GAP / 2;
-            if (genPositions[i].x < minX) {
-                const shift = minX - genPositions[i].x;
+            const minGap = NODE_W + H_GAP / 2;
+            const needed = genPositions[i - 1].x + minGap;
+            if (genPositions[i].x < needed) {
+                const shift = needed - genPositions[i].x;
+                // Only shift this node and subsequent ones that would also overlap
                 for (let j = i; j < genPositions.length; j++) {
                     positions[genPositions[j].id].x += shift;
                 }
@@ -993,41 +996,35 @@ function computeLayout() {
         }
     });
 
-    // Normalize: ensure no negative or too-small X/Y values
-    // Shift everything right/down if any position is too close to edge
+    // Normalize: only shift if nodes are truly outside the safe left/top edge
+    // Use a small safe edge (NODE_R + some padding), NOT the full MARGIN
+    const safeEdge = NODE_R + 40; // just enough so shapes aren't clipped
     let minX = Infinity, minY = Infinity;
     Object.values(positions).forEach(pos => {
         minX = Math.min(minX, pos.x);
         minY = Math.min(minY, pos.y);
     });
-    const safeMargin = MARGIN;
-    if (minX < safeMargin) {
-        const shiftX = safeMargin - minX;
+    if (minX < safeEdge) {
+        const shiftX = safeEdge - minX;
         Object.values(positions).forEach(pos => pos.x += shiftX);
-        // Also update custom positions so they stay in sync
-        members.forEach(m => {
-            if (m.customX != null) m.customX += shiftX;
-        });
+        // Do NOT modify member.customX — positions are recalculated each render
     }
-    if (minY < safeMargin / 2) {
-        const shiftY = safeMargin / 2 - minY;
+    if (minY < safeEdge) {
+        const shiftY = safeEdge - minY;
         Object.values(positions).forEach(pos => pos.y += shiftY);
-        members.forEach(m => {
-            if (m.customY != null) m.customY += shiftY;
-        });
     }
 
-    // Calculate total dimensions
+    // Calculate total dimensions from actual occupied bounds
     let totalWidth = 0, totalHeight = 0;
     Object.values(positions).forEach(pos => {
-        totalWidth = Math.max(totalWidth, pos.x + NODE_W);
-        totalHeight = Math.max(totalHeight, pos.y + NODE_W);
+        totalWidth = Math.max(totalWidth, pos.x + NODE_R + 60);
+        totalHeight = Math.max(totalHeight, pos.y + NODE_R + 60);
     });
 
     return {
         positions,
-        width: totalWidth + MARGIN,
-        height: totalHeight + MARGIN
+        width: totalWidth,
+        height: totalHeight
     };
 }
 
@@ -1291,7 +1288,7 @@ function renderPedigree() {
         // Generation guide lines
         const genKeys2 = [...new Set(familyData.members.map(m => m.generation))].sort((a,b) => a-b);
         genKeys2.forEach((gen, idx) => {
-            const gy = 120 + idx * (60 + 140) + 30;
+            const gy = 80 + idx * (60 + 140) + 30;
             svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#d0d8e8" stroke-width="1" stroke-dasharray="8,4"/>`;
         });
     }
@@ -1734,7 +1731,7 @@ function findTargetAtPos(pos) {
 }
 
 function guessGenerationFromY(y) {
-    const NODE_H = 60, V_GAP = 140, MARGIN = 120;
+    const NODE_H = 60, V_GAP = 140, MARGIN = 80;
     if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
     const gens = {};
     familyData.members.forEach(m => { if (!gens[m.generation]) gens[m.generation] = []; gens[m.generation].push(m); });
