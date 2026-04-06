@@ -152,22 +152,17 @@
         .place-toolbar .tool-label {
             font-size: 9px; color: #999; font-weight: 600; letter-spacing: 0.5px;
         }
-        .place-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 5; display: none;
-        }
-        .place-overlay.active { display: block; cursor: crosshair; }
-        .place-overlay.connect-mode { display: block; cursor: crosshair; }
-        .place-overlay.move-mode { display: block; cursor: grab; }
-        .place-overlay.move-mode.dragging { cursor: grabbing; }
-        .connect-line-preview {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        .canvas-container.tool-active { cursor: crosshair; }
+        .canvas-container.tool-move { cursor: grab; }
+        .canvas-container.tool-move.dragging { cursor: grabbing; }
+        #connectPreview {
+            position: absolute; top: 0; left: 0;
             pointer-events: none; z-index: 6;
         }
 
         /* Legend */
         .legend-box {
-            position: absolute; bottom: 16px; left: 16px;
+            position: absolute; bottom: 16px; right: 80px;
             background: white; border: 1px solid #ddd; border-radius: 8px;
             padding: 12px; font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
@@ -385,8 +380,7 @@
     <div class="right-panel">
         <div class="canvas-container" id="canvasContainer">
             <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-            <div class="place-overlay" id="placeOverlay"></div>
-            <svg class="connect-line-preview" id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <div class="zoom-controls">
             <button onclick="zoomIn()" title="Yakınlaştır">+</button>
@@ -1506,84 +1500,67 @@ let toolMode = null; // 'place', 'connect', 'move'
 let connectStart = null; // member id where line starts
 let movingMemberId = null;
 let moveStartPos = null;
-// lastLayout declared earlier near renderPedigree usage
-const placeOverlay = document.getElementById('placeOverlay');
+// Event target: canvasContainer directly (no overlay needed)
+const canvasContainer = document.getElementById('canvasContainer');
 const connectPreview = document.getElementById('connectPreview');
 
 function clearAllModes() {
-    placeMode = null;
-    toolMode = null;
-    connectStart = null;
-    movingMemberId = null;
-    placeOverlay.className = 'place-overlay';
+    placeMode = null; toolMode = null; connectStart = null; movingMemberId = null;
+    canvasContainer.classList.remove('tool-active', 'tool-move', 'dragging');
     connectPreview.innerHTML = '';
     document.querySelectorAll('.place-toolbar button').forEach(b => b.classList.remove('active'));
 }
 
 function setPlaceMode(mode, btn) {
     if (toolMode === 'place' && placeMode === mode) { clearAllModes(); return; }
-    clearAllModes();
-    placeMode = mode;
-    toolMode = 'place';
-    placeOverlay.classList.add('active');
+    clearAllModes(); placeMode = mode; toolMode = 'place';
+    canvasContainer.classList.add('tool-active');
     btn.classList.add('active');
 }
-
 function setConnectMode(btn) {
     if (toolMode === 'connect') { clearAllModes(); return; }
-    clearAllModes();
-    toolMode = 'connect';
-    placeOverlay.classList.add('connect-mode');
+    clearAllModes(); toolMode = 'connect';
+    canvasContainer.classList.add('tool-active');
     btn.classList.add('active');
 }
-
 function setMoveMode(btn) {
     if (toolMode === 'move') { clearAllModes(); return; }
-    clearAllModes();
-    toolMode = 'move';
-    placeOverlay.classList.add('move-mode');
+    clearAllModes(); toolMode = 'move';
+    canvasContainer.classList.add('tool-move');
     btn.classList.add('active');
 }
-
 function cancelPlaceMode() { clearAllModes(); }
 
-function getClickSVGPos(e) {
+// Convert mouse/touch event to SVG viewBox coordinates
+function getSVGPos(e) {
     const svg = document.getElementById('pedigree-svg');
-    const container = document.getElementById('canvasContainer');
-    const clientX = e.touches ? (e.touches[0] || e.changedTouches[0]).clientX : e.clientX;
-    const clientY = e.touches ? (e.touches[0] || e.changedTouches[0]).clientY : e.clientY;
-
-    // Convert screen coords to position within the scrollable container
-    const cRect = container.getBoundingClientRect();
-    const pixelX = clientX - cRect.left + container.scrollLeft;
-    const pixelY = clientY - cRect.top + container.scrollTop;
-
-    // Convert pixel position to SVG viewBox coordinates
-    const vb = svg.getAttribute('viewBox')?.split(' ').map(Number);
-    if (vb && vb.length === 4) {
-        const svgPixelW = parseFloat(svg.getAttribute('width')) || container.clientWidth;
-        const svgPixelH = parseFloat(svg.getAttribute('height')) || container.clientHeight;
-        return {
-            x: (pixelX / svgPixelW) * vb[2] + vb[0],
-            y: (pixelY / svgPixelH) * vb[3] + vb[1]
-        };
+    // Use SVG's own coordinate transform — most reliable method
+    const pt = svg.createSVGPoint();
+    const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
+    pt.x = touch.clientX;
+    pt.y = touch.clientY;
+    const ctm = svg.getScreenCTM();
+    if (ctm) {
+        const svgPt = pt.matrixTransform(ctm.inverse());
+        return { x: svgPt.x, y: svgPt.y };
     }
-    return { x: pixelX, y: pixelY };
+    // Fallback
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, rect.width, rect.height];
+    return {
+        x: ((touch.clientX - rect.left) / rect.width) * vb[2] + vb[0],
+        y: ((touch.clientY - rect.top) / rect.height) * vb[3] + vb[1]
+    };
 }
 
 function findMemberAtPos(pos) {
     if (!lastLayout) return null;
-    const NODE_R = 25;
-    let closest = null, closestDist = NODE_R + 25;
+    let closest = null, closestDist = 50;
     familyData.members.forEach(m => {
-        // Always use rendered layout position for hit detection
         const mPos = lastLayout.positions[m.id];
         if (!mPos) return;
         const dist = Math.sqrt((pos.x - mPos.x) ** 2 + (pos.y - mPos.y) ** 2);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closest = m;
-        }
+        if (dist < closestDist) { closestDist = dist; closest = m; }
     });
     return closest;
 }
@@ -1591,30 +1568,22 @@ function findMemberAtPos(pos) {
 function guessGenerationFromY(y) {
     const NODE_H = 60, V_GAP = 140, MARGIN = 120;
     if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
-    const generations = {};
-    familyData.members.forEach(m => {
-        if (!generations[m.generation]) generations[m.generation] = [];
-        generations[m.generation].push(m);
+    const gens = {};
+    familyData.members.forEach(m => { if (!gens[m.generation]) gens[m.generation] = []; gens[m.generation].push(m); });
+    const gk = Object.keys(gens).map(Number).sort((a, b) => a - b);
+    let bestGen = gk[0], bestDist = Infinity, bestY = MARGIN + NODE_H / 2;
+    gk.forEach((g, i) => {
+        const ey = MARGIN + i * (NODE_H + V_GAP) + NODE_H / 2;
+        const d = Math.abs(y - ey);
+        if (d < bestDist) { bestDist = d; bestGen = g; bestY = ey; }
     });
-    const genKeys = Object.keys(generations).map(Number).sort((a, b) => a - b);
-    let bestGen = genKeys[0], bestDist = Infinity, bestY = MARGIN + NODE_H / 2;
-    genKeys.forEach((gen, idx) => {
-        const expectedY = MARGIN + idx * (NODE_H + V_GAP) + NODE_H / 2;
-        const dist = Math.abs(y - expectedY);
-        if (dist < bestDist) { bestDist = dist; bestGen = gen; bestY = expectedY; }
-    });
-    const lastGenIdx = genKeys.length - 1;
-    const lastGenY = MARGIN + lastGenIdx * (NODE_H + V_GAP) + NODE_H / 2;
-    if (y > lastGenY + (NODE_H + V_GAP) * 0.6) {
-        bestGen = genKeys[genKeys.length - 1] + 1;
-        bestY = lastGenY + NODE_H + V_GAP;
-    }
+    const lastY = MARGIN + (gk.length - 1) * (NODE_H + V_GAP) + NODE_H / 2;
+    if (y > lastY + (NODE_H + V_GAP) * 0.6) { bestGen = gk[gk.length - 1] + 1; bestY = lastY + NODE_H + V_GAP; }
     return { gen: bestGen, snapY: bestY };
 }
 
 function placeMember(pos) {
     const { gen, snapY } = guessGenerationFromY(pos.y);
-    pos.y = snapY; // Snap to generation Y level
     let sex = 'male', affected = false, carrier = false, abort = false;
     switch (placeMode) {
         case 'male': sex = 'male'; break;
@@ -1626,187 +1595,114 @@ function placeMember(pos) {
         case 'abort': sex = 'unknown'; abort = true; break;
     }
     saveState();
-    addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, pos.y);
-    updateUI();
-    renderPedigree();
+    addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, snapY);
+    updateUI(); renderPedigree();
 }
 
-// ---- Mouse/Touch handlers ----
-placeOverlay.addEventListener('mousedown', (e) => {
-    const pos = getClickSVGPos(e);
-
-    if (toolMode === 'place') {
-        placeMember(pos);
-        return;
-    }
-
-    if (toolMode === 'connect') {
-        const member = findMemberAtPos(pos);
-        if (member) {
-            connectStart = member.id;
+function handleConnect(endPos) {
+    connectPreview.innerHTML = '';
+    const endMember = findMemberAtPos(endPos);
+    if (!endMember || endMember.id === connectStart) { connectStart = null; return; }
+    const startMember = familyData.members.find(m => m.id === connectStart);
+    if (!startMember) { connectStart = null; return; }
+    saveState();
+    if (startMember.generation === endMember.generation) {
+        const exists = familyData.partnerships.some(p =>
+            (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
+            (p.partner1 === endMember.id && p.partner2 === startMember.id));
+        if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
+    } else {
+        let parentId = startMember.generation < endMember.generation ? startMember.id : endMember.id;
+        let childId = startMember.generation < endMember.generation ? endMember.id : startMember.id;
+        const pp = familyData.partnerships.find(p => p.partner1 === parentId || p.partner2 === parentId);
+        if (pp && !familyData.parentChildLinks.some(l => l.childId === childId)) {
+            familyData.parentChildLinks.push({ parent1: pp.partner1, parent2: pp.partner2, childId });
         }
-        return;
     }
+    connectStart = null;
+    updateUI(); renderPedigree();
+}
 
-    if (toolMode === 'move') {
-        const member = findMemberAtPos(pos);
-        if (member) {
-            saveState();
-            movingMemberId = member.id;
-            moveStartPos = pos;
-            placeOverlay.classList.add('dragging');
-        }
-        return;
-    }
-});
-
-placeOverlay.addEventListener('mousemove', (e) => {
-    const pos = getClickSVGPos(e);
-
-    if (toolMode === 'connect' && connectStart != null) {
-        // Draw preview line
-        const startPos = lastLayout?.positions[connectStart];
-        if (startPos) {
-            connectPreview.setAttribute('viewBox', document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600');
-            connectPreview.innerHTML = `<line x1="${startPos.x}" y1="${startPos.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
-        }
-        return;
-    }
-
-    if (toolMode === 'move' && movingMemberId != null) {
-        const member = familyData.members.find(m => m.id === movingMemberId);
-        if (member) {
-            member.customX = pos.x;
-            member.customY = pos.y;
-            renderPedigree();
-        }
-        return;
-    }
-});
-
-placeOverlay.addEventListener('mouseup', (e) => {
-    const pos = getClickSVGPos(e);
-
-    if (toolMode === 'connect' && connectStart != null) {
-        connectPreview.innerHTML = '';
-        const endMember = findMemberAtPos(pos);
-        if (endMember && endMember.id !== connectStart) {
-            // Determine connection type: same generation = partnership, different = parent-child
-            const startMember = familyData.members.find(m => m.id === connectStart);
-            if (startMember && endMember) {
-                saveState();
-                if (startMember.generation === endMember.generation) {
-                    // Partnership
-                    const exists = familyData.partnerships.some(p =>
-                        (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
-                        (p.partner1 === endMember.id && p.partner2 === startMember.id)
-                    );
-                    if (!exists) {
-                        familyData.partnerships.push({
-                            partner1: startMember.id, partner2: endMember.id, consanguinity: false
-                        });
-                    }
-                } else {
-                    // Parent-child: upper gen = parent side, lower gen = child
-                    let parentId, childId;
-                    if (startMember.generation < endMember.generation) {
-                        parentId = startMember.id; childId = endMember.id;
-                    } else {
-                        parentId = endMember.id; childId = startMember.id;
-                    }
-                    // Find a partnership involving the parent
-                    const parentPartner = familyData.partnerships.find(p =>
-                        p.partner1 === parentId || p.partner2 === parentId
-                    );
-                    if (parentPartner) {
-                        const exists = familyData.parentChildLinks.some(l => l.childId === childId);
-                        if (!exists) {
-                            familyData.parentChildLinks.push({
-                                parent1: parentPartner.partner1, parent2: parentPartner.partner2, childId
-                            });
-                        }
-                    }
-                }
-                updateUI();
-                renderPedigree();
-            }
-        }
-        connectStart = null;
-        return;
-    }
-
-    if (toolMode === 'move' && movingMemberId != null) {
-        movingMemberId = null;
-        placeOverlay.classList.remove('dragging');
-        return;
-    }
-});
-
-placeOverlay.addEventListener('mouseleave', () => {
-    if (toolMode === 'connect') { connectStart = null; connectPreview.innerHTML = ''; }
-    if (toolMode === 'move') { movingMemberId = null; placeOverlay.classList.remove('dragging'); }
-});
-
-// Touch support
-placeOverlay.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const pos = getClickSVGPos(e);
+// ---- MOUSE events on canvasContainer ----
+canvasContainer.addEventListener('mousedown', (e) => {
+    if (!toolMode) return;
+    e.preventDefault(); e.stopPropagation();
+    const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
     if (toolMode === 'connect') { const m = findMemberAtPos(pos); if (m) connectStart = m.id; return; }
     if (toolMode === 'move') {
         const m = findMemberAtPos(pos);
-        if (m) { saveState(); movingMemberId = m.id; placeOverlay.classList.add('dragging'); }
+        if (m) { saveState(); movingMemberId = m.id; canvasContainer.classList.add('dragging'); }
     }
-}, { passive: false });
+});
 
-placeOverlay.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const pos = getClickSVGPos(e);
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (!toolMode) return;
+    const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) {
-        const startPos = lastLayout?.positions[connectStart];
-        if (startPos) {
-            connectPreview.setAttribute('viewBox', document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600');
-            connectPreview.innerHTML = `<line x1="${startPos.x}" y1="${startPos.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
+        const sp = lastLayout?.positions[connectStart];
+        if (sp) {
+            const vb = document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600';
+            const svg = document.getElementById('pedigree-svg');
+            connectPreview.setAttribute('width', svg.getAttribute('width'));
+            connectPreview.setAttribute('height', svg.getAttribute('height'));
+            connectPreview.setAttribute('viewBox', vb);
+            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
         }
     }
     if (toolMode === 'move' && movingMemberId != null) {
-        const member = familyData.members.find(m => m.id === movingMemberId);
-        if (member) { member.customX = pos.x; member.customY = pos.y; renderPedigree(); }
+        const m = familyData.members.find(m => m.id === movingMemberId);
+        if (m) { m.customX = pos.x; m.customY = pos.y; renderPedigree(); }
+    }
+});
+
+canvasContainer.addEventListener('mouseup', (e) => {
+    if (!toolMode) return;
+    const pos = getSVGPos(e);
+    if (toolMode === 'connect' && connectStart != null) { handleConnect(pos); return; }
+    if (toolMode === 'move' && movingMemberId != null) { movingMemberId = null; canvasContainer.classList.remove('dragging'); }
+});
+
+// ---- TOUCH events ----
+canvasContainer.addEventListener('touchstart', (e) => {
+    if (!toolMode) return;
+    e.preventDefault();
+    const pos = getSVGPos(e);
+    if (toolMode === 'place') { placeMember(pos); return; }
+    if (toolMode === 'connect') { const m = findMemberAtPos(pos); if (m) connectStart = m.id; return; }
+    if (toolMode === 'move') {
+        const m = findMemberAtPos(pos);
+        if (m) { saveState(); movingMemberId = m.id; canvasContainer.classList.add('dragging'); }
     }
 }, { passive: false });
 
-placeOverlay.addEventListener('touchend', (e) => {
+canvasContainer.addEventListener('touchmove', (e) => {
+    if (!toolMode) return;
     e.preventDefault();
-    const pos = getClickSVGPos(e);
+    const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) {
-        connectPreview.innerHTML = '';
-        const endMember = findMemberAtPos(pos);
-        if (endMember && endMember.id !== connectStart) {
-            const startMember = familyData.members.find(m => m.id === connectStart);
-            if (startMember && endMember) {
-                saveState();
-                if (startMember.generation === endMember.generation) {
-                    const exists = familyData.partnerships.some(p =>
-                        (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
-                        (p.partner1 === endMember.id && p.partner2 === startMember.id)
-                    );
-                    if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
-                } else {
-                    let parentId, childId;
-                    if (startMember.generation < endMember.generation) { parentId = startMember.id; childId = endMember.id; }
-                    else { parentId = endMember.id; childId = startMember.id; }
-                    const parentPartner = familyData.partnerships.find(p => p.partner1 === parentId || p.partner2 === parentId);
-                    if (parentPartner) {
-                        const exists = familyData.parentChildLinks.some(l => l.childId === childId);
-                        if (!exists) familyData.parentChildLinks.push({ parent1: parentPartner.partner1, parent2: parentPartner.partner2, childId });
-                    }
-                }
-                updateUI(); renderPedigree();
-            }
+        const sp = lastLayout?.positions[connectStart];
+        if (sp) {
+            const vb = document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600';
+            const svg = document.getElementById('pedigree-svg');
+            connectPreview.setAttribute('width', svg.getAttribute('width'));
+            connectPreview.setAttribute('height', svg.getAttribute('height'));
+            connectPreview.setAttribute('viewBox', vb);
+            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
         }
-        connectStart = null;
     }
-    if (toolMode === 'move') { movingMemberId = null; placeOverlay.classList.remove('dragging'); }
+    if (toolMode === 'move' && movingMemberId != null) {
+        const m = familyData.members.find(m => m.id === movingMemberId);
+        if (m) { m.customX = pos.x; m.customY = pos.y; renderPedigree(); }
+    }
+}, { passive: false });
+
+canvasContainer.addEventListener('touchend', (e) => {
+    if (!toolMode) return;
+    e.preventDefault();
+    const pos = getSVGPos(e);
+    if (toolMode === 'connect' && connectStart != null) { handleConnect(pos); return; }
+    if (toolMode === 'move') { movingMemberId = null; canvasContainer.classList.remove('dragging'); }
 }, { passive: false });
 
 // Initialize
