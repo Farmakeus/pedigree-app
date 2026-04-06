@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedigri Çizim Uygulaması</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #333; }
+
+        .app-header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white; padding: 12px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .app-header h1 { font-size: 20px; font-weight: 600; }
+        .header-actions { display: flex; gap: 8px; }
+        .header-actions button {
+            background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+            transition: background 0.2s;
+        }
+        .header-actions button:hover { background: rgba(255,255,255,0.3); }
+
+        .app-container { display: flex; height: calc(100vh - 52px); }
+
+        /* Sol Panel */
+        .left-panel {
+            width: 340px; min-width: 340px; background: white;
+            border-right: 1px solid #ddd; display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-tabs {
+            display: flex; border-bottom: 2px solid #eee;
+        }
+        .panel-tab {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer;
+            font-size: 13px; font-weight: 500; color: #888;
+            border-bottom: 2px solid transparent; margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .panel-tab.active { color: #3498db; border-bottom-color: #3498db; }
+        .panel-tab:hover { color: #3498db; }
+
+        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
+        .tab-content.active { display: block; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #3498db; outline: none; }
+
+        .form-row { display: flex; gap: 10px; }
+        .form-row .form-group { flex: 1; }
+
+        .checkbox-group {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+        }
+        .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: #3498db; }
+        .checkbox-group label { font-size: 13px; color: #555; margin-bottom: 0; text-transform: none; letter-spacing: 0; }
+
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: 500; transition: all 0.2s;
+        }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219a52; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .form-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+        /* Aile Listesi */
+        .member-list { list-style: none; }
+        .member-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px; border: 1px solid #eee; border-radius: 6px;
+            margin-bottom: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .member-item:hover { border-color: #3498db; background: #f8f9ff; }
+        .member-item.selected { border-color: #3498db; background: #ebf5fb; }
+        .member-item .member-info { display: flex; align-items: center; gap: 8px; }
+        .member-item .member-symbol {
+            width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+        }
+        .member-item .member-name { font-size: 13px; font-weight: 500; }
+        .member-item .member-gen { font-size: 11px; color: #888; }
+        .member-item .member-actions { display: flex; gap: 4px; }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: #aaa; }
+        .empty-state p { font-size: 13px; margin-top: 8px; }
+
+        /* Sag Panel - Cizim Alani */
+        .right-panel { flex: 1; position: relative; overflow: hidden; background: white; }
+        .canvas-container {
+            width: 100%; height: 100%; overflow: auto; position: relative;
+            cursor: grab;
+        }
+        .canvas-container:active { cursor: grabbing; }
+        #pedigree-svg {
+            min-width: 100%; min-height: 100%;
+        }
+
+        .zoom-controls {
+            position: absolute; top: 16px; right: 16px;
+            display: flex; gap: 4px; background: white;
+            border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 4px; z-index: 10;
+        }
+        .zoom-controls button {
+            width: 32px; height: 32px; border: none; background: transparent;
+            cursor: pointer; border-radius: 4px; font-size: 16px; color: #555;
+        }
+        .zoom-controls button:hover { background: #f0f0f0; }
+
+        /* Place Toolbar */
+        .place-toolbar {
+            position: absolute; top: 56px; right: 16px;
+            background: white; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 8px; z-index: 10;
+            display: flex; flex-direction: column; gap: 6px; align-items: center;
+        }
+        .place-toolbar .tool-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+        }
+        .place-toolbar button {
+            width: 36px; height: 36px; border: 1px solid #ddd; background: #fff;
+            cursor: pointer; border-radius: 6px; font-size: 14px; color: #555;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; padding: 0;
+        }
+        .place-toolbar button:hover { background: #f0f0f0; border-color: #bbb; }
+        .place-toolbar button.active { background: #3498db; color: white; border-color: #3498db; }
+        .place-toolbar button.active svg rect,
+        .place-toolbar button.active svg circle,
+        .place-toolbar button.active svg polygon,
+        .place-toolbar button.active svg line { stroke: white; }
+        .place-toolbar button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .place-toolbar button:disabled:hover { background: #fff; border-color: #ddd; }
+        .place-toolbar .separator { width: 100%; height: 1px; background: #ddd; }
+        .place-toolbar .tool-label {
+            font-size: 9px; color: #999; font-weight: 600; letter-spacing: 0.5px;
+        }
+        .place-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 5; display: none;
+        }
+        .place-overlay.active { display: block; cursor: crosshair; }
+        .place-overlay.connect-mode { display: block; cursor: crosshair; }
+        .place-overlay.move-mode { display: block; cursor: grab; }
+        .place-overlay.move-mode.dragging { cursor: grabbing; }
+        .connect-line-preview {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 6;
+        }
+
+        /* Legend */
+        .legend-box {
+            position: absolute; bottom: 16px; left: 16px;
+            background: white; border: 1px solid #ddd; border-radius: 8px;
+            padding: 12px; font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .legend-box h4 { margin-bottom: 8px; font-size: 12px; color: #555; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .legend-item svg { width: 20px; height: 20px; }
+
+        /* Disease colors */
+        .disease-tag {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; margin: 2px; color: white;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 12px; padding: 24px;
+            min-width: 400px; max-width: 500px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .modal h3 { margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+        .section-title {
+            font-size: 12px; font-weight: 600; color: #888;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin: 16px 0 8px; padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .proband-indicator { font-size: 11px; color: #e67e22; font-weight: 600; }
+
+        .sample-btn {
+            display: block; width: 100%; margin-top: 12px;
+            background: #f8f9fa; border: 1px dashed #ccc;
+            padding: 10px; border-radius: 6px; cursor: pointer;
+            text-align: center; color: #888; font-size: 13px;
+        }
+        .sample-btn:hover { border-color: #3498db; color: #3498db; background: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <h1>Pedigri Çizim Uygulaması</h1>
+    <div class="header-actions">
+        <button onclick="exportSVG()">SVG İndir</button>
+        <button onclick="exportPNG()">PNG İndir</button>
+        <button onclick="exportPDF()">PDF İndir</button>
+        <button onclick="clearAll()">Temizle</button>
+    </div>
+</div>
+
+<div class="app-container">
+    <div class="left-panel">
+        <div class="panel-tabs">
+            <div class="panel-tab active" onclick="switchTab('add')">Üye Ekle</div>
+            <div class="panel-tab" onclick="switchTab('list')">Aile Listesi</div>
+            <div class="panel-tab" onclick="switchTab('relations')">İlişkiler</div>
+        </div>
+
+        <!-- Uye Ekle Tab -->
+        <div id="tab-add" class="tab-content active">
+            <div class="form-group">
+                <label>Ad Soyad</label>
+                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Cinsiyet</label>
+                    <select id="memberSex">
+                        <option value="male">Erkek</option>
+                        <option value="female">Kadın</option>
+                        <option value="unknown">Bilinmiyor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nesil (Kuşak)</label>
+                    <select id="memberGeneration">
+                        <option value="1">I (Büyük ebeveynler)</option>
+                        <option value="2" selected>II (Ebeveynler)</option>
+                        <option value="3">III (Çocuklar)</option>
+                        <option value="4">IV (Torunlar)</option>
+                        <option value="5">V</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Yaş</label>
+                <input type="number" id="memberAge" placeholder="Ör: 45" min="0" max="120">
+            </div>
+
+            <div class="section-title">Durum</div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="memberAffected">
+                <label for="memberAffected">Etkilenmiş (Hasta)</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="memberCarrier">
+                <label for="memberCarrier">Taşıyıcı</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="memberDeceased">
+                <label for="memberDeceased">Vefat etmiş</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="memberProband">
+                <label for="memberProband">Proband (İndeks vaka)</label>
+            </div>
+
+            <details class="extra-conditions" style="margin:8px 0 12px 0; border:1px solid #e0e0e0; border-radius:6px; padding:0;">
+                <summary style="cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:#666; user-select:none;">Ek Durumlar ▾</summary>
+                <div style="padding:6px 12px 10px 12px;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="memberAbort">
+                        <label for="memberAbort" style="display:flex; align-items:center; gap:6px;">
+                            <svg viewBox="0 0 16 28" width="12" height="20"><line x1="8" y1="0" x2="8" y2="20" stroke="#333" stroke-width="2"/><circle cx="8" cy="23" r="4" fill="#333"/></svg>
+                            Abort (Düşük)
+                        </label>
+                    </div>
+                </div>
+            </details>
+
+            <div class="section-title">Hastalıklar</div>
+            <div class="form-group">
+                <label>Hastalık / Fenotip</label>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis">
+                    <button class="btn btn-sm btn-primary" onclick="addDiseaseToMember()">+</button>
+                </div>
+            </div>
+            <div id="diseaseList" style="margin-bottom:12px;"></div>
+
+            <div class="section-title">İkiz Durumu</div>
+            <div class="form-group">
+                <select id="memberTwinType">
+                    <option value="none">İkiz değil</option>
+                    <option value="monozygotic">Tek yumurta ikizi</option>
+                    <option value="dizygotic">Çift yumurta ikizi</option>
+                </select>
+            </div>
+            <div class="form-group" id="twinPartnerGroup" style="display:none;">
+                <label>İkiz Eşi</label>
+                <select id="memberTwinPartner"></select>
+            </div>
+
+            <div class="form-group">
+                <label>Not</label>
+                <input type="text" id="memberNote" placeholder="Ek bilgi...">
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" id="addMemberBtn" onclick="addOrUpdateMember()">Üye Ekle</button>
+                <button class="btn btn-secondary" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()">İptal</button>
+            </div>
+
+            <div style="margin-top:16px; border-top:1px solid #eee; padding-top:12px;">
+                <div style="font-size:12px; color:#888; margin-bottom:8px; font-weight:600;">📋 Hazır Şablonlar</div>
+                <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
+                <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+            </div>
+        </div>
+
+        <!-- Aile Listesi Tab -->
+        <div id="tab-list" class="tab-content">
+            <ul class="member-list" id="memberListUI"></ul>
+            <div class="empty-state" id="emptyState">
+                <p>Henüz aile üyesi eklenmedi.<br>Üye eklemek için "Üye Ekle" sekmesine gidin.</p>
+            </div>
+        </div>
+
+        <!-- Iliskiler Tab -->
+        <div id="tab-relations" class="tab-content">
+            <div class="section-title">Eş İlişkisi (Evlilik)</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Kişi 1</label>
+                    <select id="partner1"></select>
+                </div>
+                <div class="form-group">
+                    <label>Kişi 2</label>
+                    <select id="partner2"></select>
+                </div>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="consanguinity">
+                <label for="consanguinity">Akraba evliliği</label>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="addPartnership()">Eşleştir</button>
+            </div>
+
+            <div class="section-title" style="margin-top:24px;">Ebeveyn-Çocuk İlişkisi</div>
+            <div class="form-group">
+                <label>Ebeveyn Çifti</label>
+                <select id="parentCouple"></select>
+            </div>
+            <div class="form-group">
+                <label>Çocuk</label>
+                <select id="childSelect"></select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="addParentChild()">Bağla</button>
+            </div>
+
+            <div class="section-title" style="margin-top:24px;">Mevcut İlişkiler</div>
+            <div id="relationsList"></div>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="canvas-container" id="canvasContainer">
+            <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="place-overlay" id="placeOverlay"></div>
+            <svg class="connect-line-preview" id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="zoom-controls">
+            <button onclick="zoomIn()" title="Yakınlaştır">+</button>
+            <button onclick="zoomOut()" title="Uzaklaştır">−</button>
+            <button onclick="resetZoom()" title="Sıfırla">⟳</button>
+        </div>
+        <div class="place-toolbar" id="placeToolbar">
+            <div class="tool-grid">
+                <button id="undoBtn" onclick="undo()" title="Geri Al (Ctrl+Z)" disabled>↩</button>
+                <button id="redoBtn" onclick="redo()" title="İleri Al (Ctrl+Y)" disabled>↪</button>
+            </div>
+            <div class="separator"></div>
+            <span class="tool-label">ARAÇLAR</span>
+            <div class="tool-grid">
+                <button id="moveBtn" onclick="setMoveMode(this)" title="Taşı (Sürükle)">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2l3 3h-2v4h4v-2l3 3-3 3v-2h-4v4h2l-3 3-3-3h2v-4H7v2l-3-3 3-3v2h4V5H9l3-3z" fill="#555"/></svg>
+                </button>
+                <button id="connectBtn" onclick="setConnectMode(this)" title="Bağla (Çizgi Çek)">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="18" x2="20" y2="6" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><circle cx="4" cy="18" r="3" fill="#555"/><circle cx="20" cy="6" r="3" fill="#555"/></svg>
+                </button>
+            </div>
+            <div class="separator"></div>
+            <span class="tool-label">EKLE</span>
+            <div class="tool-grid">
+                <button id="placeMaleBtn" onclick="setPlaceMode('male', this)" title="Erkek Ekle">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="none" stroke="#333" stroke-width="2"/></svg>
+                </button>
+                <button id="placeFemaleBtn" onclick="setPlaceMode('female', this)" title="Kadın Ekle">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#333" stroke-width="2"/></svg>
+                </button>
+                <button id="placeAffectedMaleBtn" onclick="setPlaceMode('affected_male', this)" title="Etkilenmiş Erkek">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="#333" stroke="#333" stroke-width="2"/></svg>
+                </button>
+                <button id="placeAffectedFemaleBtn" onclick="setPlaceMode('affected_female', this)" title="Etkilenmiş Kadın">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="#333" stroke="#333" stroke-width="2"/></svg>
+                </button>
+                <button id="placeCarrierMaleBtn" onclick="setPlaceMode('carrier_male', this)" title="Taşıyıcı Erkek">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="none" stroke="#333" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#333"/></svg>
+                </button>
+                <button id="placeCarrierFemaleBtn" onclick="setPlaceMode('carrier_female', this)" title="Taşıyıcı Kadın">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#333" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#333"/></svg>
+                </button>
+                <button id="placeAbortBtn" onclick="setPlaceMode('abort', this)" title="Abort">
+                    <svg viewBox="0 0 24 28" width="16" height="20"><line x1="12" y1="4" x2="12" y2="18" stroke="#333" stroke-width="2"/><circle cx="12" cy="22" r="4" fill="#333"/></svg>
+                </button>
+                <button onclick="cancelPlaceMode()" title="İptal" style="font-size:12px;">✕</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legend overlay -->
+<div class="legend-box" id="legendBox" style="display:none;">
+    <h4>Sembol Açıklamaları</h4>
+    <div id="legendContent"></div>
+</div>
+
+<script>
+// ======================== DATA MODEL ========================
+const DISEASE_COLORS = [
+    '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12',
+    '#1abc9c', '#e67e22', '#34495e'
+];
+
+let lastLayout = null; // cached layout for hit-testing (move/connect tools)
+
+let familyData = {
+    members: [],
+    partnerships: [],
+    parentChildLinks: [],
+    diseases: new Set(),
+    nextId: 1
+};
+
+let currentDiseases = [];
+let editingMemberId = null;
+let zoomLevel = 1;
+
+// ======================== MEMBER MANAGEMENT ========================
+function addOrUpdateMember() {
+    const name = document.getElementById('memberName').value.trim();
+
+    const member = {
+        id: editingMemberId || familyData.nextId++,
+        name: name || '',
+        sex: document.getElementById('memberSex').value,
+        generation: parseInt(document.getElementById('memberGeneration').value),
+        age: document.getElementById('memberAge').value ? parseInt(document.getElementById('memberAge').value) : null,
+        affected: document.getElementById('memberAffected').checked,
+        carrier: document.getElementById('memberCarrier').checked,
+        deceased: document.getElementById('memberDeceased').checked,
+        proband: document.getElementById('memberProband').checked,
+        abort: document.getElementById('memberAbort').checked,
+        diseases: [...currentDiseases],
+        twinType: document.getElementById('memberTwinType').value,
+        twinPartnerId: document.getElementById('memberTwinPartner').value ? parseInt(document.getElementById('memberTwinPartner').value) : null,
+        note: document.getElementById('memberNote').value.trim()
+    };
+
+    if (member.proband) {
+        familyData.members.forEach(m => { if (m.id !== member.id) m.proband = false; });
+    }
+
+    member.diseases.forEach(d => familyData.diseases.add(d));
+
+    if (editingMemberId) {
+        const idx = familyData.members.findIndex(m => m.id === editingMemberId);
+        if (idx >= 0) familyData.members[idx] = member;
+        editingMemberId = null;
+        document.getElementById('addMemberBtn').textContent = 'Üye Ekle';
+        document.getElementById('cancelEditBtn').style.display = 'none';
+    } else {
+        familyData.members.push(member);
+    }
+
+    // Handle twin partner
+    if (member.twinType !== 'none' && member.twinPartnerId) {
+        const partner = familyData.members.find(m => m.id === member.twinPartnerId);
+        if (partner) {
+            partner.twinType = member.twinType;
+            partner.twinPartnerId = member.id;
+        }
+    }
+
+    resetForm();
+    updateUI();
+    renderPedigree();
+}
+
+function editMember(id) {
+    const m = familyData.members.find(x => x.id === id);
+    if (!m) return;
+
+    editingMemberId = id;
+    document.getElementById('memberName').value = m.name;
+    document.getElementById('memberSex').value = m.sex;
+    document.getElementById('memberGeneration').value = m.generation;
+    document.getElementById('memberAge').value = m.age || '';
+    document.getElementById('memberAffected').checked = m.affected;
+    document.getElementById('memberCarrier').checked = m.carrier;
+    document.getElementById('memberDeceased').checked = m.deceased;
+    document.getElementById('memberProband').checked = m.proband;
+    document.getElementById('memberAbort').checked = m.abort || false;
+    document.getElementById('memberTwinType').value = m.twinType || 'none';
+    document.getElementById('memberNote').value = m.note || '';
+    currentDiseases = [...m.diseases];
+    updateDiseaseListUI();
+
+    document.getElementById('addMemberBtn').textContent = 'Güncelle';
+    document.getElementById('cancelEditBtn').style.display = '';
+    switchTab('add');
+}
+
+function deleteMember(id) {
+    if (!confirm('Bu üyeyi silmek istediğinize emin misiniz?')) return;
+    familyData.members = familyData.members.filter(m => m.id !== id);
+    familyData.partnerships = familyData.partnerships.filter(p => p.partner1 !== id && p.partner2 !== id);
+    familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== id);
+    // Clear twin references
+    familyData.members.forEach(m => {
+        if (m.twinPartnerId === id) { m.twinPartnerId = null; m.twinType = 'none'; }
+    });
+    updateUI();
+    renderPedigree();
+}
+
+function cancelEdit() {
+    editingMemberId = null;
+    document.getElementById('addMemberBtn').textContent = 'Üye Ekle';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+    resetForm();
+}
+
+function resetForm() {
+    document.getElementById('memberName').value = '';
+    document.getElementById('memberSex').value = 'male';
+    document.getElementById('memberGeneration').value = '2';
+    document.getElementById('memberAge').value = '';
+    document.getElementById('memberAffected').checked = false;
+    document.getElementById('memberCarrier').checked = false;
+    document.getElementById('memberDeceased').checked = false;
+    document.getElementById('memberProband').checked = false;
+    document.getElementById('memberAbort').checked = false;
+    document.getElementById('memberTwinType').value = 'none';
+    document.getElementById('memberTwinPartner').value = '';
+    document.getElementById('memberNote').value = '';
+    currentDiseases = [];
+    updateDiseaseListUI();
+}
+
+// ======================== DISEASE MANAGEMENT ========================
+function addDiseaseToMember() {
+    const input = document.getElementById('diseaseInput');
+    const disease = input.value.trim();
+    if (disease && !currentDiseases.includes(disease)) {
+        currentDiseases.push(disease);
+        updateDiseaseListUI();
+    }
+    input.value = '';
+}
+
+function removeDiseaseFromMember(idx) {
+    currentDiseases.splice(idx, 1);
+    updateDiseaseListUI();
+}
+
+function updateDiseaseListUI() {
+    const container = document.getElementById('diseaseList');
+    const allDiseases = [...familyData.diseases];
+    container.innerHTML = currentDiseases.map((d, i) => {
+        let colorIdx = allDiseases.indexOf(d);
+        if (colorIdx < 0) colorIdx = allDiseases.length + i;
+        const color = DISEASE_COLORS[colorIdx % DISEASE_COLORS.length];
+        return `<span class="disease-tag" style="background:${color}">${d} <span style="cursor:pointer;margin-left:4px;" onclick="removeDiseaseFromMember(${i})">×</span></span>`;
+    }).join('');
+}
+
+// ======================== RELATIONSHIPS ========================
+function addPartnership() {
+    const p1 = parseInt(document.getElementById('partner1').value);
+    const p2 = parseInt(document.getElementById('partner2').value);
+    if (!p1 || !p2 || p1 === p2) { alert('İki farklı kişi seçin.'); return; }
+
+    const exists = familyData.partnerships.some(p =>
+        (p.partner1 === p1 && p.partner2 === p2) || (p.partner1 === p2 && p.partner2 === p1)
+    );
+    if (exists) { alert('Bu eşleşme zaten mevcut.'); return; }
+
+    familyData.partnerships.push({
+        partner1: p1, partner2: p2,
+        consanguinity: document.getElementById('consanguinity').checked
+    });
+    document.getElementById('consanguinity').checked = false;
+    updateUI();
+    renderPedigree();
+}
+
+function addParentChild() {
+    const coupleVal = document.getElementById('parentCouple').value;
+    const childId = parseInt(document.getElementById('childSelect').value);
+    if (!coupleVal || !childId) { alert('Ebeveyn çifti ve çocuk seçin.'); return; }
+
+    const [p1, p2] = coupleVal.split('-').map(Number);
+
+    const exists = familyData.parentChildLinks.some(l =>
+        l.parent1 === p1 && l.parent2 === p2 && l.childId === childId
+    );
+    if (exists) { alert('Bu bağlantı zaten mevcut.'); return; }
+
+    familyData.parentChildLinks.push({ parent1: p1, parent2: p2, childId: childId });
+    updateUI();
+    renderPedigree();
+}
+
+function removePartnership(idx) {
+    const p = familyData.partnerships[idx];
+    familyData.parentChildLinks = familyData.parentChildLinks.filter(l =>
+        !(l.parent1 === p.partner1 && l.parent2 === p.partner2)
+    );
+    familyData.partnerships.splice(idx, 1);
+    updateUI();
+    renderPedigree();
+}
+
+function removeParentChild(idx) {
+    familyData.parentChildLinks.splice(idx, 1);
+    updateUI();
+    renderPedigree();
+}
+
+// ======================== UI UPDATES ========================
+function switchTab(tab) {
+    document.querySelectorAll('.panel-tab').forEach((t, i) => {
+        t.classList.toggle('active', ['add', 'list', 'relations'][i] === tab);
+    });
+    document.querySelectorAll('.tab-content').forEach((c, i) => {
+        c.classList.toggle('active', ['add', 'list', 'relations'][i] === tab);
+    });
+    if (tab === 'relations') updateRelationSelects();
+}
+
+function updateUI() {
+    updateMemberList();
+    updateRelationSelects();
+    updateRelationsList();
+    updateTwinPartnerSelect();
+    updateLegend();
+}
+
+function getMemberLabel(m) {
+    return (m.name || `Birey ${m.id}`) + (m.age ? ` (${m.age})` : '');
+}
+
+function updateMemberList() {
+    const list = document.getElementById('memberListUI');
+    const empty = document.getElementById('emptyState');
+
+    if (familyData.members.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        return;
+    }
+    empty.style.display = 'none';
+
+    const sorted = [...familyData.members].sort((a, b) => a.generation - b.generation || a.id - b.id);
+    list.innerHTML = sorted.map(m => {
+        const symbolColor = m.affected ? '#e74c3c' : (m.carrier ? '#f39c12' : '#555');
+        const fill = m.affected ? symbolColor : 'none';
+        let shape;
+        if (m.abort) {
+            shape = `<line x1="12" y1="2" x2="12" y2="16" stroke="#555" stroke-width="2"/><circle cx="12" cy="20" r="4" fill="#555"/>`;
+        } else if (m.sex === 'female') {
+            shape = `<circle cx="12" cy="12" r="10" fill="${fill}" stroke="${symbolColor}" stroke-width="2"/>`;
+        } else if (m.sex === 'male') {
+            shape = `<rect x="2" y="2" width="20" height="20" fill="${fill}" stroke="${symbolColor}" stroke-width="2"/>`;
+        } else {
+            shape = `<polygon points="12,2 22,12 12,22 2,12" fill="${fill}" stroke="${symbolColor}" stroke-width="2"/>`;
+        }
+        const deceased = m.deceased ? '<line x1="2" y1="22" x2="22" y2="2" stroke="#333" stroke-width="2"/>' : '';
+        const carrier = (!m.affected && m.carrier) ? (m.sex === 'female'
+            ? `<circle cx="12" cy="12" r="5" fill="${symbolColor}"/>`
+            : `<rect x="7" y="7" width="10" height="10" fill="${symbolColor}"/>`) : '';
+
+        return `<li class="member-item" onclick="editMember(${m.id})">
+            <div class="member-info">
+                <div class="member-symbol">
+                    <svg viewBox="0 0 24 24" width="24" height="24">${shape}${carrier}${deceased}</svg>
+                </div>
+                <div>
+                    <div class="member-name">${m.name || `Birey ${m.id}`} ${m.proband ? '<span class="proband-indicator">▶ Proband</span>' : ''}</div>
+                    <div class="member-gen">Nesil ${toRoman(m.generation)}${m.age ? ' · ' + m.age + ' yaş' : ''}${m.diseases.length ? ' · ' + m.diseases.join(', ') : ''}</div>
+                </div>
+            </div>
+            <div class="member-actions">
+                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteMember(${m.id})">Sil</button>
+            </div>
+        </li>`;
+    }).join('');
+}
+
+function updateRelationSelects() {
+    const selects = ['partner1', 'partner2', 'childSelect'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const val = el.value;
+        el.innerHTML = '<option value="">Seçin...</option>' +
+            familyData.members.map(m => `<option value="${m.id}">${getMemberLabel(m)} (${toRoman(m.generation)})</option>`).join('');
+        el.value = val;
+    });
+
+    const coupleSelect = document.getElementById('parentCouple');
+    if (coupleSelect) {
+        const val = coupleSelect.value;
+        coupleSelect.innerHTML = '<option value="">Seçin...</option>' +
+            familyData.partnerships.map(p => {
+                const m1 = familyData.members.find(m => m.id === p.partner1);
+                const m2 = familyData.members.find(m => m.id === p.partner2);
+                if (!m1 || !m2) return '';
+                return `<option value="${p.partner1}-${p.partner2}">${m1.name} & ${m2.name}</option>`;
+            }).join('');
+        coupleSelect.value = val;
+    }
+}
+
+function updateTwinPartnerSelect() {
+    const select = document.getElementById('memberTwinPartner');
+    const group = document.getElementById('twinPartnerGroup');
+    const twinType = document.getElementById('memberTwinType').value;
+
+    if (twinType === 'none') {
+        group.style.display = 'none';
+        return;
+    }
+    group.style.display = '';
+    select.innerHTML = '<option value="">Seçin...</option>' +
+        familyData.members
+            .filter(m => m.id !== editingMemberId)
+            .map(m => `<option value="${m.id}">${getMemberLabel(m)}</option>`).join('');
+}
+
+document.getElementById('memberTwinType').addEventListener('change', updateTwinPartnerSelect);
+
+function updateRelationsList() {
+    const container = document.getElementById('relationsList');
+    let html = '';
+
+    familyData.partnerships.forEach((p, i) => {
+        const m1 = familyData.members.find(m => m.id === p.partner1);
+        const m2 = familyData.members.find(m => m.id === p.partner2);
+        if (!m1 || !m2) return;
+        html += `<div class="member-item">
+            <div class="member-info"><div class="member-name">${m1.name} ⚭ ${m2.name}${p.consanguinity ? ' (akraba)' : ''}</div></div>
+            <button class="btn btn-sm btn-danger" onclick="removePartnership(${i})">Sil</button>
+        </div>`;
+    });
+
+    familyData.parentChildLinks.forEach((l, i) => {
+        const m1 = familyData.members.find(m => m.id === l.parent1);
+        const m2 = familyData.members.find(m => m.id === l.parent2);
+        const child = familyData.members.find(m => m.id === l.childId);
+        if (!m1 || !m2 || !child) return;
+        html += `<div class="member-item">
+            <div class="member-info"><div class="member-name">${m1.name} & ${m2.name} → ${child.name}</div></div>
+            <button class="btn btn-sm btn-danger" onclick="removeParentChild(${i})">Sil</button>
+        </div>`;
+    });
+
+    if (!html) html = '<div class="empty-state"><p>Henüz ilişki tanımlanmadı.</p></div>';
+    container.innerHTML = html;
+}
+
+function updateLegend() {
+    const box = document.getElementById('legendBox');
+    const content = document.getElementById('legendContent');
+    if (familyData.members.length === 0) { box.style.display = 'none'; return; }
+    box.style.display = '';
+
+    let html = `
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/></svg> Erkek</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/></svg> Kadın</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="#333" stroke="#333" stroke-width="1.5"/></svg> Etkilenmiş</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#333"/></svg> Taşıyıcı</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/><line x1="1" y1="19" x2="19" y2="1" stroke="#333" stroke-width="1.5"/></svg> Vefat</div>
+        <div class="legend-item"><svg viewBox="0 0 12 24"><line x1="6" y1="1" x2="6" y2="16" stroke="#333" stroke-width="1.5"/><circle cx="6" cy="20" r="4" fill="#333"/></svg> Abort</div>
+    `;
+
+    const allDiseases = [...familyData.diseases];
+    allDiseases.forEach((d, i) => {
+        const color = DISEASE_COLORS[i % DISEASE_COLORS.length];
+        html += `<div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" rx="3" fill="${color}"/></svg> ${d}</div>`;
+    });
+
+    content.innerHTML = html;
+}
+
+// ======================== PEDIGREE LAYOUT ========================
+function computeLayout() {
+    const members = familyData.members;
+    if (members.length === 0) return { positions: {}, width: 0, height: 0 };
+
+    const NODE_W = 60;
+    const NODE_H = 60;
+    const H_GAP = 40;
+    const V_GAP = 140;
+    const MARGIN = 120;
+
+    // Group by generation
+    const generations = {};
+    members.forEach(m => {
+        if (!generations[m.generation]) generations[m.generation] = [];
+        generations[m.generation].push(m);
+    });
+
+    const genKeys = Object.keys(generations).map(Number).sort((a, b) => a - b);
+
+    // Order members within each generation to minimize crossings
+    // Place partnered people next to each other
+    genKeys.forEach(gen => {
+        const genMembers = generations[gen];
+        const ordered = [];
+        const placed = new Set();
+
+        // First place couples together
+        familyData.partnerships.forEach(p => {
+            const m1 = genMembers.find(m => m.id === p.partner1);
+            const m2 = genMembers.find(m => m.id === p.partner2);
+            if (m1 && m2 && !placed.has(m1.id) && !placed.has(m2.id)) {
+                ordered.push(m1, m2);
+                placed.add(m1.id);
+                placed.add(m2.id);
+            }
+        });
+
+        // Then place children in order of their parent couples
+        const childrenOfGen = familyData.parentChildLinks
+            .filter(l => {
+                const child = genMembers.find(m => m.id === l.childId);
+                return child && !placed.has(child.id);
+            });
+
+        // Group children by parent couple
+        const coupleChildren = {};
+        childrenOfGen.forEach(l => {
+            const key = `${l.parent1}-${l.parent2}`;
+            if (!coupleChildren[key]) coupleChildren[key] = [];
+            const child = genMembers.find(m => m.id === l.childId);
+            if (child) coupleChildren[key].push(child);
+        });
+
+        Object.values(coupleChildren).forEach(children => {
+            children.forEach(c => {
+                if (!placed.has(c.id)) {
+                    ordered.push(c);
+                    placed.add(c.id);
+                }
+            });
+        });
+
+        // Place remaining
+        genMembers.forEach(m => {
+            if (!placed.has(m.id)) {
+                ordered.push(m);
+                placed.add(m.id);
+            }
+        });
+
+        generations[gen] = ordered;
+    });
+
+    // Calculate positions
+    const positions = {};
+    let maxWidth = 0;
+
+    genKeys.forEach((gen, genIdx) => {
+        const genMembers = generations[gen];
+        const totalWidth = genMembers.length * NODE_W + (genMembers.length - 1) * H_GAP;
+        const startX = MARGIN;
+        const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
+
+        genMembers.forEach((m, i) => {
+            // Use custom position if placed via click, otherwise auto-layout
+            if (m.customX != null && m.customY != null) {
+                positions[m.id] = { x: m.customX, y: m.customY };
+            } else {
+                positions[m.id] = {
+                    x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
+                    y: genY
+                };
+            }
+        });
+        maxWidth = Math.max(maxWidth, startX + totalWidth + MARGIN);
+    });
+
+    // Adjust children to be centered under their parents
+    familyData.partnerships.forEach(p => {
+        const pos1 = positions[p.partner1];
+        const pos2 = positions[p.partner2];
+        if (!pos1 || !pos2) return;
+
+        const parentCenterX = (pos1.x + pos2.x) / 2;
+
+        const children = familyData.parentChildLinks
+            .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
+            .map(l => l.childId)
+            .filter(id => positions[id]);
+
+        if (children.length === 0) return;
+
+        // Dynamic spacing: fewer children = more spread, more children = tighter
+        const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
+        const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
+        const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
+
+        children.forEach((childId, i) => {
+            const child = members.find(m => m.id === childId);
+            // Don't override custom-placed children
+            if (child && child.customX != null) return;
+            positions[childId].x = childStartX + i * (NODE_W + childGap);
+        });
+    });
+
+    // Resolve overlaps within generations (skip custom-placed members)
+    genKeys.forEach(gen => {
+        const genMembers = generations[gen];
+        const autoMembers = genMembers.filter(m => m.customX == null);
+        const genPositions = autoMembers.map(m => ({ id: m.id, x: positions[m.id].x }));
+        genPositions.sort((a, b) => a.x - b.x);
+
+        for (let i = 1; i < genPositions.length; i++) {
+            const minX = genPositions[i - 1].x + NODE_W + H_GAP / 2;
+            if (genPositions[i].x < minX) {
+                const shift = minX - genPositions[i].x;
+                for (let j = i; j < genPositions.length; j++) {
+                    positions[genPositions[j].id].x += shift;
+                }
+            }
+        }
+    });
+
+    // Calculate total dimensions
+    let totalWidth = 0, totalHeight = 0;
+    Object.values(positions).forEach(pos => {
+        totalWidth = Math.max(totalWidth, pos.x + NODE_W);
+        totalHeight = Math.max(totalHeight, pos.y + NODE_W);
+    });
+
+    return {
+        positions,
+        width: totalWidth + MARGIN,
+        height: totalHeight + MARGIN
+    };
+}
+
+// ======================== PEDIGREE RENDERER ========================
+function renderPedigree() {
+    const svg = document.getElementById('pedigree-svg');
+    const layout = computeLayout();
+    lastLayout = layout; // Cache for hit-testing (move/connect tools)
+
+    if (familyData.members.length === 0) {
+        svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="16">Pedigri çizmek için aile üyelerini ekleyin</text>';
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        lastLayout = null;
+        return;
+    }
+
+    const { positions, width, height } = layout;
+    svg.setAttribute('width', width * zoomLevel);
+    svg.setAttribute('height', height * zoomLevel);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+    let svgContent = '';
+    const NODE_R = 25;
+    const allDiseases = [...familyData.diseases];
+
+    // Draw generation labels
+    const generations = {};
+    familyData.members.forEach(m => {
+        if (!generations[m.generation]) generations[m.generation] = positions[m.id].y;
+    });
+    Object.entries(generations).forEach(([gen, y]) => {
+        svgContent += `<text x="30" y="${y + 5}" font-size="16" font-weight="bold" fill="#999">${toRoman(parseInt(gen))}</text>`;
+    });
+
+    // Draw partnership lines
+    familyData.partnerships.forEach(p => {
+        const pos1 = positions[p.partner1];
+        const pos2 = positions[p.partner2];
+        if (!pos1 || !pos2) return;
+
+        if (p.consanguinity) {
+            // Double line for consanguinity - two separate lines with gap
+            const dy = 3;
+            svgContent += `<line x1="${pos1.x}" y1="${pos1.y - dy}" x2="${pos2.x}" y2="${pos2.y - dy}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${pos1.x}" y1="${pos1.y + dy}" x2="${pos2.x}" y2="${pos2.y + dy}" stroke="#333" stroke-width="1.5" />`;
+        } else {
+            svgContent += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#333" stroke-width="1.5" />`;
+        }
+    });
+
+    // Draw parent-child lines
+    familyData.partnerships.forEach(p => {
+        const pos1 = positions[p.partner1];
+        const pos2 = positions[p.partner2];
+        if (!pos1 || !pos2) return;
+
+        const children = familyData.parentChildLinks
+            .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
+            .map(l => l.childId)
+            .filter(id => positions[id]);
+
+        if (children.length === 0) return;
+
+        const midX = (pos1.x + pos2.x) / 2;
+        const midY = pos1.y;
+        // Sibship line at halfway between parent and child generations
+        const dropY = midY + 70;
+
+        // Vertical line from couple midpoint down
+        svgContent += `<line x1="${midX}" y1="${midY}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+
+        if (children.length === 1) {
+            const childPos = positions[children[0]];
+            svgContent += `<line x1="${midX}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+        } else {
+            // Horizontal sibship line
+            const childPositions = children.map(id => positions[id]);
+            const minChildX = Math.min(...childPositions.map(p => p.x));
+            const maxChildX = Math.max(...childPositions.map(p => p.x));
+
+            svgContent += `<line x1="${minChildX}" y1="${dropY}" x2="${maxChildX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+
+            // Vertical connection from midpoint to sibship line
+            if (midX >= minChildX && midX <= maxChildX) {
+                // midX is within range, already connected
+            } else {
+                // Connect to nearest end
+                const connectX = midX < minChildX ? minChildX : maxChildX;
+                svgContent += `<line x1="${midX}" y1="${dropY}" x2="${connectX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+            }
+
+            // Vertical lines down to each child
+            children.forEach(childId => {
+                const childPos = positions[childId];
+                svgContent += `<line x1="${childPos.x}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            });
+        }
+    });
+
+    // Draw twin connectors
+    familyData.members.forEach(m => {
+        if (m.twinType !== 'none' && m.twinPartnerId && m.id < m.twinPartnerId) {
+            const pos = positions[m.id];
+            const twinPos = positions[m.twinPartnerId];
+            if (!pos || !twinPos) return;
+
+            // Find the sibship drop point
+            const parentLink = familyData.parentChildLinks.find(l => l.childId === m.id);
+            if (parentLink) {
+                const p = familyData.partnerships.find(pp =>
+                    pp.partner1 === parentLink.parent1 && pp.partner2 === parentLink.parent2
+                );
+                if (p) {
+                    const pPos1 = positions[p.partner1];
+                    const pPos2 = positions[p.partner2];
+                    if (pPos1 && pPos2) {
+                        const dropY = pPos1.y + 70;
+                        const meetX = (pos.x + twinPos.x) / 2;
+                        const meetY = dropY + 10;
+
+                        // V-shaped twin lines
+                        svgContent += `<line x1="${pos.x}" y1="${pos.y - NODE_R}" x2="${meetX}" y2="${meetY}" stroke="#333" stroke-width="1.5" />`;
+                        svgContent += `<line x1="${twinPos.x}" y1="${twinPos.y - NODE_R}" x2="${meetX}" y2="${meetY}" stroke="#333" stroke-width="1.5" />`;
+
+                        if (m.twinType === 'monozygotic') {
+                            // Horizontal bar for monozygotic
+                            const barHalf = (twinPos.x - pos.x) / 4;
+                            const barY = (meetY + pos.y - NODE_R) / 2;
+                            svgContent += `<line x1="${meetX - barHalf}" y1="${barY}" x2="${meetX + barHalf}" y2="${barY}" stroke="#333" stroke-width="1.5" />`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Draw member nodes
+    familyData.members.forEach(m => {
+        const pos = positions[m.id];
+        if (!pos) return;
+
+        const fillColor = m.affected ? '#333' : 'none';
+        const strokeColor = '#333';
+
+        // Draw abort symbol (vertical line + small filled circle)
+        if (m.abort) {
+            svgContent += `<line x1="${pos.x}" y1="${pos.y - NODE_R}" x2="${pos.x}" y2="${pos.y + 8}" stroke="#333" stroke-width="2" />`;
+            svgContent += `<circle cx="${pos.x}" cy="${pos.y + 14}" r="6" fill="#333" />`;
+        }
+        // Draw shape
+        else if (m.sex === 'male') {
+            svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R * 2}" height="${NODE_R * 2}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            // Carrier dot for male
+            if (m.carrier && !m.affected) {
+                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
+            }
+        } else if (m.sex === 'female') {
+            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            // Carrier dot for female
+            if (m.carrier && !m.affected) {
+                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
+            }
+        } else {
+            // Diamond for unknown sex
+            svgContent += `<polygon points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            if (m.carrier && !m.affected) {
+                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
+            }
+        }
+
+        // Disease color sectors (if multiple diseases and affected)
+        if (m.diseases.length > 1 && m.affected) {
+            const sectorAngle = 360 / m.diseases.length;
+            m.diseases.forEach((d, i) => {
+                const dIdx = allDiseases.indexOf(d);
+                const color = DISEASE_COLORS[dIdx % DISEASE_COLORS.length];
+                const startAngle = (i * sectorAngle - 90) * Math.PI / 180;
+                const endAngle = ((i + 1) * sectorAngle - 90) * Math.PI / 180;
+                const r = NODE_R - 3;
+
+                if (m.sex === 'female') {
+                    const x1 = pos.x + r * Math.cos(startAngle);
+                    const y1 = pos.y + r * Math.sin(startAngle);
+                    const x2 = pos.x + r * Math.cos(endAngle);
+                    const y2 = pos.y + r * Math.sin(endAngle);
+                    const largeArc = sectorAngle > 180 ? 1 : 0;
+                    svgContent += `<path d="M${pos.x},${pos.y} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}" opacity="0.8" />`;
+                }
+            });
+        } else if (m.diseases.length === 1 && m.affected) {
+            const dIdx = allDiseases.indexOf(m.diseases[0]);
+            const color = DISEASE_COLORS[dIdx % DISEASE_COLORS.length];
+            if (m.sex === 'female') {
+                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R - 3}" fill="${color}" opacity="0.8" />`;
+            } else if (m.sex === 'male') {
+                svgContent += `<rect x="${pos.x - NODE_R + 3}" y="${pos.y - NODE_R + 3}" width="${(NODE_R - 3) * 2}" height="${(NODE_R - 3) * 2}" fill="${color}" opacity="0.8" />`;
+            }
+        }
+
+        // Deceased slash
+        if (m.deceased) {
+            svgContent += `<line x1="${pos.x - NODE_R - 5}" y1="${pos.y + NODE_R + 5}" x2="${pos.x + NODE_R + 5}" y2="${pos.y - NODE_R - 5}" stroke="#333" stroke-width="2" />`;
+        }
+
+        // Proband arrow
+        if (m.proband) {
+            const arrowX = pos.x - NODE_R - 15;
+            const arrowY = pos.y + NODE_R + 15;
+            svgContent += `<line x1="${arrowX}" y1="${arrowY}" x2="${pos.x - NODE_R + 2}" y2="${pos.y + NODE_R - 2}" stroke="#e67e22" stroke-width="2" />`;
+            svgContent += `<polygon points="${pos.x - NODE_R + 2},${pos.y + NODE_R - 2} ${pos.x - NODE_R - 6},${pos.y + NODE_R + 2} ${pos.x - NODE_R - 2},${pos.y + NODE_R + 8}" fill="#e67e22" />`;
+            svgContent += `<text x="${arrowX - 5}" y="${arrowY + 5}" font-size="11" fill="#e67e22" font-weight="bold">P</text>`;
+        }
+
+        // Name label (show "Birey X" if no name)
+        const displayName = m.name || `Birey ${m.id}`;
+        svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="${m.name ? '#333' : '#999'}">${displayName}</text>`;
+
+        // Age label
+        if (m.age) {
+            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 30}" text-anchor="middle" font-size="10" fill="#888">${m.age} yaş</text>`;
+        }
+
+        // Note
+        if (m.note) {
+            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + (m.age ? 42 : 30)}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${m.note}</text>`;
+        }
+    });
+
+    svg.innerHTML = svgContent;
+}
+
+// ======================== EXPORT ========================
+function exportSVG() {
+    const svg = document.getElementById('pedigree-svg');
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    downloadBlob(blob, 'pedigri.svg');
+}
+
+function exportPNG() {
+    const svg = document.getElementById('pedigree-svg');
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = function () {
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        ctx.scale(2, 2);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, img.width, img.height);
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(blob => downloadBlob(blob, 'pedigri.png'), 'image/png');
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+}
+
+function exportPDF() {
+    const svg = document.getElementById('pedigree-svg');
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = function () {
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        ctx.scale(2, 2);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, img.width, img.height);
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = img.width > img.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF(orientation, 'mm', 'a4');
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const maxW = pageW - margin * 2;
+        const maxH = pageH - margin * 2;
+
+        let pdfW = maxW;
+        let pdfH = (img.height / img.width) * pdfW;
+        if (pdfH > maxH) {
+            pdfH = maxH;
+            pdfW = (img.width / img.height) * pdfH;
+        }
+
+        const x = (pageW - pdfW) / 2;
+        const y = (pageH - pdfH) / 2;
+
+        pdf.setFontSize(12);
+        pdf.text('Pedigri Diyagramı', pageW / 2, 8, { align: 'center' });
+        pdf.addImage(imgData, 'PNG', x, y, pdfW, pdfH);
+        pdf.save('pedigri.pdf');
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ======================== ZOOM ========================
+function zoomIn() { zoomLevel = Math.min(zoomLevel + 0.2, 3); renderPedigree(); }
+function zoomOut() { zoomLevel = Math.max(zoomLevel - 0.2, 0.3); renderPedigree(); }
+function resetZoom() { zoomLevel = 1; renderPedigree(); }
+
+// ======================== UTILITIES ========================
+function toRoman(num) {
+    const map = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII' };
+    return map[num] || num.toString();
+}
+
+function clearAll() {
+    if (!confirm('Tüm verileri silmek istediğinize emin misiniz?')) return;
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1 };
+    currentDiseases = [];
+    editingMemberId = null;
+    resetForm();
+    updateUI();
+    renderPedigree();
+}
+
+// ======================== SAMPLE DATA ========================
+// De Novo Varyant: Sağlıklı akraba-olmayan ebeveynler, tek etkilenmiş çocuk (proband)
+function loadTemplateDeNovo() {
+    clearAllSilent();
+
+    // Generation I - Büyükanne/büyükbaba (hepsi sağlıklı)
+    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1
+    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 2
+    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 3
+    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 4
+
+    // Generation II - Sağlıklı ebeveynler (akraba değil)
+    addMemberDirect('', 'male', 2, null, false, false, false, false, [], 'none', null, '');   // 5
+    addMemberDirect('', 'female', 2, null, false, false, false, false, [], 'none', null, ''); // 6
+
+    // Generation III - Etkilenmiş çocuk (de novo) + sağlıklı kardeş
+    addMemberDirect('', 'male', 3, null, true, false, false, true, [], 'none', null, 'De novo varyant');  // 7 - Proband
+    addMemberDirect('', 'female', 3, null, false, false, false, false, [], 'none', null, ''); // 8
+
+    // Partnerships (akraba değil)
+    familyData.partnerships.push(
+        { partner1: 1, partner2: 2, consanguinity: false },
+        { partner1: 3, partner2: 4, consanguinity: false },
+        { partner1: 5, partner2: 6, consanguinity: false }
+    );
+
+    // Parent-child
+    familyData.parentChildLinks.push(
+        { parent1: 1, parent2: 2, childId: 5 },
+        { parent1: 3, parent2: 4, childId: 6 },
+        { parent1: 5, parent2: 6, childId: 7 },
+        { parent1: 5, parent2: 6, childId: 8 }
+    );
+
+    updateUI();
+    renderPedigree();
+}
+
+// Akraba evliliği: Taşıyıcı ebeveynler, otozomal resesif kalıtım
+function loadTemplateConsanguineous() {
+    clearAllSilent();
+
+    // Generation I - Ortak büyükanne/büyükbaba
+    addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1
+    addMemberDirect('', 'female', 1, null, false, false, false, false, [], 'none', null, ''); // 2
+
+    // Generation II - Taşıyıcı ebeveynler (akraba - kuzenler)
+    addMemberDirect('', 'male', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');   // 3
+    addMemberDirect('', 'female', 2, null, false, true, false, false, [], 'none', null, 'Taşıyıcı'); // 4
+
+    // Generation III - Çocuklar: 1 etkilenmiş (proband), 1 taşıyıcı, 1 sağlıklı
+    addMemberDirect('', 'female', 3, null, true, false, false, true, [], 'none', null, 'Proband - Homozigot');  // 5
+    addMemberDirect('', 'male', 3, null, false, true, false, false, [], 'none', null, 'Taşıyıcı');             // 6
+    addMemberDirect('', 'male', 3, null, false, false, false, false, [], 'none', null, '');                     // 7
+
+    // Partnership (akraba evliliği)
+    familyData.partnerships.push(
+        { partner1: 1, partner2: 2, consanguinity: false },
+        { partner1: 3, partner2: 4, consanguinity: true }
+    );
+
+    // Parent-child
+    familyData.parentChildLinks.push(
+        { parent1: 1, parent2: 2, childId: 3 },
+        { parent1: 1, parent2: 2, childId: 4 },
+        { parent1: 3, parent2: 4, childId: 5 },
+        { parent1: 3, parent2: 4, childId: 6 },
+        { parent1: 3, parent2: 4, childId: 7 }
+    );
+
+    updateUI();
+    renderPedigree();
+}
+
+function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proband, diseases, twinType, twinPId, note, abort, customX, customY) {
+    const member = {
+        id: familyData.nextId++, name, sex, generation: gen, age,
+        affected, carrier, deceased, proband, abort: abort || false, diseases: [...diseases],
+        twinType: twinType || 'none', twinPartnerId: twinPId, note: note || '',
+        customX: customX || null, customY: customY || null
+    };
+    diseases.forEach(d => familyData.diseases.add(d));
+    familyData.members.push(member);
+    return member.id;
+}
+
+function clearAllSilent() {
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1 };
+    currentDiseases = [];
+    editingMemberId = null;
+}
+
+// ======================== UNDO / REDO ========================
+let undoStack = [];
+let redoStack = [];
+
+function saveState() {
+    undoStack.push(JSON.stringify({
+        members: familyData.members,
+        partnerships: familyData.partnerships,
+        parentChildLinks: familyData.parentChildLinks,
+        diseases: [...familyData.diseases],
+        nextId: familyData.nextId
+    }));
+    // Limit stack size
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+    updateUndoRedoButtons();
+}
+
+function restoreState(stateStr) {
+    const state = JSON.parse(stateStr);
+    familyData.members = state.members;
+    familyData.partnerships = state.partnerships;
+    familyData.parentChildLinks = state.parentChildLinks;
+    familyData.diseases = new Set(state.diseases);
+    familyData.nextId = state.nextId;
+    currentDiseases = [];
+    editingMemberId = null;
+    updateUI();
+    renderPedigree();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    // Save current state to redo
+    redoStack.push(JSON.stringify({
+        members: familyData.members,
+        partnerships: familyData.partnerships,
+        parentChildLinks: familyData.parentChildLinks,
+        diseases: [...familyData.diseases],
+        nextId: familyData.nextId
+    }));
+    const prev = undoStack.pop();
+    restoreState(prev);
+    updateUndoRedoButtons();
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    // Save current state to undo
+    undoStack.push(JSON.stringify({
+        members: familyData.members,
+        partnerships: familyData.partnerships,
+        parentChildLinks: familyData.parentChildLinks,
+        diseases: [...familyData.diseases],
+        nextId: familyData.nextId
+    }));
+    const next = redoStack.pop();
+    restoreState(next);
+    updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+    document.getElementById('undoBtn').disabled = undoStack.length === 0;
+    document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault(); undo();
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault(); redo();
+    }
+});
+
+// Hook into existing functions to auto-save state
+const _origAddOrUpdate = addOrUpdateMember;
+addOrUpdateMember = function() { saveState(); _origAddOrUpdate(); };
+
+const _origDeleteMember = deleteMember;
+deleteMember = function(id) { saveState(); _origDeleteMember(id); };
+
+const _origAddPartnership = addPartnership;
+addPartnership = function() { saveState(); _origAddPartnership(); };
+
+const _origRemovePartnership = removePartnership;
+removePartnership = function(idx) { saveState(); _origRemovePartnership(idx); };
+
+const _origAddParentChild = addParentChild;
+addParentChild = function() { saveState(); _origAddParentChild(); };
+
+const _origRemoveParentChild = removeParentChild;
+removeParentChild = function(idx) { saveState(); _origRemoveParentChild(idx); };
+
+// ======================== INTERACTIVE TOOLS ENGINE ========================
+let placeMode = null;
+let toolMode = null; // 'place', 'connect', 'move'
+let connectStart = null; // member id where line starts
+let movingMemberId = null;
+let moveStartPos = null;
+// lastLayout declared earlier near renderPedigree usage
+const placeOverlay = document.getElementById('placeOverlay');
+const connectPreview = document.getElementById('connectPreview');
+
+function clearAllModes() {
+    placeMode = null;
+    toolMode = null;
+    connectStart = null;
+    movingMemberId = null;
+    placeOverlay.className = 'place-overlay';
+    connectPreview.innerHTML = '';
+    document.querySelectorAll('.place-toolbar button').forEach(b => b.classList.remove('active'));
+}
+
+function setPlaceMode(mode, btn) {
+    if (toolMode === 'place' && placeMode === mode) { clearAllModes(); return; }
+    clearAllModes();
+    placeMode = mode;
+    toolMode = 'place';
+    placeOverlay.classList.add('active');
+    btn.classList.add('active');
+}
+
+function setConnectMode(btn) {
+    if (toolMode === 'connect') { clearAllModes(); return; }
+    clearAllModes();
+    toolMode = 'connect';
+    placeOverlay.classList.add('connect-mode');
+    btn.classList.add('active');
+}
+
+function setMoveMode(btn) {
+    if (toolMode === 'move') { clearAllModes(); return; }
+    clearAllModes();
+    toolMode = 'move';
+    placeOverlay.classList.add('move-mode');
+    btn.classList.add('active');
+}
+
+function cancelPlaceMode() { clearAllModes(); }
+
+function getClickSVGPos(e) {
+    const svg = document.getElementById('pedigree-svg');
+    const container = document.getElementById('canvasContainer');
+    const clientX = e.touches ? (e.touches[0] || e.changedTouches[0]).clientX : e.clientX;
+    const clientY = e.touches ? (e.touches[0] || e.changedTouches[0]).clientY : e.clientY;
+
+    // Convert screen coords to position within the scrollable container
+    const cRect = container.getBoundingClientRect();
+    const pixelX = clientX - cRect.left + container.scrollLeft;
+    const pixelY = clientY - cRect.top + container.scrollTop;
+
+    // Convert pixel position to SVG viewBox coordinates
+    const vb = svg.getAttribute('viewBox')?.split(' ').map(Number);
+    if (vb && vb.length === 4) {
+        const svgPixelW = parseFloat(svg.getAttribute('width')) || container.clientWidth;
+        const svgPixelH = parseFloat(svg.getAttribute('height')) || container.clientHeight;
+        return {
+            x: (pixelX / svgPixelW) * vb[2] + vb[0],
+            y: (pixelY / svgPixelH) * vb[3] + vb[1]
+        };
+    }
+    return { x: pixelX, y: pixelY };
+}
+
+function findMemberAtPos(pos) {
+    if (!lastLayout) return null;
+    const NODE_R = 25;
+    let closest = null, closestDist = NODE_R + 25;
+    familyData.members.forEach(m => {
+        // Always use rendered layout position for hit detection
+        const mPos = lastLayout.positions[m.id];
+        if (!mPos) return;
+        const dist = Math.sqrt((pos.x - mPos.x) ** 2 + (pos.y - mPos.y) ** 2);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closest = m;
+        }
+    });
+    return closest;
+}
+
+function guessGenerationFromY(y) {
+    const NODE_H = 60, V_GAP = 140, MARGIN = 120;
+    if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
+    const generations = {};
+    familyData.members.forEach(m => {
+        if (!generations[m.generation]) generations[m.generation] = [];
+        generations[m.generation].push(m);
+    });
+    const genKeys = Object.keys(generations).map(Number).sort((a, b) => a - b);
+    let bestGen = genKeys[0], bestDist = Infinity, bestY = MARGIN + NODE_H / 2;
+    genKeys.forEach((gen, idx) => {
+        const expectedY = MARGIN + idx * (NODE_H + V_GAP) + NODE_H / 2;
+        const dist = Math.abs(y - expectedY);
+        if (dist < bestDist) { bestDist = dist; bestGen = gen; bestY = expectedY; }
+    });
+    const lastGenIdx = genKeys.length - 1;
+    const lastGenY = MARGIN + lastGenIdx * (NODE_H + V_GAP) + NODE_H / 2;
+    if (y > lastGenY + (NODE_H + V_GAP) * 0.6) {
+        bestGen = genKeys[genKeys.length - 1] + 1;
+        bestY = lastGenY + NODE_H + V_GAP;
+    }
+    return { gen: bestGen, snapY: bestY };
+}
+
+function placeMember(pos) {
+    const { gen, snapY } = guessGenerationFromY(pos.y);
+    pos.y = snapY; // Snap to generation Y level
+    let sex = 'male', affected = false, carrier = false, abort = false;
+    switch (placeMode) {
+        case 'male': sex = 'male'; break;
+        case 'female': sex = 'female'; break;
+        case 'affected_male': sex = 'male'; affected = true; break;
+        case 'affected_female': sex = 'female'; affected = true; break;
+        case 'carrier_male': sex = 'male'; carrier = true; break;
+        case 'carrier_female': sex = 'female'; carrier = true; break;
+        case 'abort': sex = 'unknown'; abort = true; break;
+    }
+    saveState();
+    addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, pos.y);
+    updateUI();
+    renderPedigree();
+}
+
+// ---- Mouse/Touch handlers ----
+placeOverlay.addEventListener('mousedown', (e) => {
+    const pos = getClickSVGPos(e);
+
+    if (toolMode === 'place') {
+        placeMember(pos);
+        return;
+    }
+
+    if (toolMode === 'connect') {
+        const member = findMemberAtPos(pos);
+        if (member) {
+            connectStart = member.id;
+        }
+        return;
+    }
+
+    if (toolMode === 'move') {
+        const member = findMemberAtPos(pos);
+        if (member) {
+            saveState();
+            movingMemberId = member.id;
+            moveStartPos = pos;
+            placeOverlay.classList.add('dragging');
+        }
+        return;
+    }
+});
+
+placeOverlay.addEventListener('mousemove', (e) => {
+    const pos = getClickSVGPos(e);
+
+    if (toolMode === 'connect' && connectStart != null) {
+        // Draw preview line
+        const startPos = lastLayout?.positions[connectStart];
+        if (startPos) {
+            connectPreview.setAttribute('viewBox', document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600');
+            connectPreview.innerHTML = `<line x1="${startPos.x}" y1="${startPos.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
+        }
+        return;
+    }
+
+    if (toolMode === 'move' && movingMemberId != null) {
+        const member = familyData.members.find(m => m.id === movingMemberId);
+        if (member) {
+            member.customX = pos.x;
+            member.customY = pos.y;
+            renderPedigree();
+        }
+        return;
+    }
+});
+
+placeOverlay.addEventListener('mouseup', (e) => {
+    const pos = getClickSVGPos(e);
+
+    if (toolMode === 'connect' && connectStart != null) {
+        connectPreview.innerHTML = '';
+        const endMember = findMemberAtPos(pos);
+        if (endMember && endMember.id !== connectStart) {
+            // Determine connection type: same generation = partnership, different = parent-child
+            const startMember = familyData.members.find(m => m.id === connectStart);
+            if (startMember && endMember) {
+                saveState();
+                if (startMember.generation === endMember.generation) {
+                    // Partnership
+                    const exists = familyData.partnerships.some(p =>
+                        (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
+                        (p.partner1 === endMember.id && p.partner2 === startMember.id)
+                    );
+                    if (!exists) {
+                        familyData.partnerships.push({
+                            partner1: startMember.id, partner2: endMember.id, consanguinity: false
+                        });
+                    }
+                } else {
+                    // Parent-child: upper gen = parent side, lower gen = child
+                    let parentId, childId;
+                    if (startMember.generation < endMember.generation) {
+                        parentId = startMember.id; childId = endMember.id;
+                    } else {
+                        parentId = endMember.id; childId = startMember.id;
+                    }
+                    // Find a partnership involving the parent
+                    const parentPartner = familyData.partnerships.find(p =>
+                        p.partner1 === parentId || p.partner2 === parentId
+                    );
+                    if (parentPartner) {
+                        const exists = familyData.parentChildLinks.some(l => l.childId === childId);
+                        if (!exists) {
+                            familyData.parentChildLinks.push({
+                                parent1: parentPartner.partner1, parent2: parentPartner.partner2, childId
+                            });
+                        }
+                    }
+                }
+                updateUI();
+                renderPedigree();
+            }
+        }
+        connectStart = null;
+        return;
+    }
+
+    if (toolMode === 'move' && movingMemberId != null) {
+        movingMemberId = null;
+        placeOverlay.classList.remove('dragging');
+        return;
+    }
+});
+
+placeOverlay.addEventListener('mouseleave', () => {
+    if (toolMode === 'connect') { connectStart = null; connectPreview.innerHTML = ''; }
+    if (toolMode === 'move') { movingMemberId = null; placeOverlay.classList.remove('dragging'); }
+});
+
+// Touch support
+placeOverlay.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const pos = getClickSVGPos(e);
+    if (toolMode === 'place') { placeMember(pos); return; }
+    if (toolMode === 'connect') { const m = findMemberAtPos(pos); if (m) connectStart = m.id; return; }
+    if (toolMode === 'move') {
+        const m = findMemberAtPos(pos);
+        if (m) { saveState(); movingMemberId = m.id; placeOverlay.classList.add('dragging'); }
+    }
+}, { passive: false });
+
+placeOverlay.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const pos = getClickSVGPos(e);
+    if (toolMode === 'connect' && connectStart != null) {
+        const startPos = lastLayout?.positions[connectStart];
+        if (startPos) {
+            connectPreview.setAttribute('viewBox', document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600');
+            connectPreview.innerHTML = `<line x1="${startPos.x}" y1="${startPos.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
+        }
+    }
+    if (toolMode === 'move' && movingMemberId != null) {
+        const member = familyData.members.find(m => m.id === movingMemberId);
+        if (member) { member.customX = pos.x; member.customY = pos.y; renderPedigree(); }
+    }
+}, { passive: false });
+
+placeOverlay.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const pos = getClickSVGPos(e);
+    if (toolMode === 'connect' && connectStart != null) {
+        connectPreview.innerHTML = '';
+        const endMember = findMemberAtPos(pos);
+        if (endMember && endMember.id !== connectStart) {
+            const startMember = familyData.members.find(m => m.id === connectStart);
+            if (startMember && endMember) {
+                saveState();
+                if (startMember.generation === endMember.generation) {
+                    const exists = familyData.partnerships.some(p =>
+                        (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
+                        (p.partner1 === endMember.id && p.partner2 === startMember.id)
+                    );
+                    if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
+                } else {
+                    let parentId, childId;
+                    if (startMember.generation < endMember.generation) { parentId = startMember.id; childId = endMember.id; }
+                    else { parentId = endMember.id; childId = startMember.id; }
+                    const parentPartner = familyData.partnerships.find(p => p.partner1 === parentId || p.partner2 === parentId);
+                    if (parentPartner) {
+                        const exists = familyData.parentChildLinks.some(l => l.childId === childId);
+                        if (!exists) familyData.parentChildLinks.push({ parent1: parentPartner.partner1, parent2: parentPartner.partner2, childId });
+                    }
+                }
+                updateUI(); renderPedigree();
+            }
+        }
+        connectStart = null;
+    }
+    if (toolMode === 'move') { movingMemberId = null; placeOverlay.classList.remove('dragging'); }
+}, { passive: false });
+
+// Initialize
+renderPedigree();
+</script>
+</body>
+</html>
