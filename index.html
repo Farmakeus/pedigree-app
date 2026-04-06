@@ -155,6 +155,20 @@
         .canvas-container.tool-active { cursor: crosshair; }
         .canvas-container.tool-move { cursor: grab; }
         .canvas-container.tool-move.dragging { cursor: grabbing; }
+        .canvas-container.tool-eraser { cursor: pointer; }
+        /* Export dropdown */
+        .export-dropdown { position: relative; display: inline-block; }
+        .export-menu {
+            display: none; position: absolute; top: 100%; right: 0; margin-top: 4px;
+            background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            min-width: 160px; z-index: 100; overflow: hidden;
+        }
+        .export-menu.open { display: block; }
+        .export-menu button {
+            display: block; width: 100%; text-align: left; padding: 10px 16px;
+            border: none; background: none; cursor: pointer; font-size: 13px; color: #333;
+        }
+        .export-menu button:hover { background: #f0f7ff; color: #3498db; }
         #connectPreview {
             position: absolute; top: 0; left: 0;
             pointer-events: none; z-index: 6;
@@ -213,9 +227,14 @@
 <div class="app-header">
     <h1>Pedigri Çizim Uygulaması</h1>
     <div class="header-actions">
-        <button onclick="exportSVG()">SVG İndir</button>
-        <button onclick="exportPNG()">PNG İndir</button>
-        <button onclick="exportPDF()">PDF İndir</button>
+        <div class="export-dropdown">
+            <button onclick="toggleExportMenu()">📥 Export ▾</button>
+            <div class="export-menu" id="exportMenu">
+                <button onclick="exportSVG(); closeExportMenu()">📄 SVG olarak indir</button>
+                <button onclick="exportPNG(); closeExportMenu()">🖼️ PNG olarak indir</button>
+                <button onclick="exportPDF(); closeExportMenu()">📋 PDF olarak indir</button>
+            </div>
+        </div>
         <button onclick="clearAll()">Temizle</button>
     </div>
 </div>
@@ -403,6 +422,9 @@
                 </button>
                 <button id="consanBtn" onclick="toggleConsanMode(this)" title="Akraba Evliliği (Çift Çizgi)" style="font-size:10px; font-weight:bold; line-height:1;">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="10" x2="20" y2="10" stroke="#555" stroke-width="2"/><line x1="4" y1="14" x2="20" y2="14" stroke="#555" stroke-width="2"/></svg>
+                </button>
+                <button id="eraserBtn" onclick="setEraserMode(this)" title="Silgi">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 5.5L8.5 17H4v-2L15.5 3.5c.8-.8 2-.8 2.8 0l1.7 1.7z" fill="none" stroke="#e74c3c" stroke-width="2"/><line x1="3" y1="21" x2="21" y2="21" stroke="#e74c3c" stroke-width="2"/></svg>
                 </button>
                 <button id="gridBtn" onclick="toggleGrid(this)" title="Kılavuz Çizgiler">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="8" x2="20" y2="8" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="4" y1="16" x2="20" y2="16" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="8" y1="4" x2="8" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="16" y1="4" x2="16" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/></svg>
@@ -1041,23 +1063,49 @@ function renderPedigree() {
         svgContent += `<text x="30" y="${y + 5}" font-size="16" font-weight="bold" fill="#999">${toRoman(parseInt(gen))}</text>`;
     });
 
-    // Draw partnership lines
+    // Helper: get edge anchor point of a member shape toward a target point
+    function getEdgeAnchor(member, pos, targetX, targetY) {
+        const dx = targetX - pos.x;
+        const dy = targetY - pos.y;
+        if (member.abort) return { x: pos.x, y: pos.y }; // abort is small
+        if (member.sex === 'female') {
+            // Circle: intersect at boundary
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            return { x: pos.x + (dx / dist) * NODE_R, y: pos.y + (dy / dist) * NODE_R };
+        } else {
+            // Square: intersect at edge midpoint (horizontal for partner lines)
+            if (Math.abs(dx) > Math.abs(dy)) {
+                return { x: pos.x + (dx > 0 ? NODE_R : -NODE_R), y: pos.y };
+            } else {
+                return { x: pos.x, y: pos.y + (dy > 0 ? NODE_R : -NODE_R) };
+            }
+        }
+    }
+
+    // Draw partnership lines (from shape edges, not centers)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
         if (!pos1 || !pos2) return;
+        const m1 = familyData.members.find(m => m.id === p.partner1);
+        const m2 = familyData.members.find(m => m.id === p.partner2);
+        if (!m1 || !m2) return;
 
-        // Always draw main partnership line
-        svgContent += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#333" stroke-width="1.5" />`;
+        // Anchor points at shape edges
+        const a1 = getEdgeAnchor(m1, pos1, pos2.x, pos2.y);
+        const a2 = getEdgeAnchor(m2, pos2, pos1.x, pos1.y);
+        // Use consistent Y for horizontal line (average of anchors)
+        const lineY = (a1.y + a2.y) / 2;
+
+        svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
 
         if (p.consanguinity) {
-            // Second parallel line below for consanguinity
             const gap = 6;
-            svgContent += `<line x1="${pos1.x}" y1="${pos1.y + gap}" x2="${pos2.x}" y2="${pos2.y + gap}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
         }
     });
 
-    // Draw parent-child lines
+    // Draw parent-child lines (orthogonal segments only)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
@@ -1071,35 +1119,30 @@ function renderPedigree() {
         if (children.length === 0) return;
 
         const midX = (pos1.x + pos2.x) / 2;
-        const midY = (pos1.y + pos2.y) / 2; // center between both partners
-        const consanGap = p.consanguinity ? 3 : 0; // center between two lines
-        // Sibship line at halfway between parent and child generations
-        const dropY = midY + 70;
+        const lineY = (pos1.y + pos2.y) / 2; // partnership line Y
+        const consanGap = p.consanguinity ? 3 : 0;
+        const dropY = lineY + 70;
 
-        // Vertical line from couple midpoint down (from center of partnership lines)
-        svgContent += `<line x1="${midX}" y1="${midY + consanGap}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+        // Vertical line from partnership midpoint down to sibship level
+        svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
 
         if (children.length === 1) {
             const childPos = positions[children[0]];
-            svgContent += `<line x1="${midX}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            // Orthogonal: horizontal then vertical (L-shape or straight down)
+            svgContent += `<line x1="${midX}" y1="${dropY}" x2="${childPos.x}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${childPos.x}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
         } else {
             // Horizontal sibship line
             const childPositions = children.map(id => positions[id]);
             const minChildX = Math.min(...childPositions.map(p => p.x));
             const maxChildX = Math.max(...childPositions.map(p => p.x));
 
-            svgContent += `<line x1="${minChildX}" y1="${dropY}" x2="${maxChildX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+            // Extend sibship line to cover midX if needed
+            const lineMinX = Math.min(minChildX, midX);
+            const lineMaxX = Math.max(maxChildX, midX);
+            svgContent += `<line x1="${lineMinX}" y1="${dropY}" x2="${lineMaxX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
 
-            // Vertical connection from midpoint to sibship line
-            if (midX >= minChildX && midX <= maxChildX) {
-                // midX is within range, already connected
-            } else {
-                // Connect to nearest end
-                const connectX = midX < minChildX ? minChildX : maxChildX;
-                svgContent += `<line x1="${midX}" y1="${dropY}" x2="${connectX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
-            }
-
-            // Vertical lines down to each child
+            // Vertical lines down to each child (from sibship line to child top)
             children.forEach(childId => {
                 const childPos = positions[childId];
                 svgContent += `<line x1="${childPos.x}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
@@ -1283,6 +1326,17 @@ function renderPedigree() {
 }
 
 // ======================== EXPORT ========================
+function toggleExportMenu() {
+    document.getElementById('exportMenu').classList.toggle('open');
+}
+function closeExportMenu() {
+    document.getElementById('exportMenu').classList.remove('open');
+}
+// Close export menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.export-dropdown')) closeExportMenu();
+});
+
 function exportSVG() {
     const svg = document.getElementById('pedigree-svg');
     const svgData = new XMLSerializer().serializeToString(svg);
@@ -1613,6 +1667,12 @@ function setMoveMode(btn) {
     canvasContainer.classList.add('tool-move');
     btn.classList.add('active');
 }
+function setEraserMode(btn) {
+    if (toolMode === 'eraser') { clearAllModes(); return; }
+    clearAllModes(); toolMode = 'eraser';
+    canvasContainer.classList.add('tool-eraser');
+    btn.classList.add('active');
+}
 function toggleGrid(btn) {
     showGrid = !showGrid;
     btn.classList.toggle('active', showGrid);
@@ -1781,6 +1841,20 @@ canvasContainer.addEventListener('mousedown', (e) => {
         if (target) {
             if (target.type === 'member') connectStart = { type: 'member', id: target.data.id };
             else if (target.type === 'couple') connectStart = { type: 'couple', data: target.data };
+        }
+        return;
+    }
+    if (toolMode === 'eraser') {
+        const m = findMemberAtPos(pos);
+        if (m) {
+            if (confirm(`"${m.name || 'Birey ' + m.id}" silinsin mi?`)) {
+                saveState();
+                familyData.members = familyData.members.filter(x => x.id !== m.id);
+                familyData.partnerships = familyData.partnerships.filter(p => p.partner1 !== m.id && p.partner2 !== m.id);
+                familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== m.id);
+                familyData.members.forEach(x => { if (x.twinPartnerId === m.id) { x.twinPartnerId = null; x.twinType = 'none'; } });
+                updateUI(); renderPedigree();
+            }
         }
         return;
     }
