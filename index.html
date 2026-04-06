@@ -463,6 +463,7 @@ let editingMemberId = null;
 let zoomLevel = 1;
 let showGrid = false;
 let showConnectDots = false;
+let coupleMidpoints = []; // {x, y, partner1, partner2} — for connect mode
 
 // ======================== MEMBER MANAGEMENT ========================
 function addOrUpdateMember() {
@@ -1225,11 +1226,27 @@ function renderPedigree() {
 
     // Connect dots (visible only in connect mode)
     if (showConnectDots) {
+        // Member center dots
         familyData.members.forEach(m => {
             const pos = positions[m.id];
             if (!pos) return;
-            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="7" fill="#333" stroke="white" stroke-width="2" opacity="0.85" class="connect-dot"/>`;
+            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="7" fill="#333" stroke="white" stroke-width="2" opacity="0.85"/>`;
             svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="14" fill="transparent" stroke="#3498db" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
+        });
+
+        // Couple midpoint dots (for adding children/siblings)
+        coupleMidpoints = []; // reset
+        familyData.partnerships.forEach(p => {
+            const pos1 = positions[p.partner1];
+            const pos2 = positions[p.partner2];
+            if (!pos1 || !pos2) return;
+            const midX = (pos1.x + pos2.x) / 2;
+            const midY = pos1.y;
+            const dropY = midY + 70;
+            coupleMidpoints.push({ x: midX, y: dropY, partner1: p.partner1, partner2: p.partner2 });
+            // Green dot at couple drop point
+            svgContent += `<circle cx="${midX}" cy="${dropY}" r="7" fill="#27ae60" stroke="white" stroke-width="2" opacity="0.9"/>`;
+            svgContent += `<circle cx="${midX}" cy="${dropY}" r="14" fill="transparent" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
         });
     }
 
@@ -1529,7 +1546,7 @@ removeParentChild = function(idx) { saveState(); _origRemoveParentChild(idx); };
 // ======================== INTERACTIVE TOOLS ENGINE ========================
 let placeMode = null;
 let toolMode = null; // 'place', 'connect', 'move'
-let connectStart = null; // member id where line starts
+let connectStart = null; // { type: 'member', id } or { type: 'couple', data: {partner1, partner2, x, y} }
 let movingMemberId = null;
 let moveStartPos = null;
 // Event target: canvasContainer directly (no overlay needed)
@@ -1603,6 +1620,26 @@ function findMemberAtPos(pos) {
     return closest;
 }
 
+// Find couple midpoint dot at position (green dots)
+function findCoupleMidpointAtPos(pos) {
+    let closest = null, closestDist = 25;
+    coupleMidpoints.forEach(cp => {
+        const dist = Math.sqrt((pos.x - cp.x) ** 2 + (pos.y - cp.y) ** 2);
+        if (dist < closestDist) { closestDist = dist; closest = cp; }
+    });
+    return closest;
+}
+
+// Find either a member or couple midpoint
+function findTargetAtPos(pos) {
+    // Check couple midpoints first (they're smaller, need priority)
+    const cp = findCoupleMidpointAtPos(pos);
+    if (cp) return { type: 'couple', data: cp };
+    const m = findMemberAtPos(pos);
+    if (m) return { type: 'member', data: m };
+    return null;
+}
+
 function guessGenerationFromY(y) {
     const NODE_H = 60, V_GAP = 140, MARGIN = 120;
     if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
@@ -1639,26 +1676,65 @@ function placeMember(pos) {
 
 function handleConnect(endPos) {
     connectPreview.innerHTML = '';
-    const endMember = findMemberAtPos(endPos);
-    if (!endMember || endMember.id === connectStart) { connectStart = null; return; }
-    const startMember = familyData.members.find(m => m.id === connectStart);
-    if (!startMember) { connectStart = null; return; }
-    saveState();
-    if (startMember.generation === endMember.generation) {
-        const exists = familyData.partnerships.some(p =>
-            (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
-            (p.partner1 === endMember.id && p.partner2 === startMember.id));
-        if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
-    } else {
-        let parentId = startMember.generation < endMember.generation ? startMember.id : endMember.id;
-        let childId = startMember.generation < endMember.generation ? endMember.id : startMember.id;
-        const pp = familyData.partnerships.find(p => p.partner1 === parentId || p.partner2 === parentId);
-        if (pp && !familyData.parentChildLinks.some(l => l.childId === childId)) {
-            familyData.parentChildLinks.push({ parent1: pp.partner1, parent2: pp.partner2, childId });
+    if (!connectStart) return;
+
+    const endTarget = findTargetAtPos(endPos);
+
+    // Case 1: Started from couple midpoint → end on member = add child
+    if (connectStart.type === 'couple') {
+        const endMember = endTarget?.type === 'member' ? endTarget.data : null;
+        if (endMember) {
+            const cp = connectStart.data;
+            const exists = familyData.parentChildLinks.some(l =>
+                l.parent1 === cp.partner1 && l.parent2 === cp.partner2 && l.childId === endMember.id);
+            if (!exists) {
+                saveState();
+                familyData.parentChildLinks.push({ parent1: cp.partner1, parent2: cp.partner2, childId: endMember.id });
+                updateUI(); renderPedigree();
+            }
         }
+        connectStart = null; return;
     }
-    connectStart = null;
-    updateUI(); renderPedigree();
+
+    // Case 2: Started from member
+    if (connectStart.type === 'member') {
+        const startMember = familyData.members.find(m => m.id === connectStart.id);
+        if (!startMember) { connectStart = null; return; }
+
+        // End on couple midpoint → add as child of that couple
+        if (endTarget?.type === 'couple') {
+            const cp = endTarget.data;
+            const exists = familyData.parentChildLinks.some(l =>
+                l.parent1 === cp.partner1 && l.parent2 === cp.partner2 && l.childId === startMember.id);
+            if (!exists) {
+                saveState();
+                familyData.parentChildLinks.push({ parent1: cp.partner1, parent2: cp.partner2, childId: startMember.id });
+                updateUI(); renderPedigree();
+            }
+            connectStart = null; return;
+        }
+
+        // End on member → partnership (same gen) or parent-child (different gen)
+        const endMember = endTarget?.type === 'member' ? endTarget.data : null;
+        if (!endMember || endMember.id === startMember.id) { connectStart = null; return; }
+
+        saveState();
+        if (startMember.generation === endMember.generation) {
+            const exists = familyData.partnerships.some(p =>
+                (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
+                (p.partner1 === endMember.id && p.partner2 === startMember.id));
+            if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
+        } else {
+            let parentId = startMember.generation < endMember.generation ? startMember.id : endMember.id;
+            let childId = startMember.generation < endMember.generation ? endMember.id : startMember.id;
+            const pp = familyData.partnerships.find(p => p.partner1 === parentId || p.partner2 === parentId);
+            if (pp && !familyData.parentChildLinks.some(l => l.childId === childId)) {
+                familyData.parentChildLinks.push({ parent1: pp.partner1, parent2: pp.partner2, childId });
+            }
+        }
+        connectStart = null;
+        updateUI(); renderPedigree();
+    }
 }
 
 // ---- MOUSE events on canvasContainer ----
@@ -1667,7 +1743,14 @@ canvasContainer.addEventListener('mousedown', (e) => {
     e.preventDefault(); e.stopPropagation();
     const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
-    if (toolMode === 'connect') { const m = findMemberAtPos(pos); if (m) connectStart = m.id; return; }
+    if (toolMode === 'connect') {
+        const target = findTargetAtPos(pos);
+        if (target) {
+            if (target.type === 'member') connectStart = { type: 'member', id: target.data.id };
+            else if (target.type === 'couple') connectStart = { type: 'couple', data: target.data };
+        }
+        return;
+    }
     if (toolMode === 'move') {
         const m = findMemberAtPos(pos);
         if (m) { saveState(); movingMemberId = m.id; canvasContainer.classList.add('dragging'); }
@@ -1678,14 +1761,17 @@ canvasContainer.addEventListener('mousemove', (e) => {
     if (!toolMode) return;
     const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) {
-        const sp = lastLayout?.positions[connectStart];
+        let sp = null;
+        if (connectStart.type === 'member') sp = lastLayout?.positions[connectStart.id];
+        else if (connectStart.type === 'couple') sp = { x: connectStart.data.x, y: connectStart.data.y };
         if (sp) {
-            const vb = document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600';
             const svg = document.getElementById('pedigree-svg');
+            const vb = svg.getAttribute('viewBox') || '0 0 800 600';
             connectPreview.setAttribute('width', svg.getAttribute('width'));
             connectPreview.setAttribute('height', svg.getAttribute('height'));
             connectPreview.setAttribute('viewBox', vb);
-            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
+            const color = connectStart.type === 'couple' ? '#27ae60' : '#3498db';
+            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="${color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
         }
     }
     if (toolMode === 'move' && movingMemberId != null) {
@@ -1707,7 +1793,14 @@ canvasContainer.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
-    if (toolMode === 'connect') { const m = findMemberAtPos(pos); if (m) connectStart = m.id; return; }
+    if (toolMode === 'connect') {
+        const target = findTargetAtPos(pos);
+        if (target) {
+            if (target.type === 'member') connectStart = { type: 'member', id: target.data.id };
+            else if (target.type === 'couple') connectStart = { type: 'couple', data: target.data };
+        }
+        return;
+    }
     if (toolMode === 'move') {
         const m = findMemberAtPos(pos);
         if (m) { saveState(); movingMemberId = m.id; canvasContainer.classList.add('dragging'); }
@@ -1719,14 +1812,17 @@ canvasContainer.addEventListener('touchmove', (e) => {
     e.preventDefault();
     const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) {
-        const sp = lastLayout?.positions[connectStart];
+        let sp = null;
+        if (connectStart.type === 'member') sp = lastLayout?.positions[connectStart.id];
+        else if (connectStart.type === 'couple') sp = { x: connectStart.data.x, y: connectStart.data.y };
         if (sp) {
-            const vb = document.getElementById('pedigree-svg').getAttribute('viewBox') || '0 0 800 600';
             const svg = document.getElementById('pedigree-svg');
+            const vb = svg.getAttribute('viewBox') || '0 0 800 600';
             connectPreview.setAttribute('width', svg.getAttribute('width'));
             connectPreview.setAttribute('height', svg.getAttribute('height'));
             connectPreview.setAttribute('viewBox', vb);
-            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="#3498db" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
+            const color = connectStart.type === 'couple' ? '#27ae60' : '#3498db';
+            connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="${color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
         }
     }
     if (toolMode === 'move' && movingMemberId != null) {
