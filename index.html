@@ -399,7 +399,7 @@
     <div class="right-panel">
         <div class="canvas-container" id="canvasContainer">
             <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet"></svg>
-            <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet"></svg>
         </div>
         <div class="zoom-controls">
             <button onclick="zoomIn()" title="Yakınlaştır">+</button>
@@ -1688,18 +1688,19 @@ function toggleConsanMode(btn) {
 function cancelPlaceMode() { clearAllModes(); }
 
 // Convert mouse/touch event to SVG viewBox coordinates
-// Uses SVG's own matrix transform — handles zoom, scroll, aspect ratio perfectly
+// Uses SVG's full matrix inverse — correct under all transforms (zoom, pan, aspect ratio)
 function getSVGPos(e) {
     const svg = document.getElementById('pedigree-svg');
     const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
     const ctm = svg.getScreenCTM();
     if (ctm) {
-        return {
-            x: (touch.clientX - ctm.e) / ctm.a,
-            y: (touch.clientY - ctm.f) / ctm.d
-        };
+        const pt = svg.createSVGPoint();
+        pt.x = touch.clientX;
+        pt.y = touch.clientY;
+        const svgPt = pt.matrixTransform(ctm.inverse());
+        return { x: svgPt.x, y: svgPt.y };
     }
-    // Fallback for empty SVG
+    // Fallback for empty SVG (no viewBox yet)
     const rect = svg.getBoundingClientRect();
     return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
 }
