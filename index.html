@@ -401,6 +401,9 @@
                 <button id="connectBtn" onclick="setConnectMode(this)" title="Bağla (Çizgi Çek)">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="18" x2="20" y2="6" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><circle cx="4" cy="18" r="3" fill="#555"/><circle cx="20" cy="6" r="3" fill="#555"/></svg>
                 </button>
+                <button id="consanBtn" onclick="toggleConsanMode(this)" title="Akraba Evliliği (Çift Çizgi)" style="font-size:10px; font-weight:bold; line-height:1;">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="10" x2="20" y2="10" stroke="#555" stroke-width="2"/><line x1="4" y1="14" x2="20" y2="14" stroke="#555" stroke-width="2"/></svg>
+                </button>
                 <button id="gridBtn" onclick="toggleGrid(this)" title="Kılavuz Çizgiler">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="8" x2="20" y2="8" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="4" y1="16" x2="20" y2="16" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="8" y1="4" x2="8" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="16" y1="4" x2="16" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/></svg>
                 </button>
@@ -464,6 +467,7 @@ let zoomLevel = 1;
 let showGrid = false;
 let showConnectDots = false;
 let coupleMidpoints = []; // {x, y, partner1, partner2} — for connect mode
+let consanMode = false; // When true, new partnerships are consanguineous
 
 // ======================== MEMBER MANAGEMENT ========================
 function addOrUpdateMember() {
@@ -967,6 +971,30 @@ function computeLayout() {
         }
     });
 
+    // Normalize: ensure no negative or too-small X/Y values
+    // Shift everything right/down if any position is too close to edge
+    let minX = Infinity, minY = Infinity;
+    Object.values(positions).forEach(pos => {
+        minX = Math.min(minX, pos.x);
+        minY = Math.min(minY, pos.y);
+    });
+    const safeMargin = MARGIN;
+    if (minX < safeMargin) {
+        const shiftX = safeMargin - minX;
+        Object.values(positions).forEach(pos => pos.x += shiftX);
+        // Also update custom positions so they stay in sync
+        members.forEach(m => {
+            if (m.customX != null) m.customX += shiftX;
+        });
+    }
+    if (minY < safeMargin / 2) {
+        const shiftY = safeMargin / 2 - minY;
+        Object.values(positions).forEach(pos => pos.y += shiftY);
+        members.forEach(m => {
+            if (m.customY != null) m.customY += shiftY;
+        });
+    }
+
     // Calculate total dimensions
     let totalWidth = 0, totalHeight = 0;
     Object.values(positions).forEach(pos => {
@@ -1019,13 +1047,13 @@ function renderPedigree() {
         const pos2 = positions[p.partner2];
         if (!pos1 || !pos2) return;
 
+        // Always draw main partnership line
+        svgContent += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#333" stroke-width="1.5" />`;
+
         if (p.consanguinity) {
-            // Double line for consanguinity - two separate lines with gap
-            const dy = 3;
-            svgContent += `<line x1="${pos1.x}" y1="${pos1.y - dy}" x2="${pos2.x}" y2="${pos2.y - dy}" stroke="#333" stroke-width="1.5" />`;
-            svgContent += `<line x1="${pos1.x}" y1="${pos1.y + dy}" x2="${pos2.x}" y2="${pos2.y + dy}" stroke="#333" stroke-width="1.5" />`;
-        } else {
-            svgContent += `<line x1="${pos1.x}" y1="${pos1.y}" x2="${pos2.x}" y2="${pos2.y}" stroke="#333" stroke-width="1.5" />`;
+            // Second parallel line below for consanguinity
+            const gap = 6;
+            svgContent += `<line x1="${pos1.x}" y1="${pos1.y + gap}" x2="${pos2.x}" y2="${pos2.y + gap}" stroke="#333" stroke-width="1.5" />`;
         }
     });
 
@@ -1043,12 +1071,13 @@ function renderPedigree() {
         if (children.length === 0) return;
 
         const midX = (pos1.x + pos2.x) / 2;
-        const midY = pos1.y;
+        const midY = (pos1.y + pos2.y) / 2; // center between both partners
+        const consanGap = p.consanguinity ? 3 : 0; // center between two lines
         // Sibship line at halfway between parent and child generations
         const dropY = midY + 70;
 
-        // Vertical line from couple midpoint down
-        svgContent += `<line x1="${midX}" y1="${midY}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+        // Vertical line from couple midpoint down (from center of partnership lines)
+        svgContent += `<line x1="${midX}" y1="${midY + consanGap}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
 
         if (children.length === 1) {
             const childPos = positions[children[0]];
@@ -1095,7 +1124,7 @@ function renderPedigree() {
                     const pPos1 = positions[p.partner1];
                     const pPos2 = positions[p.partner2];
                     if (pPos1 && pPos2) {
-                        const dropY = pPos1.y + 70;
+                        const dropY = (pPos1.y + pPos2.y) / 2 + 70;
                         const meetX = (pos.x + twinPos.x) / 2;
                         const meetY = dropY + 10;
 
@@ -1241,7 +1270,7 @@ function renderPedigree() {
             const pos2 = positions[p.partner2];
             if (!pos1 || !pos2) return;
             const midX = (pos1.x + pos2.x) / 2;
-            const midY = pos1.y;
+            const midY = (pos1.y + pos2.y) / 2;
             const dropY = midY + 70;
             coupleMidpoints.push({ x: midX, y: dropY, partner1: p.partner1, partner2: p.partner2 });
             // Green dot at couple drop point
@@ -1560,7 +1589,7 @@ function clearAllModes() {
     // Hide connect dots
     if (showConnectDots) { showConnectDots = false; renderPedigree(); }
     // Don't clear grid button active state
-    document.querySelectorAll('.place-toolbar button:not(#gridBtn)').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.place-toolbar button:not(#gridBtn):not(#consanBtn)').forEach(b => b.classList.remove('active'));
 }
 
 function setPlaceMode(mode, btn) {
@@ -1588,6 +1617,10 @@ function toggleGrid(btn) {
     showGrid = !showGrid;
     btn.classList.toggle('active', showGrid);
     renderPedigree();
+}
+function toggleConsanMode(btn) {
+    consanMode = !consanMode;
+    btn.classList.toggle('active', consanMode);
 }
 function cancelPlaceMode() { clearAllModes(); }
 
@@ -1723,7 +1756,7 @@ function handleConnect(endPos) {
             const exists = familyData.partnerships.some(p =>
                 (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
                 (p.partner1 === endMember.id && p.partner2 === startMember.id));
-            if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: false });
+            if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: consanMode });
         } else {
             let parentId = startMember.generation < endMember.generation ? startMember.id : endMember.id;
             let childId = startMember.generation < endMember.generation ? endMember.id : startMember.id;
