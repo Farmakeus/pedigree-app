@@ -1757,17 +1757,41 @@ function findTargetAtPos(pos) {
 function guessGenerationFromY(y) {
     const NODE_H = 60, V_GAP = 140, MARGIN = 80;
     if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
-    const gens = {};
-    familyData.members.forEach(m => { if (!gens[m.generation]) gens[m.generation] = []; gens[m.generation].push(m); });
-    const gk = Object.keys(gens).map(Number).sort((a, b) => a - b);
-    let bestGen = gk[0], bestDist = Infinity, bestY = MARGIN + NODE_H / 2;
-    gk.forEach((g, i) => {
-        const ey = MARGIN + i * (NODE_H + V_GAP) + NODE_H / 2;
-        const d = Math.abs(y - ey);
-        if (d < bestDist) { bestDist = d; bestGen = g; bestY = ey; }
+
+    // Use ACTUAL rendered Y positions from layout (not formula)
+    // so manually-moved members are also taken into account
+    const genYMap = {}; // gen → average Y of members in that gen
+    if (lastLayout && lastLayout.positions) {
+        const genYs = {}; // gen → [Y values]
+        familyData.members.forEach(m => {
+            const pos = lastLayout.positions[m.id];
+            if (pos) {
+                if (!genYs[m.generation]) genYs[m.generation] = [];
+                genYs[m.generation].push(pos.y);
+            }
+        });
+        Object.keys(genYs).forEach(g => {
+            // Use median Y to be robust against outliers
+            const ys = genYs[g].slice().sort((a, b) => a - b);
+            genYMap[g] = ys[Math.floor(ys.length / 2)];
+        });
+    }
+
+    const gk = Object.keys(genYMap).map(Number).sort((a, b) => a - b);
+    if (gk.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
+
+    let bestGen = gk[0], bestDist = Infinity, bestY = genYMap[gk[0]];
+    gk.forEach(g => {
+        const d = Math.abs(y - genYMap[g]);
+        if (d < bestDist) { bestDist = d; bestGen = g; bestY = genYMap[g]; }
     });
-    const lastY = MARGIN + (gk.length - 1) * (NODE_H + V_GAP) + NODE_H / 2;
-    if (y > lastY + (NODE_H + V_GAP) * 0.6) { bestGen = gk[gk.length - 1] + 1; bestY = lastY + NODE_H + V_GAP; }
+    // If well below the last generation, create a new one
+    const lastGen = gk[gk.length - 1];
+    const lastY = genYMap[lastGen];
+    if (y > lastY + (NODE_H + V_GAP) * 0.6) {
+        bestGen = lastGen + 1;
+        bestY = lastY + NODE_H + V_GAP;
+    }
     return { gen: bestGen, snapY: bestY };
 }
 
@@ -1912,7 +1936,18 @@ canvasContainer.addEventListener('mouseup', (e) => {
     if (!toolMode) return;
     const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) { handleConnect(pos); return; }
-    if (toolMode === 'move' && movingMemberId != null) { movingMemberId = null; canvasContainer.classList.remove('dragging'); }
+    if (toolMode === 'move' && movingMemberId != null) {
+        // Snap Y to nearest generation line on release
+        const m = familyData.members.find(x => x.id === movingMemberId);
+        if (m) {
+            const { gen, snapY } = guessGenerationFromY(m.customY != null ? m.customY : pos.y);
+            m.generation = gen;
+            m.customY = snapY;
+            renderPedigree();
+        }
+        movingMemberId = null;
+        canvasContainer.classList.remove('dragging');
+    }
 });
 
 // ---- TOUCH events ----
@@ -1964,7 +1999,17 @@ canvasContainer.addEventListener('touchend', (e) => {
     e.preventDefault();
     const pos = getSVGPos(e);
     if (toolMode === 'connect' && connectStart != null) { handleConnect(pos); return; }
-    if (toolMode === 'move') { movingMemberId = null; canvasContainer.classList.remove('dragging'); }
+    if (toolMode === 'move' && movingMemberId != null) {
+        const m = familyData.members.find(x => x.id === movingMemberId);
+        if (m) {
+            const { gen, snapY } = guessGenerationFromY(m.customY != null ? m.customY : pos.y);
+            m.generation = gen;
+            m.customY = snapY;
+            renderPedigree();
+        }
+        movingMemberId = null;
+        canvasContainer.classList.remove('dragging');
+    }
 }, { passive: false });
 
 // Initialize
