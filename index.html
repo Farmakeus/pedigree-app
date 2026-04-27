@@ -1131,31 +1131,38 @@ function renderPedigree() {
         const midX = (pos1.x + pos2.x) / 2;
         const lineY = (pos1.y + pos2.y) / 2; // partnership line Y
         const consanGap = p.consanguinity ? 3 : 0;
-        const dropY = lineY + 70;
+
+        // Sibship line Y: place it just above children (20px above child top)
+        // This puts the horizontal jog closer to the children, avoiding awkward S-shapes
+        const childPositions = children.map(id => positions[id]);
+        const minChildY = Math.min(...childPositions.map(p => p.y));
+        const sibshipY = minChildY - NODE_R - 20;
 
         // Vertical line from partnership midpoint down to sibship level
-        svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+        svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
 
         if (children.length === 1) {
             const childPos = positions[children[0]];
-            // Orthogonal: horizontal then vertical (L-shape or straight down)
-            svgContent += `<line x1="${midX}" y1="${dropY}" x2="${childPos.x}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
-            svgContent += `<line x1="${childPos.x}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            // If child is directly below midX, just one vertical line
+            if (Math.abs(childPos.x - midX) < 1) {
+                svgContent += `<line x1="${midX}" y1="${sibshipY}" x2="${midX}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            } else {
+                // L-shape: horizontal then vertical
+                svgContent += `<line x1="${midX}" y1="${sibshipY}" x2="${childPos.x}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${childPos.x}" y1="${sibshipY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            }
         } else {
-            // Horizontal sibship line
-            const childPositions = children.map(id => positions[id]);
+            // Horizontal sibship line spanning all children
             const minChildX = Math.min(...childPositions.map(p => p.x));
             const maxChildX = Math.max(...childPositions.map(p => p.x));
-
-            // Extend sibship line to cover midX if needed
             const lineMinX = Math.min(minChildX, midX);
             const lineMaxX = Math.max(maxChildX, midX);
-            svgContent += `<line x1="${lineMinX}" y1="${dropY}" x2="${lineMaxX}" y2="${dropY}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${lineMinX}" y1="${sibshipY}" x2="${lineMaxX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
 
-            // Vertical lines down to each child (from sibship line to child top)
+            // Vertical lines down to each child
             children.forEach(childId => {
                 const childPos = positions[childId];
-                svgContent += `<line x1="${childPos.x}" y1="${dropY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${childPos.x}" y1="${sibshipY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
             });
         }
     });
