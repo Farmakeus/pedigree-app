@@ -399,12 +399,70 @@
         .minimap-toggle.active { background: #3498db; color: white; }
         body.dark-theme .minimap { background: rgba(40,44,52,0.95); border-color: #3a3f48; }
         body.dark-theme .minimap-toggle { background: #242830; color: #ddd; border-color: #3a3f48; }
+
+        /* ===== Mode Toggle (Rare disease vs Cancer) ===== */
+        .mode-toggle {
+            display: inline-flex; background: rgba(255,255,255,0.1); border-radius: 8px;
+            padding: 3px; margin-right: 12px;
+        }
+        .mode-toggle button {
+            padding: 6px 12px; border: none; background: transparent; color: rgba(255,255,255,0.75);
+            cursor: pointer; border-radius: 6px; font-size: 12px; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .mode-toggle button.active {
+            background: white; color: #2c3e50; font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .mode-toggle button:hover:not(.active) { color: white; }
+
+        /* ===== Cancer-specific UI ===== */
+        .cancer-section { display: none; }
+        body.mode-cancer .cancer-section { display: block; }
+        body.mode-cancer .rare-only { display: none; }
+        .cancer-list-item {
+            display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+            background: #f8f9fa; border-radius: 4px; margin-bottom: 4px; font-size: 12px;
+        }
+        .cancer-list-item .cancer-color {
+            width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+        }
+        .cancer-list-item .cancer-text { flex: 1; }
+        .cancer-list-item .cancer-remove {
+            cursor: pointer; color: #999; padding: 0 4px;
+        }
+        .cancer-list-item .cancer-remove:hover { color: #e74c3c; }
+        .cancer-form-row {
+            display: grid; grid-template-columns: 1fr 70px auto; gap: 6px; align-items: end;
+        }
+        body.dark-theme .cancer-list-item { background: #2a2e36; color: #ddd; }
+
+        /* Cancer autocomplete */
+        .autocomplete-wrap { position: relative; }
+        .autocomplete-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ddd; border-radius: 4px;
+            max-height: 180px; overflow-y: auto; z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none;
+        }
+        .autocomplete-list.open { display: block; }
+        .autocomplete-item {
+            padding: 6px 10px; cursor: pointer; font-size: 12px;
+        }
+        .autocomplete-item:hover, .autocomplete-item.active { background: #eaf2fd; color: #3498db; }
+        body.dark-theme .autocomplete-list { background: #242830; border-color: #3a3f48; }
+        body.dark-theme .autocomplete-item { color: #ddd; }
+        body.dark-theme .autocomplete-item:hover { background: #2f3540; color: #5dade2; }
     </style>
 </head>
 <body>
 
 <div class="app-header">
     <h1>Pedigri Çizim Uygulaması</h1>
+    <div class="mode-toggle" id="modeToggle">
+        <button class="active" data-mode="rare" onclick="setMode('rare')" title="Genetik hastalık pedigresi">🧬 Nadir Hastalık</button>
+        <button data-mode="cancer" onclick="setMode('cancer')" title="Onkogenetik kanser pedigresi">🩸 Kanser Pedigresi</button>
+    </div>
     <div class="header-actions">
         <button onclick="saveToFile()" title="JSON olarak kaydet">💾 Kaydet</button>
         <button onclick="loadFromFile()" title="JSON yükle">📂 Yükle</button>
@@ -507,15 +565,37 @@
                 </div>
             </details>
 
-            <div class="section-title">Hastalıklar</div>
-            <div class="form-group">
-                <label>Hastalık / Fenotip</label>
-                <div style="display:flex;gap:6px;">
-                    <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis">
-                    <button class="btn btn-sm btn-primary" onclick="addDiseaseToMember()">+</button>
+            <div class="rare-only">
+                <div class="section-title">Hastalıklar</div>
+                <div class="form-group">
+                    <label>Hastalık / Fenotip</label>
+                    <div style="display:flex;gap:6px;">
+                        <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis">
+                        <button class="btn btn-sm btn-primary" onclick="addDiseaseToMember()">+</button>
+                    </div>
                 </div>
+                <div id="diseaseList" style="margin-bottom:12px;"></div>
             </div>
-            <div id="diseaseList" style="margin-bottom:12px;"></div>
+
+            <div class="cancer-section">
+                <div class="section-title">🩸 Kanser/Tümör (max 3)</div>
+                <div class="cancer-form-row">
+                    <div class="autocomplete-wrap form-group" style="margin:0;">
+                        <input type="text" id="cancerTypeInput" placeholder="Kanser türü..." autocomplete="off"
+                               oninput="showCancerSuggestions()" onfocus="showCancerSuggestions()" onblur="setTimeout(hideCancerSuggestions, 200)">
+                        <div class="autocomplete-list" id="cancerSuggestions"></div>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <input type="number" id="cancerAgeInput" placeholder="Yaş" min="0" max="120">
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="addCancerToMember()" style="height:34px;">+</button>
+                </div>
+                <div class="checkbox-group" style="margin-top:6px;">
+                    <input type="checkbox" id="cancerBilateral">
+                    <label for="cancerBilateral">Bilateral (çift taraflı)</label>
+                </div>
+                <div id="cancerList" style="margin-top:8px;"></div>
+            </div>
 
             <div class="section-title">İkiz Durumu</div>
             <div class="form-group">
@@ -547,8 +627,10 @@
 
             <div style="margin-top:16px; border-top:1px solid #eee; padding-top:12px;">
                 <div style="font-size:12px; color:#888; margin-bottom:8px; font-weight:600;">📋 Hazır Şablonlar</div>
-                <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
-                <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+                <div id="templateButtons">
+                    <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
+                    <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+                </div>
             </div>
         </div>
 
@@ -768,12 +850,43 @@ const DISEASE_COLORS = [
 
 let lastLayout = null; // cached layout for hit-testing (move/connect tools)
 
+// Cancer type list for autocomplete (Turkish, with English in parens for searchability)
+const CANCER_TYPES = [
+    'Meme Kanseri', 'Yumurtalık Kanseri', 'Kolon Kanseri', 'Rektum Kanseri',
+    'Endometrium Kanseri', 'Pankreas Kanseri', 'Prostat Kanseri', 'Tiroid Kanseri',
+    'Mide Kanseri', 'Akciğer Kanseri', 'Melanom', 'Bazal Hücreli Cilt Ca',
+    'Skuamoz Hücreli Cilt Ca', 'Lösemi (AML)', 'Lösemi (KML)', 'Lösemi (ALL)', 'Lösemi (KLL)',
+    'Hodgkin Lenfoma', 'Non-Hodgkin Lenfoma', 'Multipl Miyelom',
+    'Beyin Tümörü (Glioblastoma)', 'Beyin Tümörü (Astrositom)', 'Meningiom',
+    'Karaciğer Kanseri (HCC)', 'Safra Yolu Kanseri', 'Mesane Kanseri',
+    'Böbrek Kanseri (RCC)', 'Testis Kanseri', 'Serviks Kanseri', 'Vulva Kanseri',
+    'Baş-Boyun Kanseri', 'Tiroid (Medüller)', 'Tiroid (Papiller)', 'Tiroid (Foliküler)',
+    'Adrenal Kanser', 'Feokromositoma', 'Paraganglioma', 'GIST',
+    'Sarkom (Yumuşak doku)', 'Osteosarkom', 'Ewing Sarkomu', 'Retinoblastoma',
+    'Wilms Tümörü', 'Nöroblastoma', 'Hepatoblastoma'
+];
+
+// Color palette for cancers (distinct colors)
+const CANCER_COLORS = [
+    '#e74c3c', '#3498db', '#27ae60', '#f39c12', '#9b59b6',
+    '#1abc9c', '#e67e22', '#34495e', '#c0392b', '#8e44ad',
+    '#16a085', '#d35400', '#7f8c8d'
+];
+
+function getCancerColor(cancerType) {
+    // Stable color per cancer type
+    let hash = 0;
+    for (let i = 0; i < cancerType.length; i++) hash = (hash * 31 + cancerType.charCodeAt(i)) | 0;
+    return CANCER_COLORS[Math.abs(hash) % CANCER_COLORS.length];
+}
+
 let familyData = {
     members: [],
     partnerships: [],
     parentChildLinks: [],
     diseases: new Set(),
-    nextId: 1
+    nextId: 1,
+    mode: 'rare'  // 'rare' or 'cancer'
 };
 
 let currentDiseases = [];
@@ -803,6 +916,7 @@ function addOrUpdateMember() {
         adopted: document.getElementById('memberAdopted').value,
         variant: document.getElementById('memberVariant').value.trim(),
         diseases: [...currentDiseases],
+        cancers: [...currentCancers],
         twinType: document.getElementById('memberTwinType').value,
         twinPartnerId: document.getElementById('memberTwinPartner').value ? parseInt(document.getElementById('memberTwinPartner').value) : null,
         note: document.getElementById('memberNote').value.trim()
@@ -863,8 +977,10 @@ function editMember(id) {
     document.getElementById('memberVariant').value = m.variant || '';
     document.getElementById('memberTwinType').value = m.twinType || 'none';
     document.getElementById('memberNote').value = m.note || '';
-    currentDiseases = [...m.diseases];
+    currentDiseases = [...(m.diseases || [])];
+    currentCancers = [...(m.cancers || [])];
     updateDiseaseListUI();
+    updateCancerListUI();
 
     document.getElementById('addMemberBtn').textContent = 'Güncelle';
     document.getElementById('cancelEditBtn').style.display = '';
@@ -908,7 +1024,9 @@ function resetForm() {
     document.getElementById('memberTwinPartner').value = '';
     document.getElementById('memberNote').value = '';
     currentDiseases = [];
+    currentCancers = [];
     updateDiseaseListUI();
+    updateCancerListUI();
 }
 
 // ======================== DISEASE MANAGEMENT ========================
@@ -936,6 +1054,99 @@ function updateDiseaseListUI() {
         const color = DISEASE_COLORS[colorIdx % DISEASE_COLORS.length];
         return `<span class="disease-tag" style="background:${color}">${d} <span style="cursor:pointer;margin-left:4px;" onclick="removeDiseaseFromMember(${i})">×</span></span>`;
     }).join('');
+}
+
+// ======================== MODE TOGGLE ========================
+function setMode(mode) {
+    familyData.mode = mode;
+    document.body.classList.toggle('mode-cancer', mode === 'cancer');
+    document.body.classList.toggle('mode-rare', mode === 'rare');
+    document.querySelectorAll('#modeToggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    updateUI();
+    renderPedigree();
+    updateLoadedTemplatesList();
+}
+
+function updateLoadedTemplatesList() {
+    // Update template buttons based on mode
+    const tmplContainer = document.getElementById('templateButtons');
+    if (!tmplContainer) return;
+    if (familyData.mode === 'cancer') {
+        tmplContainer.innerHTML = `
+            <button class="sample-btn" onclick="loadTemplateBRCA()">BRCA1/2 Ailesi (Meme/Yumurtalık)</button>
+            <button class="sample-btn" onclick="loadTemplateLynch()">Lynch Sendromu (Kolon/Endometrium)</button>
+            <button class="sample-btn" onclick="loadTemplateLiFraumeni()">Li-Fraumeni Sendromu</button>
+        `;
+    } else {
+        tmplContainer.innerHTML = `
+            <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
+            <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+        `;
+    }
+}
+
+// ======================== CANCER MANAGEMENT ========================
+let currentCancers = []; // [{type, age, bilateral}, ...]
+const MAX_CANCERS_PER_MEMBER = 3;
+
+function addCancerToMember() {
+    if (currentCancers.length >= MAX_CANCERS_PER_MEMBER) {
+        alert(`Bir bireye en fazla ${MAX_CANCERS_PER_MEMBER} kanser ekleyebilirsiniz.`);
+        return;
+    }
+    const typeInput = document.getElementById('cancerTypeInput');
+    const ageInput = document.getElementById('cancerAgeInput');
+    const bilateralInput = document.getElementById('cancerBilateral');
+    const type = typeInput.value.trim();
+    if (!type) { alert('Kanser türü girin.'); return; }
+    const age = ageInput.value ? parseInt(ageInput.value) : null;
+    currentCancers.push({ type, age, bilateral: bilateralInput.checked });
+    typeInput.value = '';
+    ageInput.value = '';
+    bilateralInput.checked = false;
+    updateCancerListUI();
+}
+
+function removeCancerFromMember(idx) {
+    currentCancers.splice(idx, 1);
+    updateCancerListUI();
+}
+
+function updateCancerListUI() {
+    const container = document.getElementById('cancerList');
+    if (!container) return;
+    container.innerHTML = currentCancers.map((c, i) => {
+        const color = getCancerColor(c.type);
+        const ageText = c.age != null ? ` (${c.age}y)` : '';
+        const bilatText = c.bilateral ? ' · bilateral' : '';
+        return `<div class="cancer-list-item">
+            <div class="cancer-color" style="background:${color}"></div>
+            <div class="cancer-text">${c.type}${ageText}${bilatText}</div>
+            <span class="cancer-remove" onclick="removeCancerFromMember(${i})">✕</span>
+        </div>`;
+    }).join('');
+}
+
+function showCancerSuggestions() {
+    const input = document.getElementById('cancerTypeInput');
+    const list = document.getElementById('cancerSuggestions');
+    const q = input.value.trim().toLowerCase();
+    const matches = CANCER_TYPES.filter(c => c.toLowerCase().includes(q)).slice(0, 8);
+    if (matches.length === 0) { list.classList.remove('open'); return; }
+    list.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="selectCancerSuggestion('${m.replace(/'/g, "\\'")}')">${m}</div>`).join('');
+    list.classList.add('open');
+}
+
+function hideCancerSuggestions() {
+    document.getElementById('cancerSuggestions').classList.remove('open');
+}
+
+function selectCancerSuggestion(type) {
+    document.getElementById('cancerTypeInput').value = type;
+    hideCancerSuggestions();
+    document.getElementById('cancerAgeInput').focus();
 }
 
 // ======================== RELATIONSHIPS ========================
@@ -1054,6 +1265,7 @@ function updateMemberList() {
                 m.note || '',
                 m.variant || '',
                 ...(m.diseases || []),
+                ...((m.cancers || []).map(c => c.type)),
                 'birey ' + m.id
             ].join(' ').toLowerCase();
             if (!haystack.includes(search)) return false;
@@ -1211,24 +1423,53 @@ function updateStatsPanel() {
     panel.style.display = '';
 
     const total = familyData.members.length;
-    const affected = familyData.members.filter(m => m.affected).length;
-    const carriers = familyData.members.filter(m => m.carrier).length;
-    const deceased = familyData.members.filter(m => m.deceased).length;
     const generations = new Set(familyData.members.map(m => m.generation)).size;
     const males = familyData.members.filter(m => m.sex === 'male').length;
     const females = familyData.members.filter(m => m.sex === 'female').length;
+    const deceased = familyData.members.filter(m => m.deceased).length;
     const couples = familyData.partnerships.length;
 
-    grid.innerHTML = `
-        <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
-        <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
-        <div class="stat-card affected"><div class="stat-num">${affected}</div><div class="stat-label">Etkilenmiş</div></div>
-        <div class="stat-card carrier"><div class="stat-num">${carriers}</div><div class="stat-label">Taşıyıcı</div></div>
-        <div class="stat-card deceased"><div class="stat-num">${deceased}</div><div class="stat-label">Vefat Etmiş</div></div>
-        <div class="stat-card"><div class="stat-num">♂${males} ♀${females}</div><div class="stat-label">Cinsiyet Dağılımı</div></div>
-        <div class="stat-card"><div class="stat-num">${couples}</div><div class="stat-label">Eş İlişkisi</div></div>
-        <div class="stat-card"><div class="stat-num">${total > 0 ? Math.round(affected/total*100) : 0}%</div><div class="stat-label">Etkilenme Oranı</div></div>
-    `;
+    if (familyData.mode === 'cancer') {
+        // Cancer-specific stats
+        const allCancers = familyData.members.flatMap(m => m.cancers || []);
+        const totalCancers = allCancers.length;
+        const affectedMembers = familyData.members.filter(m => (m.cancers || []).length > 0).length;
+        const ages = allCancers.filter(c => c.age != null).map(c => c.age);
+        const avgAge = ages.length > 0 ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+        const youngOnset = allCancers.filter(c => c.age != null && c.age < 50).length;
+        const bilateral = allCancers.filter(c => c.bilateral).length;
+        // Most common cancer type
+        const typeCounts = {};
+        allCancers.forEach(c => { typeCounts[c.type] = (typeCounts[c.type] || 0) + 1; });
+        const topCancer = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+        const topCancerLabel = topCancer ? `${topCancer[0].slice(0, 12)} ×${topCancer[1]}` : '-';
+
+        grid.innerHTML = `
+            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
+            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
+            <div class="stat-card affected"><div class="stat-num">${totalCancers}</div><div class="stat-label">Toplam Tümör</div></div>
+            <div class="stat-card affected"><div class="stat-num">${affectedMembers}</div><div class="stat-label">Etkilenmiş Birey</div></div>
+            <div class="stat-card"><div class="stat-num">${avgAge || '-'}${avgAge?'y':''}</div><div class="stat-label">Ort. Tanı Yaşı</div></div>
+            <div class="stat-card carrier"><div class="stat-num">${youngOnset}</div><div class="stat-label">Erken Yaş (&lt;50)</div></div>
+            <div class="stat-card"><div class="stat-num">${bilateral}</div><div class="stat-label">Bilateral</div></div>
+            <div class="stat-card" style="font-size:11px;"><div class="stat-num" style="font-size:13px;">${topCancerLabel}</div><div class="stat-label">En Sık Kanser</div></div>
+        `;
+    } else {
+        // Rare disease stats (original)
+        const affected = familyData.members.filter(m => m.affected).length;
+        const carriers = familyData.members.filter(m => m.carrier).length;
+
+        grid.innerHTML = `
+            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
+            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
+            <div class="stat-card affected"><div class="stat-num">${affected}</div><div class="stat-label">Etkilenmiş</div></div>
+            <div class="stat-card carrier"><div class="stat-num">${carriers}</div><div class="stat-label">Taşıyıcı</div></div>
+            <div class="stat-card deceased"><div class="stat-num">${deceased}</div><div class="stat-label">Vefat Etmiş</div></div>
+            <div class="stat-card"><div class="stat-num">♂${males} ♀${females}</div><div class="stat-label">Cinsiyet Dağılımı</div></div>
+            <div class="stat-card"><div class="stat-num">${couples}</div><div class="stat-label">Eş İlişkisi</div></div>
+            <div class="stat-card"><div class="stat-num">${total > 0 ? Math.round(affected/total*100) : 0}%</div><div class="stat-label">Etkilenme Oranı</div></div>
+        `;
+    }
 }
 
 // ======================== PEDIGREE VALIDATION ========================
@@ -1897,6 +2138,58 @@ function renderPedigree() {
             }
         }
 
+        // Cancer sectors (multi-cancer color-coded sections inside the shape)
+        if (m.cancers && m.cancers.length > 0) {
+            const cancers = m.cancers;
+            const r = NODE_R - 2;
+            if (cancers.length === 1) {
+                const c = cancers[0];
+                const color = getCancerColor(c.type);
+                if (m.sex === 'female') {
+                    svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${color}" opacity="0.85"/>`;
+                } else if (m.sex === 'male') {
+                    svgContent += `<rect x="${pos.x - r}" y="${pos.y - r}" width="${r*2}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
+                } else {
+                    svgContent += `<polygon points="${pos.x},${pos.y - r} ${pos.x + r},${pos.y} ${pos.x},${pos.y + r} ${pos.x - r},${pos.y}" fill="${color}" opacity="0.85"/>`;
+                }
+            } else {
+                // 2 or 3 cancers: divide shape into sectors
+                const sectorAngle = 360 / cancers.length;
+                cancers.forEach((c, i) => {
+                    const color = getCancerColor(c.type);
+                    const startAngle = (i * sectorAngle - 90) * Math.PI / 180;
+                    const endAngle = ((i + 1) * sectorAngle - 90) * Math.PI / 180;
+                    if (m.sex === 'female') {
+                        const x1 = pos.x + r * Math.cos(startAngle);
+                        const y1 = pos.y + r * Math.sin(startAngle);
+                        const x2 = pos.x + r * Math.cos(endAngle);
+                        const y2 = pos.y + r * Math.sin(endAngle);
+                        const largeArc = sectorAngle > 180 ? 1 : 0;
+                        svgContent += `<path d="M${pos.x},${pos.y} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}" opacity="0.85"/>`;
+                    } else {
+                        // For squares: divide vertically (left/right halves) for 2 cancers, or 3 horizontal stripes for 3
+                        if (cancers.length === 2) {
+                            const w = r;
+                            if (i === 0) svgContent += `<rect x="${pos.x - r}" y="${pos.y - r}" width="${w}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
+                            else svgContent += `<rect x="${pos.x}" y="${pos.y - r}" width="${w}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
+                        } else {
+                            // 3 cancers: horizontal stripes
+                            const h = (r * 2) / 3;
+                            svgContent += `<rect x="${pos.x - r}" y="${pos.y - r + i*h}" width="${r*2}" height="${h}" fill="${color}" opacity="0.85"/>`;
+                        }
+                    }
+                });
+            }
+            // Re-draw outline on top
+            if (m.sex === 'female') {
+                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="none" stroke="#333" stroke-width="2"/>`;
+            } else if (m.sex === 'male') {
+                svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R*2}" height="${NODE_R*2}" fill="none" stroke="#333" stroke-width="2"/>`;
+            } else {
+                svgContent += `<polygon points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="none" stroke="#333" stroke-width="2"/>`;
+            }
+        }
+
         // Deceased slash
         if (m.deceased) {
             svgContent += `<line x1="${pos.x - NODE_R - 5}" y1="${pos.y + NODE_R + 5}" x2="${pos.x + NODE_R + 5}" y2="${pos.y - NODE_R - 5}" stroke="#333" stroke-width="2" />`;
@@ -1938,6 +2231,19 @@ function renderPedigree() {
         if (m.variant) {
             svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600" font-family="monospace">${m.variant}</text>`;
             labelY += 12;
+        }
+
+        // Cancer labels (compact: each on own line)
+        if (m.cancers && m.cancers.length > 0) {
+            m.cancers.forEach(c => {
+                const color = getCancerColor(c.type);
+                const ageText = c.age != null ? ` ${c.age}y` : '';
+                const bilatText = c.bilateral ? ' bil' : '';
+                // Abbreviate long names
+                const shortName = c.type.length > 22 ? c.type.slice(0, 20) + '…' : c.type;
+                svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="${color}" font-weight="600">● ${shortName}${ageText}${bilatText}</text>`;
+                labelY += 11;
+            });
         }
 
         // Note
@@ -2183,12 +2489,146 @@ function loadTemplateConsanguineous() {
     renderPedigree();
 }
 
+// ======================== CANCER TEMPLATES ========================
+function addMemberWithCancers(sex, gen, name, age, deceased, proband, cancers, variant, note) {
+    const id = familyData.nextId++;
+    familyData.members.push({
+        id, name: name || '', sex, generation: gen, age: age || null,
+        affected: (cancers && cancers.length > 0), carrier: false, deceased: deceased || false,
+        proband: proband || false, abort: false, diseases: [],
+        cancers: cancers || [], variant: variant || '',
+        twinType: 'none', twinPartnerId: null, note: note || '',
+        pregnancy: 'none', adopted: 'none',
+        customX: null, customY: null
+    });
+    return id;
+}
+
+function loadTemplateBRCA() {
+    clearAllSilent();
+    setMode('cancer');
+
+    // Gen I - Etkilenmiş büyükanne (BRCA1+ olabilir)
+    const gp1 = addMemberWithCancers('male', 1, '', 75, true, false, [], '', '');         // 1
+    const gp2 = addMemberWithCancers('female', 1, '', null, true, false,
+        [{ type: 'Meme Kanseri', age: 48, bilateral: true }], 'BRCA1+', '');                // 2
+    const gp3 = addMemberWithCancers('male', 1, '', 78, false, false, [], '', '');         // 3
+    const gp4 = addMemberWithCancers('female', 1, '', 80, false, false, [], '', '');       // 4
+
+    // Gen II - Taşıyıcı kız ve sağlıklı eşi
+    const m1 = addMemberWithCancers('female', 2, '', null, true, false,
+        [{ type: 'Meme Kanseri', age: 42, bilateral: false },
+         { type: 'Yumurtalık Kanseri', age: 50, bilateral: false }], 'BRCA1+', ''); // 5
+    const m2 = addMemberWithCancers('male', 2, '', 55, false, false, [], '', '');        // 6
+    // Etkilenmemiş kardeş ve eşi
+    const m3 = addMemberWithCancers('male', 2, '', 50, false, false, [], '', '');        // 7
+    const m4 = addMemberWithCancers('female', 2, '', 48, false, false, [], '', '');      // 8
+
+    // Gen III - Çocuklar
+    const c1 = addMemberWithCancers('female', 3, '', null, true, true,
+        [{ type: 'Meme Kanseri', age: 35, bilateral: false }], 'BRCA1+', 'Proband'); // 9
+    const c2 = addMemberWithCancers('male', 3, '', 28, false, false, [], 'BRCA1+', 'Taşıyıcı'); // 10
+    const c3 = addMemberWithCancers('female', 3, '', 22, false, false, [], '', '');     // 11
+
+    familyData.partnerships.push(
+        { partner1: gp1, partner2: gp2, consanguinity: false },
+        { partner1: gp3, partner2: gp4, consanguinity: false },
+        { partner1: m1, partner2: m2, consanguinity: false },
+        { partner1: m3, partner2: m4, consanguinity: false }
+    );
+    familyData.parentChildLinks.push(
+        { parent1: gp1, parent2: gp2, childId: m1 },
+        { parent1: gp1, parent2: gp2, childId: m3 },
+        { parent1: gp3, parent2: gp4, childId: m2 },
+        { parent1: gp3, parent2: gp4, childId: m4 },
+        { parent1: m1, parent2: m2, childId: c1 },
+        { parent1: m1, parent2: m2, childId: c2 },
+        { parent1: m1, parent2: m2, childId: c3 }
+    );
+    updateUI(); renderPedigree();
+}
+
+function loadTemplateLynch() {
+    clearAllSilent();
+    setMode('cancer');
+
+    // Lynch sendromu (HNPCC): Kolon, Endometrium, Mide, Yumurtalık, Üriner sistem
+    const gp1 = addMemberWithCancers('male', 1, '', null, true, false,
+        [{ type: 'Kolon Kanseri', age: 52, bilateral: false }], 'MLH1+', '');           // 1
+    const gp2 = addMemberWithCancers('female', 1, '', null, true, false,
+        [{ type: 'Endometrium Kanseri', age: 58, bilateral: false }], '', '');           // 2
+
+    // Gen II
+    const m1 = addMemberWithCancers('male', 2, '', null, true, false,
+        [{ type: 'Kolon Kanseri', age: 45, bilateral: false },
+         { type: 'Mide Kanseri', age: 55, bilateral: false }], 'MLH1+', '');             // 3
+    const m2 = addMemberWithCancers('female', 2, '', 50, false, false, [], '', '');     // 4
+    const m3 = addMemberWithCancers('female', 2, '', null, true, false,
+        [{ type: 'Endometrium Kanseri', age: 48, bilateral: false }], 'MLH1+', '');     // 5
+    const m4 = addMemberWithCancers('male', 2, '', 52, false, false, [], '', '');       // 6
+
+    // Gen III - Proband
+    const c1 = addMemberWithCancers('male', 3, '', null, true, true,
+        [{ type: 'Kolon Kanseri', age: 38, bilateral: false }], 'MLH1+', 'Proband');    // 7
+    const c2 = addMemberWithCancers('female', 3, '', 30, false, false, [], 'MLH1+', 'Taşıyıcı'); // 8
+    const c3 = addMemberWithCancers('female', 3, '', 25, false, false, [], '', '');     // 9
+
+    familyData.partnerships.push(
+        { partner1: gp1, partner2: gp2, consanguinity: false },
+        { partner1: m1, partner2: m2, consanguinity: false },
+        { partner1: m3, partner2: m4, consanguinity: false }
+    );
+    familyData.parentChildLinks.push(
+        { parent1: gp1, parent2: gp2, childId: m1 },
+        { parent1: gp1, parent2: gp2, childId: m3 },
+        { parent1: m1, parent2: m2, childId: c1 },
+        { parent1: m1, parent2: m2, childId: c2 },
+        { parent1: m1, parent2: m2, childId: c3 }
+    );
+    updateUI(); renderPedigree();
+}
+
+function loadTemplateLiFraumeni() {
+    clearAllSilent();
+    setMode('cancer');
+
+    // Li-Fraumeni: TP53 mutasyonu, çoklu primer kanserler, erken yaş
+    const gp1 = addMemberWithCancers('male', 1, '', null, true, false,
+        [{ type: 'Sarkom (Yumuşak doku)', age: 35, bilateral: false }], 'TP53+', '');    // 1
+    const gp2 = addMemberWithCancers('female', 1, '', 70, false, false, [], '', '');     // 2
+
+    // Gen II - Etkilenmiş anne (multiple primer kanserler)
+    const m1 = addMemberWithCancers('female', 2, '', null, true, false,
+        [{ type: 'Meme Kanseri', age: 28, bilateral: true },
+         { type: 'Sarkom (Yumuşak doku)', age: 35, bilateral: false }], 'TP53+', '');    // 3
+    const m2 = addMemberWithCancers('male', 2, '', 45, false, false, [], '', '');       // 4
+
+    // Gen III - Çocuklar (çocukluk çağı kanserleri)
+    const c1 = addMemberWithCancers('male', 3, '', null, true, true,
+        [{ type: 'Beyin Tümörü (Astrositom)', age: 8, bilateral: false }], 'TP53+', 'Proband'); // 5
+    const c2 = addMemberWithCancers('female', 3, '', null, true, false,
+        [{ type: 'Osteosarkom', age: 12, bilateral: false }], 'TP53+', '');              // 6
+    const c3 = addMemberWithCancers('male', 3, '', 18, false, false, [], '', '');       // 7
+
+    familyData.partnerships.push(
+        { partner1: gp1, partner2: gp2, consanguinity: false },
+        { partner1: m1, partner2: m2, consanguinity: false }
+    );
+    familyData.parentChildLinks.push(
+        { parent1: gp1, parent2: gp2, childId: m1 },
+        { parent1: m1, parent2: m2, childId: c1 },
+        { parent1: m1, parent2: m2, childId: c2 },
+        { parent1: m1, parent2: m2, childId: c3 }
+    );
+    updateUI(); renderPedigree();
+}
+
 function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proband, diseases, twinType, twinPId, note, abort, customX, customY) {
     const member = {
         id: familyData.nextId++, name, sex, generation: gen, age,
         affected, carrier, deceased, proband, abort: abort || false, diseases: [...diseases],
         twinType: twinType || 'none', twinPartnerId: twinPId, note: note || '',
-        pregnancy: 'none', adopted: 'none', variant: '',
+        pregnancy: 'none', adopted: 'none', variant: '', cancers: [],
         customX: customX || null, customY: customY || null
     };
     diseases.forEach(d => familyData.diseases.add(d));
@@ -2197,8 +2637,10 @@ function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proba
 }
 
 function clearAllSilent() {
-    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1 };
+    const prevMode = familyData.mode || 'rare';
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: prevMode };
     currentDiseases = [];
+    currentCancers = [];
     editingMemberId = null;
 }
 
@@ -2673,7 +3115,8 @@ function serializeFamilyData() {
         parentChildLinks: familyData.parentChildLinks,
         diseases: [...familyData.diseases],
         nextId: familyData.nextId,
-        version: 1
+        mode: familyData.mode || 'rare',
+        version: 2
     };
 }
 
@@ -2684,8 +3127,11 @@ function loadFamilyData(data) {
     familyData.parentChildLinks = data.parentChildLinks || [];
     familyData.diseases = new Set(data.diseases || []);
     familyData.nextId = data.nextId || (Math.max(0, ...familyData.members.map(m => m.id)) + 1);
+    familyData.mode = data.mode || 'rare';
     currentDiseases = [];
+    currentCancers = [];
     editingMemberId = null;
+    setMode(familyData.mode);
     updateUI();
     renderPedigree();
     return true;
@@ -2859,6 +3305,13 @@ function showMemberTooltip(member, clientX, clientY) {
         if (flags.length) rows.push(`<div class="tip-row">Durum: ${flags.join(', ')}</div>`);
         if (member.diseases && member.diseases.length) rows.push(`<div class="tip-row">Hastalık: ${member.diseases.join(', ')}</div>`);
         if (member.variant) rows.push(`<div class="tip-row" style="color:#bb8fce">🧬 ${member.variant}</div>`);
+        if (member.cancers && member.cancers.length > 0) {
+            member.cancers.forEach(c => {
+                const ageText = c.age != null ? ` (${c.age}y)` : '';
+                const bilatText = c.bilateral ? ' bilateral' : '';
+                rows.push(`<div class="tip-row" style="color:#ff7979">🩸 ${c.type}${ageText}${bilatText}</div>`);
+            });
+        }
         if (member.note) rows.push(`<div class="tip-row" style="font-style:italic; opacity:0.85">${member.note}</div>`);
         tooltipEl.innerHTML = rows.join('');
         lastTooltipMember = member.id;
@@ -3046,6 +3499,9 @@ try {
         setTimeout(startTour, 600);
     }
 } catch (e) {}
+
+// Apply mode (default 'rare', or whatever was loaded)
+setMode(familyData.mode || 'rare');
 
 // Initialize
 renderPedigree();
