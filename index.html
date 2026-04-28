@@ -399,13 +399,26 @@
             <details class="extra-conditions" style="margin:8px 0 12px 0; border:1px solid #e0e0e0; border-radius:6px; padding:0;">
                 <summary style="cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:#666; user-select:none;">Ek Durumlar ▾</summary>
                 <div style="padding:6px 12px 10px 12px;">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="memberAbort">
-                        <label for="memberAbort" style="display:flex; align-items:center; gap:6px;">
-                            <svg viewBox="0 0 16 28" width="12" height="20"><line x1="8" y1="0" x2="8" y2="20" stroke="#333" stroke-width="2"/><circle cx="8" cy="23" r="4" fill="#333"/></svg>
-                            Abort (Düşük)
-                        </label>
+                    <div class="form-group">
+                        <label>Gebelik/Düşük Durumu</label>
+                        <select id="memberPregnancy">
+                            <option value="none">Yok</option>
+                            <option value="P">P — Devam eden gebelik</option>
+                            <option value="SAB">SAB — Spontan abort (düşük)</option>
+                            <option value="TOP">TOP — Tıbbi tahliye</option>
+                            <option value="SB">SB — Ölü doğum</option>
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label>Evlat Edinme</label>
+                        <select id="memberAdopted">
+                            <option value="none">Yok</option>
+                            <option value="in">İçeri evlat edinilmiş</option>
+                            <option value="out">Dışarı evlat verilmiş</option>
+                        </select>
+                    </div>
+                    <!-- Eski abort alanı geriye uyumluluk için -->
+                    <input type="checkbox" id="memberAbort" style="display:none">
                 </div>
             </details>
 
@@ -430,6 +443,11 @@
             <div class="form-group" id="twinPartnerGroup" style="display:none;">
                 <label>İkiz Eşi</label>
                 <select id="memberTwinPartner"></select>
+            </div>
+
+            <div class="form-group">
+                <label>Gen / Varyant</label>
+                <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508">
             </div>
 
             <div class="form-group">
@@ -472,7 +490,11 @@
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="consanguinity">
-                <label for="consanguinity">Akraba evliliği</label>
+                <label for="consanguinity">Akraba evliliği (çift çizgi)</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="divorced">
+                <label for="divorced">Boşanmış (çift slash //)</label>
             </div>
             <div class="form-actions">
                 <button class="btn btn-primary" onclick="addPartnership()">Eşleştir</button>
@@ -599,7 +621,9 @@
             <li>■ / ● Etkilenmiş (Hasta)</li>
             <li>⊡ / ⊙ Taşıyıcı</li>
             <li>Çapraz çizgi = Vefat</li>
-            <li>Tek çizgi (—) Eş, Çift çizgi (═) Akraba evliliği</li>
+            <li>Tek çizgi (—) Eş, Çift çizgi (═) Akraba evliliği, Çift slash (//) Boşanmış</li>
+            <li>Köşeli parantez [□] Evlat edinme</li>
+            <li>♢P Devam eden gebelik, ▼ SAB (düşük), ▼/ TOP (tahliye), SB Ölü doğum</li>
         </ul>
 
         <h3>💾 Veri Yönetimi</h3>
@@ -662,6 +686,9 @@ function addOrUpdateMember() {
         deceased: document.getElementById('memberDeceased').checked,
         proband: document.getElementById('memberProband').checked,
         abort: document.getElementById('memberAbort').checked,
+        pregnancy: document.getElementById('memberPregnancy').value,
+        adopted: document.getElementById('memberAdopted').value,
+        variant: document.getElementById('memberVariant').value.trim(),
         diseases: [...currentDiseases],
         twinType: document.getElementById('memberTwinType').value,
         twinPartnerId: document.getElementById('memberTwinPartner').value ? parseInt(document.getElementById('memberTwinPartner').value) : null,
@@ -718,6 +745,9 @@ function editMember(id) {
     document.getElementById('memberDeceased').checked = m.deceased;
     document.getElementById('memberProband').checked = m.proband;
     document.getElementById('memberAbort').checked = m.abort || false;
+    document.getElementById('memberPregnancy').value = m.pregnancy || 'none';
+    document.getElementById('memberAdopted').value = m.adopted || 'none';
+    document.getElementById('memberVariant').value = m.variant || '';
     document.getElementById('memberTwinType').value = m.twinType || 'none';
     document.getElementById('memberNote').value = m.note || '';
     currentDiseases = [...m.diseases];
@@ -758,6 +788,9 @@ function resetForm() {
     document.getElementById('memberDeceased').checked = false;
     document.getElementById('memberProband').checked = false;
     document.getElementById('memberAbort').checked = false;
+    document.getElementById('memberPregnancy').value = 'none';
+    document.getElementById('memberAdopted').value = 'none';
+    document.getElementById('memberVariant').value = '';
     document.getElementById('memberTwinType').value = 'none';
     document.getElementById('memberTwinPartner').value = '';
     document.getElementById('memberNote').value = '';
@@ -805,9 +838,11 @@ function addPartnership() {
 
     familyData.partnerships.push({
         partner1: p1, partner2: p2,
-        consanguinity: document.getElementById('consanguinity').checked
+        consanguinity: document.getElementById('consanguinity').checked,
+        divorced: document.getElementById('divorced').checked
     });
     document.getElementById('consanguinity').checked = false;
+    document.getElementById('divorced').checked = false;
     updateUI();
     renderPedigree();
 }
@@ -967,7 +1002,7 @@ function updateRelationsList() {
         const m2 = familyData.members.find(m => m.id === p.partner2);
         if (!m1 || !m2) return;
         html += `<div class="member-item">
-            <div class="member-info"><div class="member-name">${m1.name} ⚭ ${m2.name}${p.consanguinity ? ' (akraba)' : ''}</div></div>
+            <div class="member-info"><div class="member-name">${m1.name || 'Birey '+m1.id} ⚭ ${m2.name || 'Birey '+m2.id}${p.consanguinity ? ' (akraba)' : ''}${p.divorced ? ' (boşanmış)' : ''}</div></div>
             <button class="btn btn-sm btn-danger" onclick="removePartnership(${i})">Sil</button>
         </div>`;
     });
@@ -1000,6 +1035,10 @@ function updateLegend() {
         <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#333"/></svg> Taşıyıcı</div>
         <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/><line x1="1" y1="19" x2="19" y2="1" stroke="#333" stroke-width="1.5"/></svg> Vefat</div>
         <div class="legend-item"><svg viewBox="0 0 12 24"><line x1="6" y1="1" x2="6" y2="16" stroke="#333" stroke-width="1.5"/><circle cx="6" cy="20" r="4" fill="#333"/></svg> Abort</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,4 22,12 12,20 2,12" fill="none" stroke="#333" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">P</text></svg> Gebelik</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,18 4,6 20,6" fill="#333" stroke="#333" stroke-width="1.5"/></svg> SAB (Düşük)</div>
+        <div class="legend-item"><svg viewBox="0 0 24 16"><line x1="2" y1="8" x2="10" y2="8" stroke="#333" stroke-width="1.5"/><line x1="14" y1="8" x2="22" y2="8" stroke="#333" stroke-width="1.5"/><line x1="11" y1="3" x2="9" y2="13" stroke="#333" stroke-width="2"/><line x1="15" y1="3" x2="13" y2="13" stroke="#333" stroke-width="2"/></svg> Boşanma</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polyline points="6,5 3,5 3,19 6,19" fill="none" stroke="#333" stroke-width="1.5"/><polyline points="18,5 21,5 21,19 18,19" fill="none" stroke="#333" stroke-width="1.5"/><rect x="8" y="7" width="8" height="10" fill="none" stroke="#333" stroke-width="1.5"/></svg> Evlat edinme</div>
     `;
 
     const allDiseases = [...familyData.diseases];
@@ -1269,6 +1308,18 @@ function renderPedigree() {
             const gap = 6;
             svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
         }
+
+        // Divorce indicator: double slash (//) at midpoint of partnership line
+        if (p.divorced) {
+            const midPX = (a1.x + a2.x) / 2;
+            const slashH = 14;
+            const slashGap = 5;
+            const dy = p.consanguinity ? 3 : 0;
+            // First slash
+            svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+            // Second slash
+            svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+        }
     });
 
     // Draw parent-child lines (orthogonal segments only)
@@ -1368,12 +1419,37 @@ function renderPedigree() {
         const fillColor = m.affected ? '#333' : 'none';
         const strokeColor = '#333';
 
-        // Draw abort symbol (vertical line + small filled circle)
-        if (m.abort) {
-            svgContent += `<line x1="${pos.x}" y1="${pos.y - NODE_R}" x2="${pos.x}" y2="${pos.y + 8}" stroke="#333" stroke-width="2" />`;
-            svgContent += `<circle cx="${pos.x}" cy="${pos.y + 14}" r="6" fill="#333" />`;
+        // Pregnancy/loss symbols (P, SAB, TOP, SB) — replace shape entirely
+        const preg = m.pregnancy || (m.abort ? 'SAB' : 'none');
+        if (preg && preg !== 'none') {
+            // Draw vertical line down + filled small triangle/circle for pregnancy outcomes
+            if (preg === 'P') {
+                // Ongoing pregnancy: small diamond with P letter
+                svgContent += `<polygon points="${pos.x},${pos.y - 14} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 14} ${pos.x - 12},${pos.y}" fill="none" stroke="#333" stroke-width="1.5"/>`;
+                svgContent += `<text x="${pos.x}" y="${pos.y + 4}" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">P</text>`;
+            } else if (preg === 'SAB') {
+                // Spontaneous abort: small filled triangle
+                svgContent += `<polygon points="${pos.x},${pos.y + 12} ${pos.x - 10},${pos.y - 6} ${pos.x + 10},${pos.y - 6}" fill="#333" stroke="#333" stroke-width="1.5"/>`;
+                svgContent += `<text x="${pos.x + 18}" y="${pos.y + 4}" font-size="9" fill="#666">SAB</text>`;
+            } else if (preg === 'TOP') {
+                // Termination: filled triangle + diagonal slash
+                svgContent += `<polygon points="${pos.x},${pos.y + 12} ${pos.x - 10},${pos.y - 6} ${pos.x + 10},${pos.y - 6}" fill="#333" stroke="#333" stroke-width="1.5"/>`;
+                svgContent += `<line x1="${pos.x - 14}" y1="${pos.y + 14}" x2="${pos.x + 14}" y2="${pos.y - 14}" stroke="#333" stroke-width="2"/>`;
+                svgContent += `<text x="${pos.x + 18}" y="${pos.y + 4}" font-size="9" fill="#666">TOP</text>`;
+            } else if (preg === 'SB') {
+                // Stillbirth: shape with diagonal slash through it (still drawn as normal shape but with SB label)
+                if (m.sex === 'male') {
+                    svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R * 2}" height="${NODE_R * 2}" fill="none" stroke="#333" stroke-width="2"/>`;
+                } else if (m.sex === 'female') {
+                    svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="none" stroke="#333" stroke-width="2"/>`;
+                } else {
+                    svgContent += `<polygon points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="none" stroke="#333" stroke-width="2"/>`;
+                }
+                svgContent += `<line x1="${pos.x - NODE_R - 4}" y1="${pos.y + NODE_R + 4}" x2="${pos.x + NODE_R + 4}" y2="${pos.y - NODE_R - 4}" stroke="#333" stroke-width="2"/>`;
+                svgContent += `<text x="${pos.x}" y="${pos.y + 4}" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">SB</text>`;
+            }
         }
-        // Draw shape
+        // Draw shape (normal)
         else if (m.sex === 'male') {
             svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R * 2}" height="${NODE_R * 2}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
             // Carrier dot for male
@@ -1428,6 +1504,18 @@ function renderPedigree() {
             svgContent += `<line x1="${pos.x - NODE_R - 5}" y1="${pos.y + NODE_R + 5}" x2="${pos.x + NODE_R + 5}" y2="${pos.y - NODE_R - 5}" stroke="#333" stroke-width="2" />`;
         }
 
+        // Adoption brackets [ ] — solid for adopted-in, dashed for adopted-out
+        if (m.adopted && m.adopted !== 'none') {
+            const bx = NODE_R + 8; // distance from center
+            const by = NODE_R + 6; // height of bracket
+            const tip = 6; // tip length of bracket
+            const dash = m.adopted === 'out' ? 'stroke-dasharray="3,3"' : '';
+            // Left bracket
+            svgContent += `<polyline points="${pos.x - bx + tip},${pos.y - by} ${pos.x - bx},${pos.y - by} ${pos.x - bx},${pos.y + by} ${pos.x - bx + tip},${pos.y + by}" fill="none" stroke="#333" stroke-width="1.5" ${dash}/>`;
+            // Right bracket
+            svgContent += `<polyline points="${pos.x + bx - tip},${pos.y - by} ${pos.x + bx},${pos.y - by} ${pos.x + bx},${pos.y + by} ${pos.x + bx - tip},${pos.y + by}" fill="none" stroke="#333" stroke-width="1.5" ${dash}/>`;
+        }
+
         // Proband arrow
         if (m.proband) {
             const arrowX = pos.x - NODE_R - 15;
@@ -1442,13 +1530,21 @@ function renderPedigree() {
         svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="${m.name ? '#333' : '#999'}">${displayName}</text>`;
 
         // Age label
+        let labelY = pos.y + NODE_R + 30;
         if (m.age) {
-            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 30}" text-anchor="middle" font-size="10" fill="#888">${m.age} yaş</text>`;
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#888">${m.age} yaş</text>`;
+            labelY += 12;
+        }
+
+        // Variant / Gene label
+        if (m.variant) {
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600" font-family="monospace">${m.variant}</text>`;
+            labelY += 12;
         }
 
         // Note
         if (m.note) {
-            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + (m.age ? 42 : 30)}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${m.note}</text>`;
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${m.note}</text>`;
         }
     });
 
@@ -1694,6 +1790,7 @@ function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proba
         id: familyData.nextId++, name, sex, generation: gen, age,
         affected, carrier, deceased, proband, abort: abort || false, diseases: [...diseases],
         twinType: twinType || 'none', twinPartnerId: twinPId, note: note || '',
+        pregnancy: 'none', adopted: 'none', variant: '',
         customX: customX || null, customY: customY || null
     };
     diseases.forEach(d => familyData.diseases.add(d));
@@ -2272,8 +2369,16 @@ function showMemberTooltip(member, clientX, clientY) {
         if (member.deceased) flags.push('Vefat');
         if (member.proband) flags.push('Proband');
         if (member.abort) flags.push('Abort');
+        if (member.pregnancy && member.pregnancy !== 'none') {
+            const pregLabels = { P: 'Gebelik', SAB: 'Spontan abort', TOP: 'Tıbbi tahliye', SB: 'Ölü doğum' };
+            flags.push(pregLabels[member.pregnancy] || member.pregnancy);
+        }
+        if (member.adopted && member.adopted !== 'none') {
+            flags.push(member.adopted === 'in' ? 'Evlat edinilmiş' : 'Evlatlık verilmiş');
+        }
         if (flags.length) rows.push(`<div class="tip-row">Durum: ${flags.join(', ')}</div>`);
         if (member.diseases && member.diseases.length) rows.push(`<div class="tip-row">Hastalık: ${member.diseases.join(', ')}</div>`);
+        if (member.variant) rows.push(`<div class="tip-row" style="color:#bb8fce">🧬 ${member.variant}</div>`);
         if (member.note) rows.push(`<div class="tip-row" style="font-style:italic; opacity:0.85">${member.note}</div>`);
         tooltipEl.innerHTML = rows.join('');
         lastTooltipMember = member.id;
