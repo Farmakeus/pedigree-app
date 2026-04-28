@@ -220,6 +220,101 @@
             text-align: center; color: #888; font-size: 13px;
         }
         .sample-btn:hover { border-color: #3498db; color: #3498db; background: #f0f7ff; }
+
+        /* ===== Hover Tooltip ===== */
+        .pedigree-tooltip {
+            position: fixed; background: #2c3e50; color: white;
+            padding: 8px 12px; border-radius: 6px; font-size: 12px;
+            pointer-events: none; z-index: 1000; max-width: 240px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;
+            line-height: 1.5;
+        }
+        .pedigree-tooltip strong { color: #5dade2; }
+        .pedigree-tooltip .tip-row { margin: 2px 0; }
+
+        /* ===== Help / Tutorial Modal ===== */
+        .help-modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            z-index: 2000; align-items: center; justify-content: center; padding: 20px;
+        }
+        .help-modal-overlay.open { display: flex; }
+        .help-modal {
+            background: white; border-radius: 12px; max-width: 600px; max-height: 85vh;
+            overflow-y: auto; padding: 28px; box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+        }
+        .help-modal h2 { margin-bottom: 16px; color: #2c3e50; font-size: 22px; }
+        .help-modal h3 { margin: 18px 0 8px; color: #3498db; font-size: 15px; }
+        .help-modal p, .help-modal li { font-size: 13px; line-height: 1.6; color: #444; }
+        .help-modal ul { padding-left: 20px; margin: 6px 0; }
+        .help-modal kbd {
+            background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px;
+            padding: 2px 6px; font-family: monospace; font-size: 11px;
+        }
+        .help-modal .close-btn {
+            float: right; background: #e74c3c; color: white; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+
+        /* ===== Tutorial Tour Tooltip ===== */
+        .tour-tooltip {
+            position: fixed; background: #3498db; color: white;
+            padding: 14px 18px; border-radius: 8px; max-width: 280px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3); z-index: 2100;
+            font-size: 13px; line-height: 1.5; display: none;
+        }
+        .tour-tooltip.show { display: block; }
+        .tour-tooltip h4 { margin-bottom: 6px; font-size: 14px; }
+        .tour-tooltip .tour-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+        .tour-tooltip button {
+            background: white; color: #3498db; border: none; padding: 5px 12px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+        }
+        .tour-tooltip button.skip { background: rgba(255,255,255,0.2); color: white; }
+        .tour-arrow {
+            position: absolute; width: 14px; height: 14px; background: #3498db;
+            transform: rotate(45deg);
+        }
+        .tour-highlight {
+            position: relative; z-index: 2050;
+            box-shadow: 0 0 0 4px rgba(52,152,219,0.5), 0 0 0 9999px rgba(0,0,0,0.4) !important;
+            border-radius: 4px;
+        }
+
+        /* ===== Dark Theme ===== */
+        body.dark-theme { background: #1a1d21; color: #e8e8e8; }
+        body.dark-theme .app-header { background: linear-gradient(135deg, #0f1419, #1a4561); }
+        body.dark-theme .left-panel { background: #242830; border-right-color: #3a3f48; }
+        body.dark-theme .panel-tabs { border-bottom-color: #3a3f48; }
+        body.dark-theme .panel-tab { color: #aaa; }
+        body.dark-theme .panel-tab.active { color: #5dade2; border-bottom-color: #5dade2; }
+        body.dark-theme .panel-tab:hover { color: #5dade2; }
+        body.dark-theme .right-panel { background: #2a2e36; }
+        body.dark-theme .canvas-container { background: #2a2e36; }
+        body.dark-theme #pedigree-svg text { fill: #ddd !important; }
+        body.dark-theme #pedigree-svg rect:not([fill="none"]):not([fill="#333"]),
+        body.dark-theme #pedigree-svg circle:not([fill="none"]):not([fill="#333"]):not([fill="#27ae60"]):not([fill="white"]):not([fill="transparent"]) { }
+        body.dark-theme #pedigree-svg line { stroke: #ddd !important; }
+        body.dark-theme #pedigree-svg rect[fill="none"], body.dark-theme #pedigree-svg circle[fill="none"], body.dark-theme #pedigree-svg polygon[fill="none"] { stroke: #ddd !important; }
+        body.dark-theme #pedigree-svg rect[fill="#333"], body.dark-theme #pedigree-svg circle[fill="#333"], body.dark-theme #pedigree-svg polygon[fill="#333"] { fill: #ddd !important; stroke: #ddd !important; }
+        body.dark-theme input, body.dark-theme select, body.dark-theme textarea {
+            background: #1a1d21; color: #e8e8e8; border-color: #3a3f48;
+        }
+        body.dark-theme .section-title { color: #aaa; border-bottom-color: #3a3f48; }
+        body.dark-theme .member-item { background: #2a2e36; border-color: #3a3f48; }
+        body.dark-theme .member-item:hover { border-color: #5dade2; background: #2f3540; }
+        body.dark-theme .place-toolbar, body.dark-theme .zoom-controls { background: #242830; }
+        body.dark-theme .place-toolbar button, body.dark-theme .zoom-controls button {
+            background: #2a2e36; border-color: #3a3f48; color: #ddd;
+        }
+        body.dark-theme .place-toolbar button:hover { background: #353a45; }
+        body.dark-theme .legend-box { background: #242830; border-color: #3a3f48; color: #ddd; }
+        body.dark-theme .legend-box h4 { color: #ddd; }
+        body.dark-theme .export-menu { background: #242830; }
+        body.dark-theme .export-menu button { color: #ddd; }
+        body.dark-theme .export-menu button:hover { background: #2f3540; color: #5dade2; }
+        body.dark-theme .sample-btn { background: #2a2e36; border-color: #3a3f48; color: #aaa; }
+        body.dark-theme .sample-btn:hover { background: #2f3540; color: #5dade2; }
+        body.dark-theme .empty-state { color: #666; }
     </style>
 </head>
 <body>
@@ -227,6 +322,9 @@
 <div class="app-header">
     <h1>Pedigri Çizim Uygulaması</h1>
     <div class="header-actions">
+        <button onclick="saveToFile()" title="JSON olarak kaydet">💾 Kaydet</button>
+        <button onclick="loadFromFile()" title="JSON yükle">📂 Yükle</button>
+        <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="handleFileLoad(event)">
         <div class="export-dropdown">
             <button onclick="toggleExportMenu()">📥 Export ▾</button>
             <div class="export-menu" id="exportMenu">
@@ -235,7 +333,9 @@
                 <button onclick="exportPDF(); closeExportMenu()">📋 PDF olarak indir</button>
             </div>
         </div>
-        <button onclick="clearAll()">Temizle</button>
+        <button onclick="toggleDarkTheme()" title="Tema değiştir" id="themeBtn">🌙</button>
+        <button onclick="openHelpModal()" title="Yardım & Kısayollar">❓</button>
+        <button onclick="clearAll()">🗑️ Temizle</button>
     </div>
 </div>
 
@@ -464,6 +564,62 @@
 <div class="legend-box" id="legendBox" style="display:none;">
     <h4>Sembol Açıklamaları</h4>
     <div id="legendContent"></div>
+</div>
+
+<!-- Hover tooltip -->
+<div class="pedigree-tooltip" id="pedigreeTooltip"></div>
+
+<!-- Help & Shortcuts Modal -->
+<div class="help-modal-overlay" id="helpModalOverlay" onclick="if(event.target===this)closeHelpModal()">
+    <div class="help-modal">
+        <button class="close-btn" onclick="closeHelpModal()">Kapat ✕</button>
+        <h2>📚 Yardım & Klavye Kısayolları</h2>
+
+        <h3>⌨️ Klavye Kısayolları</h3>
+        <ul>
+            <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> — Geri Al</li>
+            <li><kbd>Ctrl</kbd> + <kbd>Y</kbd> veya <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — İleri Al</li>
+            <li><kbd>Ctrl</kbd> + <kbd>S</kbd> — Pedigri'yi kaydet (JSON)</li>
+            <li><kbd>?</kbd> — Bu yardım panelini aç</li>
+            <li><kbd>Esc</kbd> — Aktif aracı/paneli kapat</li>
+        </ul>
+
+        <h3>🖱️ Fare İşlemleri</h3>
+        <ul>
+            <li><strong>Şekle çift tıkla</strong> — Düzenleme paneline geç</li>
+            <li><strong>Şeklin üzerine gel</strong> — Bilgileri tooltip'te gör</li>
+            <li><strong>Bağla aracı</strong> — Şekiller arası çizgi çek (aynı nesil = eş, farklı nesil = ebeveyn-çocuk, yeşil nokta = kardeş ekle)</li>
+            <li><strong>Taşı aracı</strong> — Şekli sürükle, Y otomatik nesil hizasına oturur</li>
+            <li><strong>Silgi aracı</strong> — Şekle tıkla → silinir</li>
+        </ul>
+
+        <h3>🧬 Sembol Anlamları</h3>
+        <ul>
+            <li>□ Erkek &nbsp;&nbsp; ○ Kadın &nbsp;&nbsp; ◇ Bilinmiyor</li>
+            <li>■ / ● Etkilenmiş (Hasta)</li>
+            <li>⊡ / ⊙ Taşıyıcı</li>
+            <li>Çapraz çizgi = Vefat</li>
+            <li>Tek çizgi (—) Eş, Çift çizgi (═) Akraba evliliği</li>
+        </ul>
+
+        <h3>💾 Veri Yönetimi</h3>
+        <ul>
+            <li><strong>Otomatik kayıt:</strong> Tüm değişiklikler tarayıcıda otomatik saklanır</li>
+            <li><strong>Kaydet:</strong> JSON dosyası olarak indir (yedekleme/paylaşım)</li>
+            <li><strong>Yükle:</strong> Daha önce kaydettiğin JSON'u geri yükle</li>
+            <li><strong>Export:</strong> SVG / PNG / PDF olarak çıktı al</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Tutorial tour -->
+<div class="tour-tooltip" id="tourTooltip">
+    <h4 id="tourTitle"></h4>
+    <div id="tourBody"></div>
+    <div class="tour-actions">
+        <button class="skip" onclick="endTour()">Atla</button>
+        <button onclick="nextTourStep()" id="tourNextBtn">İleri →</button>
+    </div>
 </div>
 
 <script>
@@ -2011,6 +2167,299 @@ canvasContainer.addEventListener('touchend', (e) => {
         canvasContainer.classList.remove('dragging');
     }
 }, { passive: false });
+
+// ======================== SAVE / LOAD / AUTOSAVE ========================
+const STORAGE_KEY = 'pedigreeApp_data_v1';
+
+function serializeFamilyData() {
+    return {
+        members: familyData.members,
+        partnerships: familyData.partnerships,
+        parentChildLinks: familyData.parentChildLinks,
+        diseases: [...familyData.diseases],
+        nextId: familyData.nextId,
+        version: 1
+    };
+}
+
+function loadFamilyData(data) {
+    if (!data || !data.members) return false;
+    familyData.members = data.members || [];
+    familyData.partnerships = data.partnerships || [];
+    familyData.parentChildLinks = data.parentChildLinks || [];
+    familyData.diseases = new Set(data.diseases || []);
+    familyData.nextId = data.nextId || (Math.max(0, ...familyData.members.map(m => m.id)) + 1);
+    currentDiseases = [];
+    editingMemberId = null;
+    updateUI();
+    renderPedigree();
+    return true;
+}
+
+let autosaveTimer = null;
+function autosave() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeFamilyData()));
+        } catch (e) { console.warn('Autosave failed:', e); }
+    }, 500);
+}
+
+function tryLoadAutosave() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data && data.members && data.members.length > 0) {
+            return loadFamilyData(data);
+        }
+    } catch (e) { console.warn('Autoload failed:', e); }
+    return false;
+}
+
+function saveToFile() {
+    const data = serializeFamilyData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const ts = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `pedigri-${ts}.json`);
+}
+
+function loadFromFile() {
+    document.getElementById('loadFileInput').click();
+}
+
+function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (loadFamilyData(data)) {
+                alert('Pedigri başarıyla yüklendi.');
+            } else {
+                alert('Geçersiz dosya.');
+            }
+        } catch (err) { alert('Dosya okunamadı: ' + err.message); }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // reset for re-loading same file
+}
+
+// Auto-save after every renderPedigree call
+const _origRenderForAutosave = renderPedigree;
+renderPedigree = function() {
+    _origRenderForAutosave();
+    autosave();
+};
+
+// ======================== HOVER TOOLTIP ========================
+const tooltipEl = document.getElementById('pedigreeTooltip');
+let lastTooltipMember = null;
+
+function showMemberTooltip(member, clientX, clientY) {
+    if (!member) { tooltipEl.style.display = 'none'; lastTooltipMember = null; return; }
+    if (lastTooltipMember !== member.id) {
+        const rows = [];
+        rows.push(`<div class="tip-row"><strong>${member.name || 'Birey ' + member.id}</strong></div>`);
+        const sexLabel = member.sex === 'male' ? 'Erkek' : member.sex === 'female' ? 'Kadın' : 'Bilinmiyor';
+        rows.push(`<div class="tip-row">Cinsiyet: ${sexLabel} · Nesil ${toRoman(member.generation)}</div>`);
+        if (member.age != null) rows.push(`<div class="tip-row">Yaş: ${member.age}</div>`);
+        const flags = [];
+        if (member.affected) flags.push('Etkilenmiş');
+        if (member.carrier) flags.push('Taşıyıcı');
+        if (member.deceased) flags.push('Vefat');
+        if (member.proband) flags.push('Proband');
+        if (member.abort) flags.push('Abort');
+        if (flags.length) rows.push(`<div class="tip-row">Durum: ${flags.join(', ')}</div>`);
+        if (member.diseases && member.diseases.length) rows.push(`<div class="tip-row">Hastalık: ${member.diseases.join(', ')}</div>`);
+        if (member.note) rows.push(`<div class="tip-row" style="font-style:italic; opacity:0.85">${member.note}</div>`);
+        tooltipEl.innerHTML = rows.join('');
+        lastTooltipMember = member.id;
+    }
+    // Position tooltip near cursor
+    const offset = 14;
+    let left = clientX + offset;
+    let top = clientY + offset;
+    // Adjust if going off-screen
+    const tw = tooltipEl.offsetWidth || 200;
+    const th = tooltipEl.offsetHeight || 60;
+    if (left + tw > window.innerWidth) left = clientX - tw - offset;
+    if (top + th > window.innerHeight) top = clientY - th - offset;
+    tooltipEl.style.left = left + 'px';
+    tooltipEl.style.top = top + 'px';
+    tooltipEl.style.display = 'block';
+}
+
+function hideMemberTooltip() {
+    tooltipEl.style.display = 'none';
+    lastTooltipMember = null;
+}
+
+// Hook hover tooltip into the canvas (only when no tool is active)
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (toolMode) { hideMemberTooltip(); return; }
+    const pos = getSVGPos(e);
+    const m = findMemberAtPos(pos);
+    if (m) showMemberTooltip(m, e.clientX, e.clientY);
+    else hideMemberTooltip();
+});
+canvasContainer.addEventListener('mouseleave', hideMemberTooltip);
+
+// ======================== DOUBLE-CLICK TO EDIT ========================
+canvasContainer.addEventListener('dblclick', (e) => {
+    const pos = getSVGPos(e);
+    const m = findMemberAtPos(pos);
+    if (m) {
+        hideMemberTooltip();
+        editMember(m.id);
+    }
+});
+
+// ======================== DARK THEME ========================
+const THEME_KEY = 'pedigreeApp_theme';
+
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+        document.getElementById('themeBtn').textContent = '☀️';
+    } else {
+        document.body.classList.remove('dark-theme');
+        document.getElementById('themeBtn').textContent = '🌙';
+    }
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+}
+
+function toggleDarkTheme() {
+    const isDark = document.body.classList.contains('dark-theme');
+    applyTheme(isDark ? 'light' : 'dark');
+}
+
+// ======================== HELP MODAL ========================
+function openHelpModal() {
+    document.getElementById('helpModalOverlay').classList.add('open');
+}
+function closeHelpModal() {
+    document.getElementById('helpModalOverlay').classList.remove('open');
+}
+
+// ======================== KEYBOARD SHORTCUTS ========================
+document.addEventListener('keydown', (e) => {
+    // Don't trigger when typing in inputs
+    const tag = (e.target.tagName || '').toLowerCase();
+    const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveToFile();
+        return;
+    }
+    if (!isInput && e.key === '?') {
+        e.preventDefault();
+        openHelpModal();
+        return;
+    }
+    if (e.key === 'Escape') {
+        closeHelpModal();
+        if (typeof endTour === 'function') endTour();
+        if (toolMode) clearAllModes();
+    }
+});
+
+// ======================== FIRST-USE TUTORIAL ========================
+const TOUR_KEY = 'pedigreeApp_tourSeen_v1';
+const tourSteps = [
+    {
+        target: '.left-panel',
+        title: '👋 Hoş geldin!',
+        body: 'Bu uygulama ile genetik pedigri (soyağacı) çizebilirsin. Sol panelden form ile veya sağ taraftaki araçlarla şekil ekleyebilirsin.'
+    },
+    {
+        target: '#placeMaleBtn',
+        title: '➕ Şekil Ekleme',
+        body: 'Sağ taraftaki araçlardan bir sembol seç (kare = erkek, daire = kadın), sonra çizim alanına tıkla. Şekil otomatik olarak en yakın nesil hizasına yerleşir.'
+    },
+    {
+        target: '#connectBtn',
+        title: '🔗 Bağlantı',
+        body: 'Bağla aracını seçince şekillerin merkezinde noktalar belirir. Siyah noktadan diğerine sürükle: aynı nesil = eş, farklı nesil = ebeveyn-çocuk. Yeşil noktadan kardeş ekleyebilirsin.'
+    },
+    {
+        target: '#moveBtn',
+        title: '✋ Taşıma',
+        body: 'Taşı aracıyla bir şekli sürükleyip yerini değiştirebilirsin. Bağlı çizgiler otomatik takip eder.'
+    },
+    {
+        target: '.export-dropdown',
+        title: '💾 Kaydet ve Paylaş',
+        body: 'Çalışman tarayıcıda otomatik kaydedilir. Kaydet butonu ile JSON dosyasına alabilir, Export ile SVG/PNG/PDF olarak indirebilirsin.'
+    },
+    {
+        target: '#themeBtn',
+        title: '🎨 Tema & Yardım',
+        body: 'Karanlık temaya geçebilir, ❓ butonu ile her zaman tüm kısayolları görebilirsin. İyi çizimler!'
+    }
+];
+let tourStep = 0;
+
+function startTour() {
+    tourStep = 0;
+    showTourStep();
+}
+function showTourStep() {
+    const step = tourSteps[tourStep];
+    if (!step) { endTour(); return; }
+    // Remove highlight from all
+    document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+    const target = document.querySelector(step.target);
+    if (target) {
+        target.classList.add('tour-highlight');
+        const rect = target.getBoundingClientRect();
+        const tip = document.getElementById('tourTooltip');
+        document.getElementById('tourTitle').textContent = step.title;
+        document.getElementById('tourBody').textContent = step.body;
+        document.getElementById('tourNextBtn').textContent = (tourStep === tourSteps.length - 1) ? 'Bitir ✓' : 'İleri →';
+        tip.classList.add('show');
+        // Position tooltip near target
+        let left = rect.right + 16;
+        let top = rect.top;
+        if (left + 300 > window.innerWidth) left = rect.left - 300 - 16;
+        if (left < 10) left = 10;
+        if (top + 180 > window.innerHeight) top = window.innerHeight - 200;
+        if (top < 10) top = 10;
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+    }
+}
+function nextTourStep() {
+    tourStep++;
+    if (tourStep >= tourSteps.length) endTour();
+    else showTourStep();
+}
+function endTour() {
+    document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+    document.getElementById('tourTooltip').classList.remove('show');
+    try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
+}
+
+// ======================== INIT ========================
+// Apply saved theme
+try {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if (savedTheme === 'dark') applyTheme('dark');
+} catch (e) {}
+
+// Try to load autosaved data
+const loadedAutosave = tryLoadAutosave();
+
+// Show first-use tutorial if not seen
+try {
+    const tourSeen = localStorage.getItem(TOUR_KEY);
+    if (!tourSeen && !loadedAutosave) {
+        setTimeout(startTour, 600);
+    }
+} catch (e) {}
 
 // Initialize
 renderPedigree();
