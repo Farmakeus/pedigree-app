@@ -408,6 +408,7 @@
     <div class="header-actions">
         <button onclick="saveToFile()" title="JSON olarak kaydet">💾 Kaydet</button>
         <button onclick="loadFromFile()" title="JSON yükle">📂 Yükle</button>
+        <button onclick="generateShareLink()" title="Paylaşılabilir link oluştur">🔗 Paylaş</button>
         <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="handleFileLoad(event)">
         <div class="export-dropdown">
             <button onclick="toggleExportMenu()">📥 Export ▾</button>
@@ -583,6 +584,9 @@
         <!-- Iliskiler Tab -->
         <div id="tab-relations" class="tab-content">
             <div class="section-title">Eş İlişkisi (Evlilik)</div>
+            <div style="font-size:11px; color:#888; margin-bottom:8px; padding:6px 10px; background:#f8f9fa; border-radius:4px; border-left:3px solid #3498db;">
+                💡 İpucu: Aynı kişiyi birden fazla eşle ilişkilendirebilirsiniz (yeniden evlilik için).
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Kişi 1</label>
@@ -1435,13 +1439,44 @@ function computeLayout() {
     const genKeys = Object.keys(generations).map(Number).sort((a, b) => a - b);
 
     // Order members within each generation to minimize crossings
-    // Place partnered people next to each other
+    // Place partnered people next to each other (multiple partnerships → P1-Person-P2-...)
     genKeys.forEach(gen => {
         const genMembers = generations[gen];
         const ordered = [];
         const placed = new Set();
 
-        // First place couples together
+        // Build partnership map for this generation
+        const partnersOf = {}; // memberId → [partnerId, ...]
+        familyData.partnerships.forEach(p => {
+            const m1 = genMembers.find(m => m.id === p.partner1);
+            const m2 = genMembers.find(m => m.id === p.partner2);
+            if (m1 && m2) {
+                if (!partnersOf[p.partner1]) partnersOf[p.partner1] = [];
+                if (!partnersOf[p.partner2]) partnersOf[p.partner2] = [];
+                partnersOf[p.partner1].push(p.partner2);
+                partnersOf[p.partner2].push(p.partner1);
+            }
+        });
+
+        // First place people with multiple partners as central nodes: P1-PERSON-P2(-P3...)
+        const multiPartners = Object.keys(partnersOf).map(Number)
+            .filter(id => partnersOf[id].length >= 2);
+        multiPartners.forEach(centralId => {
+            if (placed.has(centralId)) return;
+            const central = genMembers.find(m => m.id === centralId);
+            if (!central) return;
+            const partners = partnersOf[centralId].map(pid => genMembers.find(m => m.id === pid)).filter(Boolean);
+            // Place: partner1, central, partner2, partner3, ...
+            if (partners.length > 0 && !placed.has(partners[0].id)) {
+                ordered.push(partners[0]); placed.add(partners[0].id);
+            }
+            ordered.push(central); placed.add(centralId);
+            partners.slice(1).forEach(p => {
+                if (!placed.has(p.id)) { ordered.push(p); placed.add(p.id); }
+            });
+        });
+
+        // Then place remaining couples together
         familyData.partnerships.forEach(p => {
             const m1 = genMembers.find(m => m.id === p.partner1);
             const m2 = genMembers.find(m => m.id === p.partner2);
@@ -2707,6 +2742,87 @@ function handleFileLoad(event) {
     event.target.value = ''; // reset for re-loading same file
 }
 
+// ======================== SHAREABLE LINK ========================
+// Encode JSON → base64 → URL hash. Decode on load.
+function encodeStateToHash() {
+    const data = serializeFamilyData();
+    const json = JSON.stringify(data);
+    // UTF-8 safe base64 encoding
+    const b64 = btoa(unescape(encodeURIComponent(json)));
+    return '#data=' + b64;
+}
+
+function decodeStateFromHash() {
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith('#data=')) return null;
+    try {
+        const b64 = hash.slice(6);
+        const json = decodeURIComponent(escape(atob(b64)));
+        return JSON.parse(json);
+    } catch (e) {
+        console.warn('Failed to decode share link:', e);
+        return null;
+    }
+}
+
+function generateShareLink() {
+    if (familyData.members.length === 0) {
+        alert('Önce en az bir birey ekleyin.');
+        return;
+    }
+    const baseUrl = window.location.href.split('#')[0];
+    const link = baseUrl + encodeStateToHash();
+
+    if (link.length > 8000) {
+        if (!confirm(`Pedigri çok büyük (${link.length} karakter). Bazı tarayıcılar bu kadar uzun URL'leri desteklemeyebilir. Yine de devam edilsin mi?`)) {
+            return;
+        }
+    }
+
+    // Try to copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => {
+            showShareDialog(link, true);
+        }).catch(() => showShareDialog(link, false));
+    } else {
+        showShareDialog(link, false);
+    }
+}
+
+function showShareDialog(link, copied) {
+    // Create a simple modal showing the link
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;padding:24px;max-width:600px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,0.3);';
+    modal.innerHTML = `
+        <h3 style="margin-bottom:12px;color:#2c3e50;">🔗 Paylaşılabilir Link</h3>
+        <p style="font-size:13px;color:#666;margin-bottom:12px;">${copied ? '✓ Link panoya kopyalandı!' : 'Aşağıdaki linki kopyalayıp paylaşabilirsin:'}</p>
+        <textarea readonly style="width:100%;min-height:100px;padding:10px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:11px;resize:vertical;">${link}</textarea>
+        <p style="font-size:11px;color:#999;margin-top:8px;">⚠️ Tüm pedigri verisi linkin içinde kodlanmıştır. Link uzun olabilir.</p>
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+            <button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.parentElement.parentElement.querySelector('textarea').value).then(()=>this.textContent='✓ Kopyalandı')" style="padding:8px 16px;border:1px solid #3498db;background:white;color:#3498db;border-radius:6px;cursor:pointer;">📋 Kopyala</button>
+            <button onclick="this.closest('[style*=\\"position:fixed\\"]').remove()" style="padding:8px 16px;border:none;background:#3498db;color:white;border-radius:6px;cursor:pointer;">Kapat</button>
+        </div>
+    `;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
+function tryLoadFromHash() {
+    const data = decodeStateFromHash();
+    if (data && data.members && data.members.length > 0) {
+        if (confirm(`Bu link bir pedigri içeriyor (${data.members.length} birey). Yüklensin mi?\n\nNot: Mevcut çalışman üzerine yazılacak.`)) {
+            loadFamilyData(data);
+            // Clear hash so refresh doesn't re-prompt
+            history.replaceState(null, '', window.location.pathname);
+            return true;
+        }
+    }
+    return false;
+}
+
 // Auto-save + minimap update after every renderPedigree call
 const _origRenderForAutosave = renderPedigree;
 renderPedigree = function() {
@@ -2919,10 +3035,11 @@ try {
     if (savedTheme === 'dark') applyTheme('dark');
 } catch (e) {}
 
-// Try to load autosaved data
-const loadedAutosave = tryLoadAutosave();
+// Priority: URL hash (shared link) > autosave
+const loadedFromHash = tryLoadFromHash();
+const loadedAutosave = loadedFromHash || tryLoadAutosave();
 
-// Show first-use tutorial if not seen
+// Show first-use tutorial if not seen and no data loaded
 try {
     const tourSeen = localStorage.getItem(TOUR_KEY);
     if (!tourSeen && !loadedAutosave) {
