@@ -315,6 +315,90 @@
         body.dark-theme .sample-btn { background: #2a2e36; border-color: #3a3f48; color: #aaa; }
         body.dark-theme .sample-btn:hover { background: #2f3540; color: #5dade2; }
         body.dark-theme .empty-state { color: #666; }
+
+        /* ===== Search & Stats panels in list tab ===== */
+        .list-search {
+            margin-bottom: 12px;
+        }
+        .list-search input {
+            width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px;
+        }
+        .list-search .filter-row {
+            display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+        }
+        .filter-chip {
+            padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+            border: 1px solid #ddd; background: #fff; color: #666;
+        }
+        .filter-chip.active { background: #3498db; color: white; border-color: #3498db; }
+        .filter-chip:hover { border-color: #3498db; }
+
+        .stats-panel {
+            background: #f8f9fa; border-radius: 8px; padding: 12px;
+            margin: 12px 0; font-size: 12px;
+        }
+        .stats-panel h4 {
+            font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;
+            margin-bottom: 8px; letter-spacing: 0.5px;
+        }
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        }
+        .stat-card {
+            background: white; padding: 8px 10px; border-radius: 6px;
+            border-left: 3px solid #3498db;
+        }
+        .stat-card .stat-num { font-size: 18px; font-weight: 700; color: #2c3e50; }
+        .stat-card .stat-label { font-size: 10px; color: #888; }
+        .stat-card.affected { border-left-color: #e74c3c; }
+        .stat-card.carrier { border-left-color: #f39c12; }
+        .stat-card.deceased { border-left-color: #95a5a6; }
+        body.dark-theme .stats-panel { background: #2a2e36; }
+        body.dark-theme .stat-card { background: #242830; }
+        body.dark-theme .stat-card .stat-num { color: #e8e8e8; }
+
+        /* ===== Validation warnings ===== */
+        .validation-panel {
+            background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+            padding: 10px 12px; margin: 12px 0; font-size: 12px;
+        }
+        .validation-panel.empty { background: #d4edda; border-color: #28a745; color: #155724; }
+        .validation-panel h4 {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            margin-bottom: 6px; color: #856404;
+        }
+        .validation-panel.empty h4 { color: #155724; }
+        .validation-warning {
+            display: flex; gap: 6px; padding: 4px 0; align-items: flex-start;
+        }
+        .validation-warning .warn-icon { color: #d39e00; font-weight: bold; }
+        body.dark-theme .validation-panel { background: #3d3a1f; border-color: #d39e00; color: #ffe083; }
+        body.dark-theme .validation-panel.empty { background: #1f3a25; border-color: #28a745; color: #a3e3b5; }
+
+        /* ===== Mini-map ===== */
+        .minimap {
+            position: absolute; top: 16px; left: 16px;
+            width: 180px; height: 130px;
+            background: rgba(255,255,255,0.95); border: 1px solid #ccc;
+            border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            z-index: 9; overflow: hidden; display: none;
+        }
+        .minimap.show { display: block; }
+        .minimap svg { width: 100%; height: 100%; }
+        .minimap .viewport-rect {
+            fill: rgba(52,152,219,0.2); stroke: #3498db; stroke-width: 1.5;
+            cursor: move;
+        }
+        .minimap-toggle {
+            position: absolute; top: 16px; left: 16px;
+            background: white; border: 1px solid #ccc; border-radius: 6px;
+            padding: 4px 8px; cursor: pointer; font-size: 11px; z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .minimap-toggle.active { background: #3498db; color: white; }
+        body.dark-theme .minimap { background: rgba(40,44,52,0.95); border-color: #3a3f48; }
+        body.dark-theme .minimap-toggle { background: #242830; color: #ddd; border-color: #3a3f48; }
     </style>
 </head>
 <body>
@@ -469,6 +553,27 @@
 
         <!-- Aile Listesi Tab -->
         <div id="tab-list" class="tab-content">
+            <div class="list-search">
+                <input type="text" id="memberSearch" placeholder="🔍 İsim, hastalık veya not ara..." oninput="updateMemberList()">
+                <div class="filter-row">
+                    <button class="filter-chip active" data-filter="all" onclick="setMemberFilter('all', this)">Tümü</button>
+                    <button class="filter-chip" data-filter="affected" onclick="setMemberFilter('affected', this)">🔴 Etkilenmiş</button>
+                    <button class="filter-chip" data-filter="carrier" onclick="setMemberFilter('carrier', this)">🟡 Taşıyıcı</button>
+                    <button class="filter-chip" data-filter="deceased" onclick="setMemberFilter('deceased', this)">⚫ Vefat</button>
+                    <button class="filter-chip" data-filter="proband" onclick="setMemberFilter('proband', this)">▶ Proband</button>
+                </div>
+            </div>
+
+            <div id="statsPanel" class="stats-panel" style="display:none;">
+                <h4>📊 İstatistikler</h4>
+                <div class="stats-grid" id="statsGrid"></div>
+            </div>
+
+            <div id="validationPanel" class="validation-panel" style="display:none;">
+                <h4>⚠️ Pedigri Uyarıları</h4>
+                <div id="validationList"></div>
+            </div>
+
             <ul class="member-list" id="memberListUI"></ul>
             <div class="empty-state" id="emptyState">
                 <p>Henüz aile üyesi eklenmedi.<br>Üye eklemek için "Üye Ekle" sekmesine gidin.</p>
@@ -522,6 +627,10 @@
         <div class="canvas-container" id="canvasContainer">
             <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
             <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <button class="minimap-toggle" id="minimapToggle" onclick="toggleMinimap()" title="Mini Harita">🗺️</button>
+        <div class="minimap" id="minimap">
+            <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <div class="zoom-controls">
             <button onclick="zoomIn()" title="Yakınlaştır">+</button>
@@ -891,12 +1000,23 @@ function switchTab(tab) {
     if (tab === 'relations') updateRelationSelects();
 }
 
+let currentMemberFilter = 'all';
+
 function updateUI() {
     updateMemberList();
     updateRelationSelects();
     updateRelationsList();
     updateTwinPartnerSelect();
     updateLegend();
+    updateStatsPanel();
+    updateValidationPanel();
+}
+
+function setMemberFilter(filter, btn) {
+    currentMemberFilter = filter;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    updateMemberList();
 }
 
 function getMemberLabel(m) {
@@ -914,7 +1034,35 @@ function updateMemberList() {
     }
     empty.style.display = 'none';
 
-    const sorted = [...familyData.members].sort((a, b) => a.generation - b.generation || a.id - b.id);
+    // Apply search + filter
+    const searchEl = document.getElementById('memberSearch');
+    const search = (searchEl?.value || '').trim().toLowerCase();
+    let filtered = familyData.members.filter(m => {
+        // Filter chip
+        if (currentMemberFilter === 'affected' && !m.affected) return false;
+        if (currentMemberFilter === 'carrier' && !m.carrier) return false;
+        if (currentMemberFilter === 'deceased' && !m.deceased) return false;
+        if (currentMemberFilter === 'proband' && !m.proband) return false;
+        // Search
+        if (search) {
+            const haystack = [
+                m.name || '',
+                m.note || '',
+                m.variant || '',
+                ...(m.diseases || []),
+                'birey ' + m.id
+            ].join(' ').toLowerCase();
+            if (!haystack.includes(search)) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<li style="text-align:center;color:#aaa;padding:20px;font-size:12px;">Eşleşen üye yok.</li>';
+        return;
+    }
+
+    const sorted = [...filtered].sort((a, b) => a.generation - b.generation || a.id - b.id);
     list.innerHTML = sorted.map(m => {
         const symbolColor = m.affected ? '#e74c3c' : (m.carrier ? '#f39c12' : '#555');
         const fill = m.affected ? symbolColor : 'none';
@@ -1049,6 +1197,221 @@ function updateLegend() {
 
     content.innerHTML = html;
 }
+
+// ======================== STATISTICS PANEL ========================
+function updateStatsPanel() {
+    const panel = document.getElementById('statsPanel');
+    const grid = document.getElementById('statsGrid');
+    if (!panel || !grid) return;
+    if (familyData.members.length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+
+    const total = familyData.members.length;
+    const affected = familyData.members.filter(m => m.affected).length;
+    const carriers = familyData.members.filter(m => m.carrier).length;
+    const deceased = familyData.members.filter(m => m.deceased).length;
+    const generations = new Set(familyData.members.map(m => m.generation)).size;
+    const males = familyData.members.filter(m => m.sex === 'male').length;
+    const females = familyData.members.filter(m => m.sex === 'female').length;
+    const couples = familyData.partnerships.length;
+
+    grid.innerHTML = `
+        <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
+        <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
+        <div class="stat-card affected"><div class="stat-num">${affected}</div><div class="stat-label">Etkilenmiş</div></div>
+        <div class="stat-card carrier"><div class="stat-num">${carriers}</div><div class="stat-label">Taşıyıcı</div></div>
+        <div class="stat-card deceased"><div class="stat-num">${deceased}</div><div class="stat-label">Vefat Etmiş</div></div>
+        <div class="stat-card"><div class="stat-num">♂${males} ♀${females}</div><div class="stat-label">Cinsiyet Dağılımı</div></div>
+        <div class="stat-card"><div class="stat-num">${couples}</div><div class="stat-label">Eş İlişkisi</div></div>
+        <div class="stat-card"><div class="stat-num">${total > 0 ? Math.round(affected/total*100) : 0}%</div><div class="stat-label">Etkilenme Oranı</div></div>
+    `;
+}
+
+// ======================== PEDIGREE VALIDATION ========================
+function validatePedigree() {
+    const warnings = [];
+
+    // 1. Cycle in parent-child links
+    familyData.parentChildLinks.forEach(l => {
+        if (l.childId === l.parent1 || l.childId === l.parent2) {
+            warnings.push(`Birey ${l.childId} kendisinin ebeveyni olamaz.`);
+        }
+    });
+
+    // 2. Generation order: child should be in higher generation than parents
+    familyData.parentChildLinks.forEach(l => {
+        const child = familyData.members.find(m => m.id === l.childId);
+        const p1 = familyData.members.find(m => m.id === l.parent1);
+        const p2 = familyData.members.find(m => m.id === l.parent2);
+        if (child && p1 && child.generation <= p1.generation) {
+            warnings.push(`Birey "${child.name||'Birey '+child.id}" ebeveynleriyle aynı veya daha üst nesilde.`);
+        }
+    });
+
+    // 3. Age consistency: child age should be less than parent age
+    familyData.parentChildLinks.forEach(l => {
+        const child = familyData.members.find(m => m.id === l.childId);
+        const p1 = familyData.members.find(m => m.id === l.parent1);
+        const p2 = familyData.members.find(m => m.id === l.parent2);
+        if (child && child.age != null) {
+            if (p1 && p1.age != null && child.age >= p1.age) {
+                warnings.push(`"${child.name||'Birey '+child.id}" yaşı (${child.age}) ebeveyni "${p1.name||'Birey '+p1.id}" (${p1.age}) yaşına eşit/büyük.`);
+            }
+            if (p2 && p2.age != null && child.age >= p2.age) {
+                warnings.push(`"${child.name||'Birey '+child.id}" yaşı (${child.age}) ebeveyni "${p2.name||'Birey '+p2.id}" (${p2.age}) yaşına eşit/büyük.`);
+            }
+        }
+    });
+
+    // 4. Self-partnership
+    familyData.partnerships.forEach(p => {
+        if (p.partner1 === p.partner2) warnings.push(`Bir birey kendisiyle eş olamaz.`);
+    });
+
+    // 5. Same-sex partnership warning (informational, not error)
+    familyData.partnerships.forEach(p => {
+        const m1 = familyData.members.find(m => m.id === p.partner1);
+        const m2 = familyData.members.find(m => m.id === p.partner2);
+        if (m1 && m2 && m1.sex === m2.sex && m1.sex !== 'unknown') {
+            // Don't warn — this is valid
+        }
+    });
+
+    // 6. Multiple probands
+    const probands = familyData.members.filter(m => m.proband);
+    if (probands.length > 1) warnings.push(`${probands.length} adet proband var — genellikle 1 olmalıdır.`);
+
+    // 7. Orphan partnerships (referencing missing members)
+    familyData.partnerships.forEach(p => {
+        if (!familyData.members.find(m => m.id === p.partner1) || !familyData.members.find(m => m.id === p.partner2)) {
+            warnings.push(`Eksik üyeye atıfta bulunan eş ilişkisi bulundu.`);
+        }
+    });
+
+    // 8. Orphan parent-child links
+    familyData.parentChildLinks.forEach(l => {
+        if (!familyData.members.find(m => m.id === l.childId) ||
+            !familyData.members.find(m => m.id === l.parent1) ||
+            !familyData.members.find(m => m.id === l.parent2)) {
+            warnings.push(`Eksik üyeye atıfta bulunan ebeveyn-çocuk bağlantısı bulundu.`);
+        }
+    });
+
+    return [...new Set(warnings)]; // dedupe
+}
+
+function updateValidationPanel() {
+    const panel = document.getElementById('validationPanel');
+    const list = document.getElementById('validationList');
+    if (!panel || !list) return;
+    if (familyData.members.length === 0) { panel.style.display = 'none'; return; }
+
+    const warnings = validatePedigree();
+    panel.style.display = '';
+    if (warnings.length === 0) {
+        panel.classList.add('empty');
+        list.innerHTML = '<div class="validation-warning">✓ Pedigride tutarsızlık bulunamadı.</div>';
+    } else {
+        panel.classList.remove('empty');
+        list.innerHTML = warnings.map(w => `<div class="validation-warning"><span class="warn-icon">⚠</span><span>${w}</span></div>`).join('');
+    }
+}
+
+// ======================== MINI-MAP ========================
+let minimapVisible = false;
+function toggleMinimap() {
+    minimapVisible = !minimapVisible;
+    document.getElementById('minimap').classList.toggle('show', minimapVisible);
+    document.getElementById('minimapToggle').classList.toggle('active', minimapVisible);
+    if (minimapVisible) renderMinimap();
+}
+
+function renderMinimap() {
+    if (!minimapVisible || !lastLayout) return;
+    const minimapSvg = document.getElementById('minimapSvg');
+    const mainSvg = document.getElementById('pedigree-svg');
+    const vb = mainSvg.getAttribute('viewBox');
+    if (!vb) { minimapSvg.innerHTML = ''; return; }
+
+    minimapSvg.setAttribute('viewBox', vb);
+    minimapSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    const NODE_R_MINI = 25;
+    let content = '';
+
+    // Draw simplified shapes
+    familyData.members.forEach(m => {
+        const pos = lastLayout.positions[m.id];
+        if (!pos) return;
+        const fill = m.affected ? '#333' : (m.carrier ? '#f39c12' : 'none');
+        const stroke = m.proband ? '#e67e22' : '#666';
+        if (m.sex === 'female') {
+            content += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R_MINI}" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`;
+        } else if (m.sex === 'male') {
+            content += `<rect x="${pos.x - NODE_R_MINI}" y="${pos.y - NODE_R_MINI}" width="${NODE_R_MINI*2}" height="${NODE_R_MINI*2}" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`;
+        } else {
+            content += `<polygon points="${pos.x},${pos.y - NODE_R_MINI} ${pos.x + NODE_R_MINI},${pos.y} ${pos.x},${pos.y + NODE_R_MINI} ${pos.x - NODE_R_MINI},${pos.y}" fill="${fill}" stroke="${stroke}" stroke-width="3"/>`;
+        }
+    });
+
+    // Draw connection lines (simplified)
+    familyData.partnerships.forEach(p => {
+        const p1 = lastLayout.positions[p.partner1];
+        const p2 = lastLayout.positions[p.partner2];
+        if (p1 && p2) {
+            content += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="#666" stroke-width="2"/>`;
+        }
+    });
+    familyData.parentChildLinks.forEach(l => {
+        const p1 = lastLayout.positions[l.parent1];
+        const p2 = lastLayout.positions[l.parent2];
+        const c = lastLayout.positions[l.childId];
+        if (p1 && p2 && c) {
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            content += `<line x1="${midX}" y1="${midY}" x2="${c.x}" y2="${c.y}" stroke="#666" stroke-width="2"/>`;
+        }
+    });
+
+    // Draw viewport rectangle
+    const container = document.getElementById('canvasContainer');
+    const svgRect = mainSvg.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const vbParts = vb.split(' ').map(Number);
+    if (svgRect.width > 0 && svgRect.height > 0) {
+        const visLeft = (container.scrollLeft / (svgRect.width / zoomLevel)) * vbParts[2];
+        const visTop = (container.scrollTop / (svgRect.height / zoomLevel)) * vbParts[3];
+        const visW = (containerRect.width / svgRect.width) * vbParts[2];
+        const visH = (containerRect.height / svgRect.height) * vbParts[3];
+        content += `<rect class="viewport-rect" x="${visLeft}" y="${visTop}" width="${visW}" height="${visH}" />`;
+    }
+
+    minimapSvg.innerHTML = content;
+}
+
+// Re-render minimap on scroll/zoom
+document.getElementById('canvasContainer')?.addEventListener('scroll', () => {
+    if (minimapVisible) renderMinimap();
+});
+
+// Click on minimap to scroll
+document.getElementById('minimap')?.addEventListener('click', (e) => {
+    const minimapSvg = document.getElementById('minimapSvg');
+    const rect = minimapSvg.getBoundingClientRect();
+    const vb = minimapSvg.getAttribute('viewBox');
+    if (!vb) return;
+    const vbParts = vb.split(' ').map(Number);
+    // Click position in viewBox coords
+    const cx = ((e.clientX - rect.left) / rect.width) * vbParts[2];
+    const cy = ((e.clientY - rect.top) / rect.height) * vbParts[3];
+    // Convert to scroll position in main container
+    const mainSvg = document.getElementById('pedigree-svg');
+    const svgRect = mainSvg.getBoundingClientRect();
+    const container = document.getElementById('canvasContainer');
+    const scrollX = (cx / vbParts[2]) * svgRect.width - container.clientWidth / 2;
+    const scrollY = (cy / vbParts[3]) * svgRect.height - container.clientHeight / 2;
+    container.scrollTo({ left: scrollX, top: scrollY, behavior: 'smooth' });
+});
 
 // ======================== PEDIGREE LAYOUT ========================
 function computeLayout() {
@@ -2344,11 +2707,12 @@ function handleFileLoad(event) {
     event.target.value = ''; // reset for re-loading same file
 }
 
-// Auto-save after every renderPedigree call
+// Auto-save + minimap update after every renderPedigree call
 const _origRenderForAutosave = renderPedigree;
 renderPedigree = function() {
     _origRenderForAutosave();
     autosave();
+    if (typeof renderMinimap === 'function') renderMinimap();
 };
 
 // ======================== HOVER TOOLTIP ========================
