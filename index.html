@@ -453,6 +453,62 @@
         body.dark-theme .autocomplete-list { background: #242830; border-color: #3a3f48; }
         body.dark-theme .autocomplete-item { color: #ddd; }
         body.dark-theme .autocomplete-item:hover { background: #2f3540; color: #5dade2; }
+
+        /* ===== History Panel ===== */
+        .history-panel {
+            background: #f8f9fa; border-radius: 8px; padding: 12px;
+            margin: 12px 0; font-size: 12px; max-height: 280px; overflow-y: auto;
+        }
+        .history-panel h4 {
+            font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase;
+            margin-bottom: 8px; letter-spacing: 0.5px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .history-panel h4 .clear-btn {
+            font-size: 10px; color: #999; cursor: pointer; text-transform: none;
+            font-weight: 400; background: none; border: none;
+        }
+        .history-panel h4 .clear-btn:hover { color: #e74c3c; }
+        .history-item {
+            display: flex; gap: 8px; padding: 6px 0;
+            border-bottom: 1px dashed #e0e0e0; align-items: flex-start;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-icon { font-size: 14px; flex-shrink: 0; width: 20px; }
+        .history-content { flex: 1; min-width: 0; }
+        .history-action { font-weight: 600; color: #2c3e50; }
+        .history-detail { color: #666; font-size: 11px; margin-top: 1px; word-wrap: break-word; }
+        .history-time { font-size: 10px; color: #999; margin-top: 2px; }
+        body.dark-theme .history-panel { background: #2a2e36; }
+        body.dark-theme .history-item { border-color: #3a3f48; }
+        body.dark-theme .history-action { color: #e8e8e8; }
+        body.dark-theme .history-detail { color: #aaa; }
+
+        /* ===== Multi-select highlight ===== */
+        .selected-highlight {
+            stroke: #3498db !important;
+            stroke-width: 4 !important;
+            filter: drop-shadow(0 0 4px rgba(52,152,219,0.6));
+        }
+        .keyboard-focus {
+            stroke: #e67e22 !important;
+            stroke-width: 4 !important;
+            filter: drop-shadow(0 0 6px rgba(230,126,34,0.7));
+        }
+        .batch-toolbar {
+            position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+            background: #2c3e50; color: white; border-radius: 8px;
+            padding: 8px 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            z-index: 50; display: none; align-items: center; gap: 12px; font-size: 13px;
+        }
+        .batch-toolbar.show { display: flex; }
+        .batch-toolbar .count { background: #3498db; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .batch-toolbar button {
+            background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3);
+            padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px;
+        }
+        .batch-toolbar button:hover { background: rgba(255,255,255,0.3); }
+        .batch-toolbar button.danger { background: #e74c3c; border-color: #e74c3c; }
     </style>
 </head>
 <body>
@@ -474,6 +530,7 @@
                 <button onclick="exportSVG(); closeExportMenu()">📄 SVG olarak indir</button>
                 <button onclick="exportPNG(); closeExportMenu()">🖼️ PNG olarak indir</button>
                 <button onclick="exportPDF(); closeExportMenu()">📋 PDF olarak indir</button>
+                <button onclick="exportCSV(); closeExportMenu()">📊 CSV olarak indir (üye listesi)</button>
             </div>
         </div>
         <button onclick="toggleDarkTheme()" title="Tema değiştir" id="themeBtn">🌙</button>
@@ -657,6 +714,11 @@
                 <div id="validationList"></div>
             </div>
 
+            <div id="historyPanel" class="history-panel" style="display:none;">
+                <h4>⏰ Değişiklik Geçmişi <button class="clear-btn" onclick="clearHistory()">Temizle</button></h4>
+                <div id="historyList"></div>
+            </div>
+
             <ul class="member-list" id="memberListUI"></ul>
             <div class="empty-state" id="emptyState">
                 <p>Henüz aile üyesi eklenmedi.<br>Üye eklemek için "Üye Ekle" sekmesine gidin.</p>
@@ -715,6 +777,15 @@
             <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <button class="minimap-toggle" id="minimapToggle" onclick="toggleMinimap()" title="Mini Harita">🗺️</button>
+        <div class="batch-toolbar" id="batchToolbar">
+            <span><span class="count" id="batchCount">0</span> seçili</span>
+            <button onclick="batchDelete()" class="danger">🗑️ Sil</button>
+            <button onclick="batchSetAffected(true)">🔴 Etkilenmiş</button>
+            <button onclick="batchSetAffected(false)">⚪ Sağlıklı</button>
+            <button onclick="batchSetCarrier(true)">🟡 Taşıyıcı</button>
+            <button onclick="batchSetDeceased(true)">⚫ Vefat</button>
+            <button onclick="clearMultiSelection()">✕ Vazgeç</button>
+        </div>
         <div class="minimap" id="minimap">
             <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
@@ -745,6 +816,9 @@
                 </button>
                 <button id="gridBtn" onclick="toggleGrid(this)" title="Kılavuz Çizgiler">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="8" x2="20" y2="8" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="4" y1="16" x2="20" y2="16" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="8" y1="4" x2="8" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="16" y1="4" x2="16" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/></svg>
+                </button>
+                <button id="autoLayoutBtn" onclick="autoLayout()" title="Otomatik Yerleşim (Düzenle)">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 6h18M3 12h18M3 18h18" stroke="#555" stroke-width="2"/><circle cx="6" cy="6" r="2" fill="#3498db"/><circle cx="12" cy="12" r="2" fill="#3498db"/><circle cx="18" cy="18" r="2" fill="#3498db"/></svg>
                 </button>
             </div>
             <div class="separator"></div>
@@ -1225,6 +1299,7 @@ function updateUI() {
     updateLegend();
     updateStatsPanel();
     updateValidationPanel();
+    updateHistoryPanel();
 }
 
 function setMemberFilter(filter, btn) {
@@ -1561,6 +1636,51 @@ function updateValidationPanel() {
         list.innerHTML = warnings.map(w => `<div class="validation-warning"><span class="warn-icon">⚠</span><span>${w}</span></div>`).join('');
     }
 }
+
+// ======================== CHANGE HISTORY ========================
+function formatRelativeTime(ts) {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'şimdi';
+    if (diff < 3600) return Math.floor(diff / 60) + ' dk önce';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' sa önce';
+    return Math.floor(diff / 86400) + ' gün önce';
+}
+
+const ACTION_ICONS = {
+    'add_member': '➕', 'edit_member': '✏️', 'delete_member': '🗑️',
+    'add_partnership': '⚭', 'remove_partnership': '✂️',
+    'add_parentchild': '👶', 'remove_parentchild': '✂️',
+    'move_member': '✋', 'place_member': '📍',
+    'auto_layout': '🤖', 'load': '📂', 'clear': '🧹', 'batch': '📦'
+};
+
+function updateHistoryPanel() {
+    const panel = document.getElementById('historyPanel');
+    const list = document.getElementById('historyList');
+    if (!panel || !list) return;
+    if (changeHistory.length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    list.innerHTML = changeHistory.slice(0, 30).map(h => {
+        const icon = ACTION_ICONS[h.action] || '•';
+        return `<div class="history-item">
+            <div class="history-icon">${icon}</div>
+            <div class="history-content">
+                <div class="history-action">${h.action}</div>
+                ${h.detail ? `<div class="history-detail">${h.detail}</div>` : ''}
+                <div class="history-time">${formatRelativeTime(h.timestamp)}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function clearHistory() {
+    if (!confirm('Değişiklik geçmişi temizlensin mi? (Geri al/ileri al etkilenmez)')) return;
+    changeHistory = [];
+    updateHistoryPanel();
+}
+
+// Auto-refresh time strings every 30s
+setInterval(updateHistoryPanel, 30000);
 
 // ======================== MINI-MAP ========================
 let minimapVisible = false;
@@ -2250,6 +2370,16 @@ function renderPedigree() {
         if (m.note) {
             svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${m.note}</text>`;
         }
+
+        // Selection / focus highlight
+        if (selectedMemberIds && selectedMemberIds.has(m.id)) {
+            // Blue ring for selected
+            svgContent += `<rect x="${pos.x - NODE_R - 6}" y="${pos.y - NODE_R - 6}" width="${NODE_R*2 + 12}" height="${NODE_R*2 + 12}" rx="6" fill="none" stroke="#3498db" stroke-width="3" stroke-dasharray="4,3" opacity="0.85"/>`;
+        }
+        if (focusedMemberId === m.id) {
+            // Orange ring for keyboard focus
+            svgContent += `<rect x="${pos.x - NODE_R - 9}" y="${pos.y - NODE_R - 9}" width="${NODE_R*2 + 18}" height="${NODE_R*2 + 18}" rx="8" fill="none" stroke="#e67e22" stroke-width="2.5" opacity="0.9"/>`;
+        }
     });
 
     // Grid lines
@@ -2389,6 +2519,64 @@ function downloadBlob(blob, filename) {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// ======================== CSV EXPORT ========================
+function csvEscape(val) {
+    if (val == null) return '';
+    const s = String(val);
+    if (/[,"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+}
+
+function exportCSV() {
+    if (familyData.members.length === 0) { alert('Önce en az bir birey ekleyin.'); return; }
+    const headers = [
+        'ID','Ad Soyad','Cinsiyet','Nesil','Yaş',
+        'Etkilenmiş','Taşıyıcı','Vefat','Proband',
+        'Hastalıklar','Kanserler','Varyant',
+        'Hamilelik','Evlat Edinme','İkiz Tipi','Not'
+    ];
+    const rows = familyData.members.map(m => {
+        const sexLabel = m.sex === 'male' ? 'Erkek' : m.sex === 'female' ? 'Kadın' : 'Bilinmiyor';
+        const cancersStr = (m.cancers || []).map(c => `${c.type}${c.age?` ${c.age}y`:''}${c.bilateral?' bil':''}`).join('; ');
+        return [
+            m.id,
+            m.name || `Birey ${m.id}`,
+            sexLabel,
+            toRoman(m.generation),
+            m.age != null ? m.age : '',
+            m.affected ? 'evet' : '',
+            m.carrier ? 'evet' : '',
+            m.deceased ? 'evet' : '',
+            m.proband ? 'evet' : '',
+            (m.diseases || []).join('; '),
+            cancersStr,
+            m.variant || '',
+            m.pregnancy && m.pregnancy !== 'none' ? m.pregnancy : '',
+            m.adopted && m.adopted !== 'none' ? (m.adopted === 'in' ? 'içeri' : 'dışarı') : '',
+            m.twinType && m.twinType !== 'none' ? (m.twinType === 'monozygotic' ? 'tek yumurta' : 'çift yumurta') : '',
+            m.note || ''
+        ].map(csvEscape).join(',');
+    });
+    // BOM for Excel UTF-8 compatibility
+    const csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const ts = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `pedigri-uyeler-${ts}.csv`);
+}
+
+// ======================== AUTO-LAYOUT ========================
+function autoLayout() {
+    if (familyData.members.length === 0) return;
+    if (!confirm('Tüm bireylerin manuel olarak ayarlanan pozisyonları sıfırlanıp otomatik yerleşim uygulanacak. Devam edilsin mi?')) return;
+    saveState();
+    familyData.members.forEach(m => {
+        m.customX = null;
+        m.customY = null;
+    });
+    updateUI();
+    renderPedigree();
 }
 
 // ======================== ZOOM ========================
@@ -2647,8 +2835,15 @@ function clearAllSilent() {
 // ======================== UNDO / REDO ========================
 let undoStack = [];
 let redoStack = [];
+let changeHistory = []; // [{timestamp, action, detail}]
 
-function saveState() {
+function logChange(action, detail) {
+    changeHistory.unshift({ timestamp: Date.now(), action, detail });
+    if (changeHistory.length > 50) changeHistory.pop();
+    updateHistoryPanel();
+}
+
+function saveState(action, detail) {
     undoStack.push(JSON.stringify({
         members: familyData.members,
         partnerships: familyData.partnerships,
@@ -2660,6 +2855,7 @@ function saveState() {
     if (undoStack.length > 50) undoStack.shift();
     redoStack = [];
     updateUndoRedoButtons();
+    if (action) logChange(action, detail);
 }
 
 function restoreState(stateStr) {
@@ -2722,22 +2918,41 @@ document.addEventListener('keydown', (e) => {
 
 // Hook into existing functions to auto-save state
 const _origAddOrUpdate = addOrUpdateMember;
-addOrUpdateMember = function() { saveState(); _origAddOrUpdate(); };
+addOrUpdateMember = function() {
+    const isEdit = !!editingMemberId;
+    const name = document.getElementById('memberName').value.trim() || `Birey`;
+    saveState(isEdit ? 'edit_member' : 'add_member', name);
+    _origAddOrUpdate();
+};
 
 const _origDeleteMember = deleteMember;
-deleteMember = function(id) { saveState(); _origDeleteMember(id); };
+deleteMember = function(id) {
+    const m = familyData.members.find(x => x.id === id);
+    saveState('delete_member', m ? (m.name || `Birey ${id}`) : '');
+    _origDeleteMember(id);
+};
 
 const _origAddPartnership = addPartnership;
-addPartnership = function() { saveState(); _origAddPartnership(); };
+addPartnership = function() {
+    const m1 = familyData.members.find(m => m.id === parseInt(document.getElementById('partner1').value));
+    const m2 = familyData.members.find(m => m.id === parseInt(document.getElementById('partner2').value));
+    saveState('add_partnership', m1 && m2 ? `${m1.name||'Birey '+m1.id} & ${m2.name||'Birey '+m2.id}` : '');
+    _origAddPartnership();
+};
 
 const _origRemovePartnership = removePartnership;
-removePartnership = function(idx) { saveState(); _origRemovePartnership(idx); };
+removePartnership = function(idx) { saveState('remove_partnership', ''); _origRemovePartnership(idx); };
 
 const _origAddParentChild = addParentChild;
-addParentChild = function() { saveState(); _origAddParentChild(); };
+addParentChild = function() {
+    const childId = parseInt(document.getElementById('childSelect').value);
+    const child = familyData.members.find(m => m.id === childId);
+    saveState('add_parentchild', child ? (child.name || `Birey ${childId}`) : '');
+    _origAddParentChild();
+};
 
 const _origRemoveParentChild = removeParentChild;
-removeParentChild = function(idx) { saveState(); _origRemoveParentChild(idx); };
+removeParentChild = function(idx) { saveState('remove_parentchild', ''); _origRemoveParentChild(idx); };
 
 // ======================== INTERACTIVE TOOLS ENGINE ========================
 let placeMode = null;
@@ -3382,6 +3597,133 @@ function closeHelpModal() {
     document.getElementById('helpModalOverlay').classList.remove('open');
 }
 
+// ======================== KEYBOARD NAVIGATION + MULTI-SELECT ========================
+let focusedMemberId = null;       // currently focused via keyboard
+let selectedMemberIds = new Set(); // multi-selected via Shift+click
+
+function setFocusedMember(id) {
+    focusedMemberId = id;
+    renderPedigree();
+    // Scroll into view if needed
+    if (id != null && lastLayout) {
+        const pos = lastLayout.positions[id];
+        if (pos) {
+            const container = document.getElementById('canvasContainer');
+            const svg = document.getElementById('pedigree-svg');
+            const vbW = parseFloat((svg.getAttribute('viewBox') || '0 0 0 0').split(' ')[2]) || 1;
+            const pixelX = (pos.x / vbW) * parseFloat(svg.getAttribute('width') || svg.clientWidth);
+            const pixelY = (pos.y / vbW) * parseFloat(svg.getAttribute('width') || svg.clientWidth);
+            // Smart scroll: bring focused member into view if outside
+            if (pixelX < container.scrollLeft + 50 || pixelX > container.scrollLeft + container.clientWidth - 50)
+                container.scrollLeft = pixelX - container.clientWidth / 2;
+            if (pixelY < container.scrollTop + 50 || pixelY > container.scrollTop + container.clientHeight - 50)
+                container.scrollTop = pixelY - container.clientHeight / 2;
+        }
+    }
+}
+
+function focusNextMember(direction) {
+    // Sort by generation, then x position
+    const sorted = familyData.members.slice().sort((a, b) => {
+        if (a.generation !== b.generation) return a.generation - b.generation;
+        const ax = lastLayout?.positions[a.id]?.x || 0;
+        const bx = lastLayout?.positions[b.id]?.x || 0;
+        return ax - bx;
+    });
+    if (sorted.length === 0) return;
+    const currentIdx = sorted.findIndex(m => m.id === focusedMemberId);
+    let nextIdx;
+    if (currentIdx < 0) nextIdx = 0;
+    else nextIdx = (currentIdx + direction + sorted.length) % sorted.length;
+    setFocusedMember(sorted[nextIdx].id);
+}
+
+// ======================== MULTI-SELECT ========================
+function toggleMemberSelection(id) {
+    if (selectedMemberIds.has(id)) selectedMemberIds.delete(id);
+    else selectedMemberIds.add(id);
+    updateBatchToolbar();
+    renderPedigree();
+}
+
+function clearMultiSelection() {
+    selectedMemberIds.clear();
+    updateBatchToolbar();
+    renderPedigree();
+}
+
+function updateBatchToolbar() {
+    const toolbar = document.getElementById('batchToolbar');
+    const count = selectedMemberIds.size;
+    document.getElementById('batchCount').textContent = count;
+    toolbar.classList.toggle('show', count > 0);
+}
+
+function batchDelete() {
+    if (selectedMemberIds.size === 0) return;
+    if (!confirm(`${selectedMemberIds.size} birey silinsin mi? (İlişkili tüm bağlantılar da temizlenir)`)) return;
+    saveState('batch', `${selectedMemberIds.size} birey silindi`);
+    const ids = Array.from(selectedMemberIds);
+    familyData.members = familyData.members.filter(m => !selectedMemberIds.has(m.id));
+    familyData.partnerships = familyData.partnerships.filter(p => !selectedMemberIds.has(p.partner1) && !selectedMemberIds.has(p.partner2));
+    familyData.parentChildLinks = familyData.parentChildLinks.filter(l => !selectedMemberIds.has(l.childId) && !selectedMemberIds.has(l.parent1) && !selectedMemberIds.has(l.parent2));
+    familyData.members.forEach(m => {
+        if (selectedMemberIds.has(m.twinPartnerId)) { m.twinPartnerId = null; m.twinType = 'none'; }
+    });
+    selectedMemberIds.clear();
+    updateBatchToolbar();
+    updateUI();
+    renderPedigree();
+}
+
+function batchSetAffected(value) {
+    if (selectedMemberIds.size === 0) return;
+    saveState('batch', `${selectedMemberIds.size} birey: etkilenmiş = ${value}`);
+    familyData.members.forEach(m => {
+        if (selectedMemberIds.has(m.id)) m.affected = value;
+    });
+    updateUI();
+    renderPedigree();
+}
+function batchSetCarrier(value) {
+    if (selectedMemberIds.size === 0) return;
+    saveState('batch', `${selectedMemberIds.size} birey: taşıyıcı = ${value}`);
+    familyData.members.forEach(m => {
+        if (selectedMemberIds.has(m.id)) m.carrier = value;
+    });
+    updateUI();
+    renderPedigree();
+}
+function batchSetDeceased(value) {
+    if (selectedMemberIds.size === 0) return;
+    saveState('batch', `${selectedMemberIds.size} birey: vefat = ${value}`);
+    familyData.members.forEach(m => {
+        if (selectedMemberIds.has(m.id)) m.deceased = value;
+    });
+    updateUI();
+    renderPedigree();
+}
+
+// Hook click on canvas: Shift+click = toggle selection
+canvasContainer.addEventListener('click', (e) => {
+    if (toolMode) return; // don't interfere with active tools
+    const pos = getSVGPos(e);
+    const m = findMemberAtPos(pos);
+    if (m) {
+        if (e.shiftKey) {
+            toggleMemberSelection(m.id);
+            e.preventDefault();
+            e.stopPropagation();
+        } else {
+            // Single click without shift: focus + clear multi-selection
+            if (selectedMemberIds.size > 0) clearMultiSelection();
+            setFocusedMember(m.id);
+        }
+    } else if (selectedMemberIds.size > 0) {
+        clearMultiSelection();
+    }
+});
+
 // ======================== KEYBOARD SHORTCUTS ========================
 document.addEventListener('keydown', (e) => {
     // Don't trigger when typing in inputs
@@ -3402,6 +3744,40 @@ document.addEventListener('keydown', (e) => {
         closeHelpModal();
         if (typeof endTour === 'function') endTour();
         if (toolMode) clearAllModes();
+        if (selectedMemberIds.size > 0) clearMultiSelection();
+        if (focusedMemberId != null) setFocusedMember(null);
+        return;
+    }
+
+    // Navigation/edit/delete only when not in input
+    if (isInput) return;
+
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        focusNextMember(e.shiftKey ? -1 : 1);
+        return;
+    }
+    if (e.key === 'Enter' && focusedMemberId != null) {
+        e.preventDefault();
+        editMember(focusedMemberId);
+        return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && focusedMemberId != null) {
+        e.preventDefault();
+        if (confirm(`Bu üyeyi silmek istediğinize emin misiniz?`)) {
+            const id = focusedMemberId;
+            focusedMemberId = null;
+            deleteMember(id);
+        }
+        return;
+    }
+    // Ctrl+A: select all
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        familyData.members.forEach(m => selectedMemberIds.add(m.id));
+        updateBatchToolbar();
+        renderPedigree();
+        return;
     }
 });
 
