@@ -514,120 +514,120 @@
 <body>
 
 <div class="app-header">
-    <h1>Pedigri Çizim Uygulaması</h1>
+    <h1 data-i18n="app.title">Pedigri Çizim Uygulaması</h1>
     <div class="mode-toggle" id="modeToggle">
-        <button class="active" data-mode="rare" onclick="setMode('rare')" title="Genetik hastalık pedigresi">🧬 Nadir Hastalık</button>
-        <button data-mode="cancer" onclick="setMode('cancer')" title="Onkogenetik kanser pedigresi">🩸 Kanser Pedigresi</button>
+        <button class="active" data-mode="rare" onclick="setMode('rare')" title="Genetik hastalık pedigresi" data-i18n="mode.rare">🧬 Nadir Hastalık</button>
+        <button data-mode="cancer" onclick="setMode('cancer')" title="Onkogenetik kanser pedigresi" data-i18n="mode.cancer">🩸 Kanser Pedigresi</button>
     </div>
     <div class="header-actions">
-        <button onclick="saveToFile()" title="JSON olarak kaydet">💾 Kaydet</button>
-        <button onclick="loadFromFile()" title="JSON yükle">📂 Yükle</button>
-        <button onclick="generateShareLink()" title="Paylaşılabilir link oluştur">🔗 Paylaş</button>
+        <button onclick="saveToFile()" title="JSON olarak kaydet" data-i18n="btn.save">💾 Kaydet</button>
+        <button onclick="loadFromFile()" title="JSON yükle" data-i18n="btn.load">📂 Yükle</button>
+        <button onclick="generateShareLink()" title="Paylaşılabilir link oluştur" data-i18n="btn.share">🔗 Paylaş</button>
         <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="handleFileLoad(event)">
         <div class="export-dropdown">
-            <button onclick="toggleExportMenu()">📥 Export ▾</button>
+            <button onclick="toggleExportMenu()" data-i18n="btn.export">📥 Export ▾</button>
             <div class="export-menu" id="exportMenu">
-                <button onclick="exportSVG(); closeExportMenu()">📄 SVG olarak indir</button>
-                <button onclick="exportPNG(); closeExportMenu()">🖼️ PNG olarak indir</button>
-                <button onclick="exportPDF(); closeExportMenu()">📋 PDF olarak indir</button>
-                <button onclick="exportCSV(); closeExportMenu()">📊 CSV olarak indir (üye listesi)</button>
+                <button onclick="exportSVG(); closeExportMenu()" data-i18n="btn.export.svg">📄 SVG olarak indir</button>
+                <button onclick="exportPNG(); closeExportMenu()" data-i18n="btn.export.png">🖼️ PNG olarak indir</button>
+                <button onclick="exportPDF(); closeExportMenu()" data-i18n="btn.export.pdf">📋 PDF olarak indir</button>
+                <button onclick="exportCSV(); closeExportMenu()" data-i18n="btn.export.csv">📊 CSV olarak indir (üye listesi)</button>
             </div>
         </div>
-        <button onclick="toggleDarkTheme()" title="Tema değiştir" id="themeBtn">🌙</button>
-        <button onclick="openHelpModal()" title="Yardım & Kısayollar">❓</button>
-        <button onclick="clearAll()">🗑️ Temizle</button>
+        <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn">🇹🇷 TR</button>
+        <button onclick="toggleDarkTheme()" data-i18n-title="btn.theme" title="Tema değiştir" id="themeBtn">🌙</button>
+        <button onclick="openHelpModal()" data-i18n-title="btn.help" title="Yardım & Kısayollar">❓</button>
+        <button onclick="clearAll()" data-i18n="btn.clear">🗑️ Temizle</button>
     </div>
 </div>
 
 <div class="app-container">
     <div class="left-panel">
         <div class="panel-tabs">
-            <div class="panel-tab active" onclick="switchTab('add')">Üye Ekle</div>
-            <div class="panel-tab" onclick="switchTab('list')">Aile Listesi</div>
-            <div class="panel-tab" onclick="switchTab('relations')">İlişkiler</div>
+            <div class="panel-tab active" onclick="switchTab('add')" data-i18n="tab.add">Üye Ekle</div>
+            <div class="panel-tab" onclick="switchTab('list')" data-i18n="tab.list">Aile Listesi</div>
+            <div class="panel-tab" onclick="switchTab('relations')" data-i18n="tab.relations">İlişkiler</div>
         </div>
 
         <!-- Uye Ekle Tab -->
         <div id="tab-add" class="tab-content active">
             <div class="form-group">
-                <label>Ad Soyad</label>
-                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz">
+                <label data-i18n="label.name">Ad Soyad</label>
+                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name">
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Cinsiyet</label>
+                    <label data-i18n="label.sex">Cinsiyet</label>
                     <select id="memberSex">
-                        <option value="male">Erkek</option>
-                        <option value="female">Kadın</option>
-                        <option value="unknown">Bilinmiyor</option>
+                        <option value="male" data-i18n="opt.male">Erkek</option>
+                        <option value="female" data-i18n="opt.female">Kadın</option>
+                        <option value="unknown" data-i18n="opt.unknown">Bilinmiyor</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Nesil (Kuşak)</label>
+                    <label data-i18n="label.generation">Nesil (Kuşak)</label>
                     <select id="memberGeneration">
-                        <option value="1">I (Büyük ebeveynler)</option>
-                        <option value="2" selected>II (Ebeveynler)</option>
-                        <option value="3">III (Çocuklar)</option>
-                        <option value="4">IV (Torunlar)</option>
-                        <option value="5">V</option>
+                        <option value="1" data-i18n="opt.gen.1">I (Büyük ebeveynler)</option>
+                        <option value="2" selected data-i18n="opt.gen.2">II (Ebeveynler)</option>
+                        <option value="3" data-i18n="opt.gen.3">III (Çocuklar)</option>
+                        <option value="4" data-i18n="opt.gen.4">IV (Torunlar)</option>
+                        <option value="5" data-i18n="opt.gen.5">V</option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
-                <label>Yaş</label>
-                <input type="number" id="memberAge" placeholder="Ör: 45" min="0" max="120">
+                <label data-i18n="label.age">Yaş</label>
+                <input type="number" id="memberAge" placeholder="Ör: 45" min="0" max="120" data-i18n-placeholder="placeholder.age">
             </div>
 
-            <div class="section-title">Durum</div>
+            <div class="section-title" data-i18n="label.status">Durum</div>
             <div class="checkbox-group">
                 <input type="checkbox" id="memberAffected">
-                <label for="memberAffected">Etkilenmiş (Hasta)</label>
+                <label for="memberAffected" data-i18n="label.affected">Etkilenmiş (Hasta)</label>
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="memberCarrier">
-                <label for="memberCarrier">Taşıyıcı</label>
+                <label for="memberCarrier" data-i18n="label.carrier">Taşıyıcı</label>
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="memberDeceased">
-                <label for="memberDeceased">Vefat etmiş</label>
+                <label for="memberDeceased" data-i18n="label.deceased">Vefat etmiş</label>
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="memberProband">
-                <label for="memberProband">Proband (İndeks vaka)</label>
+                <label for="memberProband" data-i18n="label.proband">Proband (İndeks vaka)</label>
             </div>
 
             <details class="extra-conditions" style="margin:8px 0 12px 0; border:1px solid #e0e0e0; border-radius:6px; padding:0;">
-                <summary style="cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:#666; user-select:none;">Ek Durumlar ▾</summary>
+                <summary style="cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:#666; user-select:none;"><span data-i18n="label.extra">Ek Durumlar</span> ▾</summary>
                 <div style="padding:6px 12px 10px 12px;">
                     <div class="form-group">
-                        <label>Gebelik/Düşük Durumu</label>
+                        <label data-i18n="label.pregnancy">Gebelik/Düşük Durumu</label>
                         <select id="memberPregnancy">
-                            <option value="none">Yok</option>
-                            <option value="P">P — Devam eden gebelik</option>
-                            <option value="SAB">SAB — Spontan abort (düşük)</option>
-                            <option value="TOP">TOP — Tıbbi tahliye</option>
-                            <option value="SB">SB — Ölü doğum</option>
+                            <option value="none" data-i18n="opt.preg.none">Yok</option>
+                            <option value="P" data-i18n="opt.preg.P">P — Devam eden gebelik</option>
+                            <option value="SAB" data-i18n="opt.preg.SAB">SAB — Spontan abort (düşük)</option>
+                            <option value="TOP" data-i18n="opt.preg.TOP">TOP — Tıbbi tahliye</option>
+                            <option value="SB" data-i18n="opt.preg.SB">SB — Ölü doğum</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Evlat Edinme</label>
+                        <label data-i18n="label.adopted">Evlat Edinme</label>
                         <select id="memberAdopted">
-                            <option value="none">Yok</option>
-                            <option value="in">İçeri evlat edinilmiş</option>
-                            <option value="out">Dışarı evlat verilmiş</option>
+                            <option value="none" data-i18n="opt.adopt.none">Yok</option>
+                            <option value="in" data-i18n="opt.adopt.in">İçeri evlat edinilmiş</option>
+                            <option value="out" data-i18n="opt.adopt.out">Dışarı evlat verilmiş</option>
                         </select>
                     </div>
-                    <!-- Eski abort alanı geriye uyumluluk için -->
                     <input type="checkbox" id="memberAbort" style="display:none">
                 </div>
             </details>
 
             <div class="rare-only">
-                <div class="section-title">Hastalıklar</div>
+                <div class="section-title" data-i18n="label.disease.section">Hastalıklar</div>
                 <div class="form-group">
-                    <label>Hastalık / Fenotip</label>
+                    <label data-i18n="label.disease">Hastalık / Fenotip</label>
                     <div style="display:flex;gap:6px;">
-                        <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis">
+                        <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis" data-i18n-placeholder="placeholder.disease">
                         <button class="btn btn-sm btn-primary" onclick="addDiseaseToMember()">+</button>
                     </div>
                 </div>
@@ -635,58 +635,59 @@
             </div>
 
             <div class="cancer-section">
-                <div class="section-title">🩸 Kanser/Tümör (max 3)</div>
+                <div class="section-title" data-i18n="label.cancer.section">🩸 Kanser/Tümör (max 3)</div>
                 <div class="cancer-form-row">
                     <div class="autocomplete-wrap form-group" style="margin:0;">
                         <input type="text" id="cancerTypeInput" placeholder="Kanser türü..." autocomplete="off"
+                               data-i18n-placeholder="placeholder.cancer.type"
                                oninput="showCancerSuggestions()" onfocus="showCancerSuggestions()" onblur="setTimeout(hideCancerSuggestions, 200)">
                         <div class="autocomplete-list" id="cancerSuggestions"></div>
                     </div>
                     <div class="form-group" style="margin:0;">
-                        <input type="number" id="cancerAgeInput" placeholder="Yaş" min="0" max="120">
+                        <input type="number" id="cancerAgeInput" placeholder="Yaş" min="0" max="120" data-i18n-placeholder="placeholder.cancer.age">
                     </div>
                     <button class="btn btn-sm btn-primary" onclick="addCancerToMember()" style="height:34px;">+</button>
                 </div>
                 <div class="checkbox-group" style="margin-top:6px;">
                     <input type="checkbox" id="cancerBilateral">
-                    <label for="cancerBilateral">Bilateral (çift taraflı)</label>
+                    <label for="cancerBilateral" data-i18n="label.cancer.bilateral">Bilateral (çift taraflı)</label>
                 </div>
                 <div id="cancerList" style="margin-top:8px;"></div>
             </div>
 
-            <div class="section-title">İkiz Durumu</div>
+            <div class="section-title" data-i18n="label.twin">İkiz Durumu</div>
             <div class="form-group">
                 <select id="memberTwinType">
-                    <option value="none">İkiz değil</option>
-                    <option value="monozygotic">Tek yumurta ikizi</option>
-                    <option value="dizygotic">Çift yumurta ikizi</option>
+                    <option value="none" data-i18n="opt.twin.none">İkiz değil</option>
+                    <option value="monozygotic" data-i18n="opt.twin.mono">Tek yumurta ikizi</option>
+                    <option value="dizygotic" data-i18n="opt.twin.di">Çift yumurta ikizi</option>
                 </select>
             </div>
             <div class="form-group" id="twinPartnerGroup" style="display:none;">
-                <label>İkiz Eşi</label>
+                <label data-i18n="label.twin.partner">İkiz Eşi</label>
                 <select id="memberTwinPartner"></select>
             </div>
 
             <div class="form-group">
-                <label>Gen / Varyant</label>
-                <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508">
+                <label data-i18n="label.gene">Gen / Varyant</label>
+                <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508" data-i18n-placeholder="placeholder.gene">
             </div>
 
             <div class="form-group">
-                <label>Not</label>
-                <input type="text" id="memberNote" placeholder="Ek bilgi...">
+                <label data-i18n="label.note">Not</label>
+                <input type="text" id="memberNote" placeholder="Ek bilgi..." data-i18n-placeholder="placeholder.note">
             </div>
 
             <div class="form-actions">
-                <button class="btn btn-primary" id="addMemberBtn" onclick="addOrUpdateMember()">Üye Ekle</button>
-                <button class="btn btn-secondary" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()">İptal</button>
+                <button class="btn btn-primary" id="addMemberBtn" onclick="addOrUpdateMember()" data-i18n="btn.add">Üye Ekle</button>
+                <button class="btn btn-secondary" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()" data-i18n="btn.cancel">İptal</button>
             </div>
 
             <div style="margin-top:16px; border-top:1px solid #eee; padding-top:12px;">
-                <div style="font-size:12px; color:#888; margin-bottom:8px; font-weight:600;">📋 Hazır Şablonlar</div>
+                <div style="font-size:12px; color:#888; margin-bottom:8px; font-weight:600;" data-i18n="tmpl.section">📋 Hazır Şablonlar</div>
                 <div id="templateButtons">
-                    <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
-                    <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+                    <button class="sample-btn" onclick="loadTemplateDeNovo()" data-i18n="tmpl.denovo">De Novo Varyant Ailesi</button>
+                    <button class="sample-btn" onclick="loadTemplateConsanguineous()" data-i18n="tmpl.consang">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
                 </div>
             </div>
         </div>
@@ -694,79 +695,79 @@
         <!-- Aile Listesi Tab -->
         <div id="tab-list" class="tab-content">
             <div class="list-search">
-                <input type="text" id="memberSearch" placeholder="🔍 İsim, hastalık veya not ara..." oninput="updateMemberList()">
+                <input type="text" id="memberSearch" placeholder="🔍 İsim, hastalık veya not ara..." oninput="updateMemberList()" data-i18n-placeholder="placeholder.search">
                 <div class="filter-row">
-                    <button class="filter-chip active" data-filter="all" onclick="setMemberFilter('all', this)">Tümü</button>
-                    <button class="filter-chip" data-filter="affected" onclick="setMemberFilter('affected', this)">🔴 Etkilenmiş</button>
-                    <button class="filter-chip" data-filter="carrier" onclick="setMemberFilter('carrier', this)">🟡 Taşıyıcı</button>
-                    <button class="filter-chip" data-filter="deceased" onclick="setMemberFilter('deceased', this)">⚫ Vefat</button>
-                    <button class="filter-chip" data-filter="proband" onclick="setMemberFilter('proband', this)">▶ Proband</button>
+                    <button class="filter-chip active" data-filter="all" onclick="setMemberFilter('all', this)" data-i18n="filter.all">Tümü</button>
+                    <button class="filter-chip" data-filter="affected" onclick="setMemberFilter('affected', this)" data-i18n="filter.affected">🔴 Etkilenmiş</button>
+                    <button class="filter-chip" data-filter="carrier" onclick="setMemberFilter('carrier', this)" data-i18n="filter.carrier">🟡 Taşıyıcı</button>
+                    <button class="filter-chip" data-filter="deceased" onclick="setMemberFilter('deceased', this)" data-i18n="filter.deceased">⚫ Vefat</button>
+                    <button class="filter-chip" data-filter="proband" onclick="setMemberFilter('proband', this)" data-i18n="filter.proband">▶ Proband</button>
                 </div>
             </div>
 
             <div id="statsPanel" class="stats-panel" style="display:none;">
-                <h4>📊 İstatistikler</h4>
+                <h4 data-i18n="stats.title">📊 İstatistikler</h4>
                 <div class="stats-grid" id="statsGrid"></div>
             </div>
 
             <div id="validationPanel" class="validation-panel" style="display:none;">
-                <h4>⚠️ Pedigri Uyarıları</h4>
+                <h4 data-i18n="valid.title">⚠️ Pedigri Uyarıları</h4>
                 <div id="validationList"></div>
             </div>
 
             <div id="historyPanel" class="history-panel" style="display:none;">
-                <h4>⏰ Değişiklik Geçmişi <button class="clear-btn" onclick="clearHistory()">Temizle</button></h4>
+                <h4><span data-i18n="hist.title">⏰ Değişiklik Geçmişi</span> <button class="clear-btn" onclick="clearHistory()" data-i18n="hist.clear">Temizle</button></h4>
                 <div id="historyList"></div>
             </div>
 
             <ul class="member-list" id="memberListUI"></ul>
             <div class="empty-state" id="emptyState">
-                <p>Henüz aile üyesi eklenmedi.<br>Üye eklemek için "Üye Ekle" sekmesine gidin.</p>
+                <p><span data-i18n="empty.list">Henüz aile üyesi eklenmedi.</span><br><span data-i18n="empty.list2">Üye eklemek için "Üye Ekle" sekmesine gidin.</span></p>
             </div>
         </div>
 
         <!-- Iliskiler Tab -->
         <div id="tab-relations" class="tab-content">
-            <div class="section-title">Eş İlişkisi (Evlilik)</div>
-            <div style="font-size:11px; color:#888; margin-bottom:8px; padding:6px 10px; background:#f8f9fa; border-radius:4px; border-left:3px solid #3498db;">
+            <div class="section-title" data-i18n="rel.partner.title">Eş İlişkisi (Evlilik)</div>
+            <div style="font-size:11px; color:#888; margin-bottom:8px; padding:6px 10px; background:#f8f9fa; border-radius:4px; border-left:3px solid #3498db;" data-i18n="rel.partner.tip">
                 💡 İpucu: Aynı kişiyi birden fazla eşle ilişkilendirebilirsiniz (yeniden evlilik için).
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Kişi 1</label>
+                    <label data-i18n="rel.partner1">Kişi 1</label>
                     <select id="partner1"></select>
                 </div>
                 <div class="form-group">
-                    <label>Kişi 2</label>
+                    <label data-i18n="rel.partner2">Kişi 2</label>
                     <select id="partner2"></select>
                 </div>
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="consanguinity">
-                <label for="consanguinity">Akraba evliliği (çift çizgi)</label>
+                <label for="consanguinity" data-i18n="rel.consang">Akraba evliliği (çift çizgi)</label>
             </div>
             <div class="checkbox-group">
                 <input type="checkbox" id="divorced">
-                <label for="divorced">Boşanmış (çift slash //)</label>
+                <label for="divorced" data-i18n="rel.divorced">Boşanmış (çift slash //)</label>
             </div>
             <div class="form-actions">
-                <button class="btn btn-primary" onclick="addPartnership()">Eşleştir</button>
+                <button class="btn btn-primary" onclick="addPartnership()" data-i18n="rel.btn.pair">Eşleştir</button>
             </div>
 
-            <div class="section-title" style="margin-top:24px;">Ebeveyn-Çocuk İlişkisi</div>
+            <div class="section-title" style="margin-top:24px;" data-i18n="rel.parent.title">Ebeveyn-Çocuk İlişkisi</div>
             <div class="form-group">
-                <label>Ebeveyn Çifti</label>
+                <label data-i18n="rel.parent.couple">Ebeveyn Çifti</label>
                 <select id="parentCouple"></select>
             </div>
             <div class="form-group">
-                <label>Çocuk</label>
+                <label data-i18n="rel.parent.child">Çocuk</label>
                 <select id="childSelect"></select>
             </div>
             <div class="form-actions">
-                <button class="btn btn-primary" onclick="addParentChild()">Bağla</button>
+                <button class="btn btn-primary" onclick="addParentChild()" data-i18n="rel.btn.connect">Bağla</button>
             </div>
 
-            <div class="section-title" style="margin-top:24px;">Mevcut İlişkiler</div>
+            <div class="section-title" style="margin-top:24px;" data-i18n="rel.list.title">Mevcut İlişkiler</div>
             <div id="relationsList"></div>
         </div>
     </div>
@@ -776,23 +777,23 @@
             <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
             <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
-        <button class="minimap-toggle" id="minimapToggle" onclick="toggleMinimap()" title="Mini Harita">🗺️</button>
+        <button class="minimap-toggle" id="minimapToggle" onclick="toggleMinimap()" data-i18n-title="tool.minimap" title="Mini Harita">🗺️</button>
         <div class="batch-toolbar" id="batchToolbar">
-            <span><span class="count" id="batchCount">0</span> seçili</span>
-            <button onclick="batchDelete()" class="danger">🗑️ Sil</button>
-            <button onclick="batchSetAffected(true)">🔴 Etkilenmiş</button>
-            <button onclick="batchSetAffected(false)">⚪ Sağlıklı</button>
-            <button onclick="batchSetCarrier(true)">🟡 Taşıyıcı</button>
-            <button onclick="batchSetDeceased(true)">⚫ Vefat</button>
-            <button onclick="clearMultiSelection()">✕ Vazgeç</button>
+            <span><span class="count" id="batchCount">0</span> <span data-i18n="batch.selected">seçili</span></span>
+            <button onclick="batchDelete()" class="danger" data-i18n="batch.delete">🗑️ Sil</button>
+            <button onclick="batchSetAffected(true)" data-i18n="batch.affected">🔴 Etkilenmiş</button>
+            <button onclick="batchSetAffected(false)" data-i18n="batch.healthy">⚪ Sağlıklı</button>
+            <button onclick="batchSetCarrier(true)" data-i18n="batch.carrier">🟡 Taşıyıcı</button>
+            <button onclick="batchSetDeceased(true)" data-i18n="batch.deceased">⚫ Vefat</button>
+            <button onclick="clearMultiSelection()" data-i18n="batch.cancel">✕ Vazgeç</button>
         </div>
         <div class="minimap" id="minimap">
             <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <div class="zoom-controls">
-            <button onclick="zoomIn()" title="Yakınlaştır">+</button>
-            <button onclick="zoomOut()" title="Uzaklaştır">−</button>
-            <button onclick="resetZoom()" title="Sıfırla">⟳</button>
+            <button onclick="zoomIn()" data-i18n-title="tool.zoomin" title="Yakınlaştır">+</button>
+            <button onclick="zoomOut()" data-i18n-title="tool.zoomout" title="Uzaklaştır">−</button>
+            <button onclick="resetZoom()" data-i18n-title="tool.zoomreset" title="Sıfırla">⟳</button>
         </div>
         <div class="place-toolbar" id="placeToolbar">
             <div class="tool-grid">
@@ -800,52 +801,52 @@
                 <button id="redoBtn" onclick="redo()" title="İleri Al (Ctrl+Y)" disabled>↪</button>
             </div>
             <div class="separator"></div>
-            <span class="tool-label">ARAÇLAR</span>
+            <span class="tool-label" data-i18n="toolbar.tools">ARAÇLAR</span>
             <div class="tool-grid">
-                <button id="moveBtn" onclick="setMoveMode(this)" title="Taşı (Sürükle)">
+                <button id="moveBtn" onclick="setMoveMode(this)" data-i18n-title="tool.move" title="Taşı (Sürükle)">
                     <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2l3 3h-2v4h4v-2l3 3-3 3v-2h-4v4h2l-3 3-3-3h2v-4H7v2l-3-3 3-3v2h4V5H9l3-3z" fill="#555"/></svg>
                 </button>
-                <button id="connectBtn" onclick="setConnectMode(this)" title="Bağla (Çizgi Çek)">
+                <button id="connectBtn" onclick="setConnectMode(this)" data-i18n-title="tool.connect" title="Bağla (Çizgi Çek)">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="18" x2="20" y2="6" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><circle cx="4" cy="18" r="3" fill="#555"/><circle cx="20" cy="6" r="3" fill="#555"/></svg>
                 </button>
-                <button id="consanBtn" onclick="toggleConsanMode(this)" title="Akraba Evliliği (Çift Çizgi)" style="font-size:10px; font-weight:bold; line-height:1;">
+                <button id="consanBtn" onclick="toggleConsanMode(this)" data-i18n-title="tool.consan" title="Akraba Evliliği (Çift Çizgi)" style="font-size:10px; font-weight:bold; line-height:1;">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="10" x2="20" y2="10" stroke="#555" stroke-width="2"/><line x1="4" y1="14" x2="20" y2="14" stroke="#555" stroke-width="2"/></svg>
                 </button>
-                <button id="eraserBtn" onclick="setEraserMode(this)" title="Silgi">
+                <button id="eraserBtn" onclick="setEraserMode(this)" data-i18n-title="tool.eraser" title="Silgi">
                     <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 5.5L8.5 17H4v-2L15.5 3.5c.8-.8 2-.8 2.8 0l1.7 1.7z" fill="none" stroke="#e74c3c" stroke-width="2"/><line x1="3" y1="21" x2="21" y2="21" stroke="#e74c3c" stroke-width="2"/></svg>
                 </button>
-                <button id="gridBtn" onclick="toggleGrid(this)" title="Kılavuz Çizgiler">
+                <button id="gridBtn" onclick="toggleGrid(this)" data-i18n-title="tool.grid" title="Kılavuz Çizgiler">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="8" x2="20" y2="8" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="4" y1="16" x2="20" y2="16" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="8" y1="4" x2="8" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="16" y1="4" x2="16" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/></svg>
                 </button>
-                <button id="autoLayoutBtn" onclick="autoLayout()" title="Otomatik Yerleşim (Düzenle)">
+                <button id="autoLayoutBtn" onclick="autoLayout()" data-i18n-title="tool.autolayout" title="Otomatik Yerleşim (Düzenle)">
                     <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 6h18M3 12h18M3 18h18" stroke="#555" stroke-width="2"/><circle cx="6" cy="6" r="2" fill="#3498db"/><circle cx="12" cy="12" r="2" fill="#3498db"/><circle cx="18" cy="18" r="2" fill="#3498db"/></svg>
                 </button>
             </div>
             <div class="separator"></div>
-            <span class="tool-label">EKLE</span>
+            <span class="tool-label" data-i18n="toolbar.add">EKLE</span>
             <div class="tool-grid">
-                <button id="placeMaleBtn" onclick="setPlaceMode('male', this)" title="Erkek Ekle">
+                <button id="placeMaleBtn" onclick="setPlaceMode('male', this)" data-i18n-title="tool.male" title="Erkek Ekle">
                     <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="none" stroke="#333" stroke-width="2"/></svg>
                 </button>
-                <button id="placeFemaleBtn" onclick="setPlaceMode('female', this)" title="Kadın Ekle">
+                <button id="placeFemaleBtn" onclick="setPlaceMode('female', this)" data-i18n-title="tool.female" title="Kadın Ekle">
                     <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#333" stroke-width="2"/></svg>
                 </button>
-                <button id="placeAffectedMaleBtn" onclick="setPlaceMode('affected_male', this)" title="Etkilenmiş Erkek">
+                <button id="placeAffectedMaleBtn" onclick="setPlaceMode('affected_male', this)" data-i18n-title="tool.affmale" title="Etkilenmiş Erkek">
                     <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="#333" stroke="#333" stroke-width="2"/></svg>
                 </button>
-                <button id="placeAffectedFemaleBtn" onclick="setPlaceMode('affected_female', this)" title="Etkilenmiş Kadın">
+                <button id="placeAffectedFemaleBtn" onclick="setPlaceMode('affected_female', this)" data-i18n-title="tool.afffemale" title="Etkilenmiş Kadın">
                     <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="#333" stroke="#333" stroke-width="2"/></svg>
                 </button>
-                <button id="placeCarrierMaleBtn" onclick="setPlaceMode('carrier_male', this)" title="Taşıyıcı Erkek">
+                <button id="placeCarrierMaleBtn" onclick="setPlaceMode('carrier_male', this)" data-i18n-title="tool.carmale" title="Taşıyıcı Erkek">
                     <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="16" height="16" fill="none" stroke="#333" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#333"/></svg>
                 </button>
-                <button id="placeCarrierFemaleBtn" onclick="setPlaceMode('carrier_female', this)" title="Taşıyıcı Kadın">
+                <button id="placeCarrierFemaleBtn" onclick="setPlaceMode('carrier_female', this)" data-i18n-title="tool.carfemale" title="Taşıyıcı Kadın">
                     <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="8" fill="none" stroke="#333" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#333"/></svg>
                 </button>
-                <button id="placeAbortBtn" onclick="setPlaceMode('abort', this)" title="Abort">
+                <button id="placeAbortBtn" onclick="setPlaceMode('abort', this)" data-i18n-title="tool.abort" title="Abort">
                     <svg viewBox="0 0 24 28" width="16" height="20"><line x1="12" y1="4" x2="12" y2="18" stroke="#333" stroke-width="2"/><circle cx="12" cy="22" r="4" fill="#333"/></svg>
                 </button>
-                <button onclick="cancelPlaceMode()" title="İptal" style="font-size:12px;">✕</button>
+                <button onclick="cancelPlaceMode()" data-i18n-title="tool.cancel" title="İptal" style="font-size:12px;">✕</button>
             </div>
         </div>
     </div>
@@ -853,7 +854,7 @@
 
 <!-- Legend overlay -->
 <div class="legend-box" id="legendBox" style="display:none;">
-    <h4>Sembol Açıklamaları</h4>
+    <h4 data-i18n="lg.title">Sembol Açıklamaları</h4>
     <div id="legendContent"></div>
 </div>
 
@@ -1012,7 +1013,7 @@ function addOrUpdateMember() {
             familyData.members[idx] = member;
         }
         editingMemberId = null;
-        document.getElementById('addMemberBtn').textContent = 'Üye Ekle';
+        document.getElementById('addMemberBtn').textContent = t('btn.add');
         document.getElementById('cancelEditBtn').style.display = 'none';
     } else {
         familyData.members.push(member);
@@ -1056,7 +1057,7 @@ function editMember(id) {
     updateDiseaseListUI();
     updateCancerListUI();
 
-    document.getElementById('addMemberBtn').textContent = 'Güncelle';
+    document.getElementById('addMemberBtn').textContent = t('btn.update');
     document.getElementById('cancelEditBtn').style.display = '';
     switchTab('add');
 }
@@ -1076,7 +1077,7 @@ function deleteMember(id) {
 
 function cancelEdit() {
     editingMemberId = null;
-    document.getElementById('addMemberBtn').textContent = 'Üye Ekle';
+    document.getElementById('addMemberBtn').textContent = t('btn.add');
     document.getElementById('cancelEditBtn').style.display = 'none';
     resetForm();
 }
@@ -1149,14 +1150,14 @@ function updateLoadedTemplatesList() {
     if (!tmplContainer) return;
     if (familyData.mode === 'cancer') {
         tmplContainer.innerHTML = `
-            <button class="sample-btn" onclick="loadTemplateBRCA()">BRCA1/2 Ailesi (Meme/Yumurtalık)</button>
-            <button class="sample-btn" onclick="loadTemplateLynch()">Lynch Sendromu (Kolon/Endometrium)</button>
-            <button class="sample-btn" onclick="loadTemplateLiFraumeni()">Li-Fraumeni Sendromu</button>
+            <button class="sample-btn" onclick="loadTemplateBRCA()">${t('tmpl.brca')}</button>
+            <button class="sample-btn" onclick="loadTemplateLynch()">${t('tmpl.lynch')}</button>
+            <button class="sample-btn" onclick="loadTemplateLiFraumeni()">${t('tmpl.lifr')}</button>
         `;
     } else {
         tmplContainer.innerHTML = `
-            <button class="sample-btn" onclick="loadTemplateDeNovo()">De Novo Varyant Ailesi</button>
-            <button class="sample-btn" onclick="loadTemplateConsanguineous()">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
+            <button class="sample-btn" onclick="loadTemplateDeNovo()">${t('tmpl.denovo')}</button>
+            <button class="sample-btn" onclick="loadTemplateConsanguineous()">${t('tmpl.consang')}</button>
         `;
     }
 }
@@ -1383,7 +1384,7 @@ function updateMemberList() {
                 </div>
             </div>
             <div class="member-actions">
-                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteMember(${m.id})">Sil</button>
+                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteMember(${m.id})">${t('btn.delete')}</button>
             </div>
         </li>`;
     }).join('');
@@ -1395,7 +1396,7 @@ function updateRelationSelects() {
         const el = document.getElementById(id);
         if (!el) return;
         const val = el.value;
-        el.innerHTML = '<option value="">Seçin...</option>' +
+        el.innerHTML = `<option value="">${t('select.placeholder')}</option>` +
             familyData.members.map(m => `<option value="${m.id}">${getMemberLabel(m)} (${toRoman(m.generation)})</option>`).join('');
         el.value = val;
     });
@@ -1403,7 +1404,7 @@ function updateRelationSelects() {
     const coupleSelect = document.getElementById('parentCouple');
     if (coupleSelect) {
         const val = coupleSelect.value;
-        coupleSelect.innerHTML = '<option value="">Seçin...</option>' +
+        coupleSelect.innerHTML = `<option value="">${t('select.placeholder')}</option>` +
             familyData.partnerships.map(p => {
                 const m1 = familyData.members.find(m => m.id === p.partner1);
                 const m2 = familyData.members.find(m => m.id === p.partner2);
@@ -1424,7 +1425,7 @@ function updateTwinPartnerSelect() {
         return;
     }
     group.style.display = '';
-    select.innerHTML = '<option value="">Seçin...</option>' +
+    select.innerHTML = `<option value="">${t('select.placeholder')}</option>` +
         familyData.members
             .filter(m => m.id !== editingMemberId)
             .map(m => `<option value="${m.id}">${getMemberLabel(m)}</option>`).join('');
@@ -1457,7 +1458,7 @@ function updateRelationsList() {
         </div>`;
     });
 
-    if (!html) html = '<div class="empty-state"><p>Henüz ilişki tanımlanmadı.</p></div>';
+    if (!html) html = `<div class="empty-state"><p>${t('rel.empty')}</p></div>`;
     container.innerHTML = html;
 }
 
@@ -1468,16 +1469,16 @@ function updateLegend() {
     box.style.display = '';
 
     let html = `
-        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/></svg> Erkek</div>
-        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/></svg> Kadın</div>
-        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="#333" stroke="#333" stroke-width="1.5"/></svg> Etkilenmiş</div>
-        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#333"/></svg> Taşıyıcı</div>
-        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/><line x1="1" y1="19" x2="19" y2="1" stroke="#333" stroke-width="1.5"/></svg> Vefat</div>
-        <div class="legend-item"><svg viewBox="0 0 12 24"><line x1="6" y1="1" x2="6" y2="16" stroke="#333" stroke-width="1.5"/><circle cx="6" cy="20" r="4" fill="#333"/></svg> Abort</div>
-        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,4 22,12 12,20 2,12" fill="none" stroke="#333" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">P</text></svg> Gebelik</div>
-        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,18 4,6 20,6" fill="#333" stroke="#333" stroke-width="1.5"/></svg> SAB (Düşük)</div>
-        <div class="legend-item"><svg viewBox="0 0 24 16"><line x1="2" y1="8" x2="10" y2="8" stroke="#333" stroke-width="1.5"/><line x1="14" y1="8" x2="22" y2="8" stroke="#333" stroke-width="1.5"/><line x1="11" y1="3" x2="9" y2="13" stroke="#333" stroke-width="2"/><line x1="15" y1="3" x2="13" y2="13" stroke="#333" stroke-width="2"/></svg> Boşanma</div>
-        <div class="legend-item"><svg viewBox="0 0 24 24"><polyline points="6,5 3,5 3,19 6,19" fill="none" stroke="#333" stroke-width="1.5"/><polyline points="18,5 21,5 21,19 18,19" fill="none" stroke="#333" stroke-width="1.5"/><rect x="8" y="7" width="8" height="10" fill="none" stroke="#333" stroke-width="1.5"/></svg> Evlat edinme</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.male')}</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.female')}</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="#333" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.affected')}</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#333"/></svg> ${t('lg.carrier')}</div>
+        <div class="legend-item"><svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/><line x1="1" y1="19" x2="19" y2="1" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.deceased')}</div>
+        <div class="legend-item"><svg viewBox="0 0 12 24"><line x1="6" y1="1" x2="6" y2="16" stroke="#333" stroke-width="1.5"/><circle cx="6" cy="20" r="4" fill="#333"/></svg> ${t('lg.abort')}</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,4 22,12 12,20 2,12" fill="none" stroke="#333" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">P</text></svg> ${t('lg.preg')}</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polygon points="12,18 4,6 20,6" fill="#333" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.sab')}</div>
+        <div class="legend-item"><svg viewBox="0 0 24 16"><line x1="2" y1="8" x2="10" y2="8" stroke="#333" stroke-width="1.5"/><line x1="14" y1="8" x2="22" y2="8" stroke="#333" stroke-width="1.5"/><line x1="11" y1="3" x2="9" y2="13" stroke="#333" stroke-width="2"/><line x1="15" y1="3" x2="13" y2="13" stroke="#333" stroke-width="2"/></svg> ${t('lg.divorce')}</div>
+        <div class="legend-item"><svg viewBox="0 0 24 24"><polyline points="6,5 3,5 3,19 6,19" fill="none" stroke="#333" stroke-width="1.5"/><polyline points="18,5 21,5 21,19 18,19" fill="none" stroke="#333" stroke-width="1.5"/><rect x="8" y="7" width="8" height="10" fill="none" stroke="#333" stroke-width="1.5"/></svg> ${t('lg.adopt')}</div>
     `;
 
     const allDiseases = [...familyData.diseases];
@@ -1520,14 +1521,14 @@ function updateStatsPanel() {
         const topCancerLabel = topCancer ? `${topCancer[0].slice(0, 12)} ×${topCancer[1]}` : '-';
 
         grid.innerHTML = `
-            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
-            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
-            <div class="stat-card affected"><div class="stat-num">${totalCancers}</div><div class="stat-label">Toplam Tümör</div></div>
-            <div class="stat-card affected"><div class="stat-num">${affectedMembers}</div><div class="stat-label">Etkilenmiş Birey</div></div>
-            <div class="stat-card"><div class="stat-num">${avgAge || '-'}${avgAge?'y':''}</div><div class="stat-label">Ort. Tanı Yaşı</div></div>
-            <div class="stat-card carrier"><div class="stat-num">${youngOnset}</div><div class="stat-label">Erken Yaş (&lt;50)</div></div>
-            <div class="stat-card"><div class="stat-num">${bilateral}</div><div class="stat-label">Bilateral</div></div>
-            <div class="stat-card" style="font-size:11px;"><div class="stat-num" style="font-size:13px;">${topCancerLabel}</div><div class="stat-label">En Sık Kanser</div></div>
+            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">${t('stats.total')}</div></div>
+            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">${t('stats.gens')}</div></div>
+            <div class="stat-card affected"><div class="stat-num">${totalCancers}</div><div class="stat-label">${t('stats.tumors')}</div></div>
+            <div class="stat-card affected"><div class="stat-num">${affectedMembers}</div><div class="stat-label">${t('stats.affected.ind')}</div></div>
+            <div class="stat-card"><div class="stat-num">${avgAge || '-'}${avgAge?'y':''}</div><div class="stat-label">${t('stats.avgage')}</div></div>
+            <div class="stat-card carrier"><div class="stat-num">${youngOnset}</div><div class="stat-label">${t('stats.early')}</div></div>
+            <div class="stat-card"><div class="stat-num">${bilateral}</div><div class="stat-label">${t('stats.bilateral')}</div></div>
+            <div class="stat-card" style="font-size:11px;"><div class="stat-num" style="font-size:13px;">${topCancerLabel}</div><div class="stat-label">${t('stats.topcancer')}</div></div>
         `;
     } else {
         // Rare disease stats (original)
@@ -1535,14 +1536,14 @@ function updateStatsPanel() {
         const carriers = familyData.members.filter(m => m.carrier).length;
 
         grid.innerHTML = `
-            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Toplam Birey</div></div>
-            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">Nesil Sayısı</div></div>
-            <div class="stat-card affected"><div class="stat-num">${affected}</div><div class="stat-label">Etkilenmiş</div></div>
-            <div class="stat-card carrier"><div class="stat-num">${carriers}</div><div class="stat-label">Taşıyıcı</div></div>
-            <div class="stat-card deceased"><div class="stat-num">${deceased}</div><div class="stat-label">Vefat Etmiş</div></div>
-            <div class="stat-card"><div class="stat-num">♂${males} ♀${females}</div><div class="stat-label">Cinsiyet Dağılımı</div></div>
-            <div class="stat-card"><div class="stat-num">${couples}</div><div class="stat-label">Eş İlişkisi</div></div>
-            <div class="stat-card"><div class="stat-num">${total > 0 ? Math.round(affected/total*100) : 0}%</div><div class="stat-label">Etkilenme Oranı</div></div>
+            <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">${t('stats.total')}</div></div>
+            <div class="stat-card"><div class="stat-num">${generations}</div><div class="stat-label">${t('stats.gens')}</div></div>
+            <div class="stat-card affected"><div class="stat-num">${affected}</div><div class="stat-label">${t('stats.affected')}</div></div>
+            <div class="stat-card carrier"><div class="stat-num">${carriers}</div><div class="stat-label">${t('stats.carriers')}</div></div>
+            <div class="stat-card deceased"><div class="stat-num">${deceased}</div><div class="stat-label">${t('stats.deceased')}</div></div>
+            <div class="stat-card"><div class="stat-num">♂${males} ♀${females}</div><div class="stat-label">${t('stats.sex')}</div></div>
+            <div class="stat-card"><div class="stat-num">${couples}</div><div class="stat-label">${t('stats.couples')}</div></div>
+            <div class="stat-card"><div class="stat-num">${total > 0 ? Math.round(affected/total*100) : 0}%</div><div class="stat-label">${t('stats.rate')}</div></div>
         `;
     }
 }
@@ -1630,20 +1631,393 @@ function updateValidationPanel() {
     panel.style.display = '';
     if (warnings.length === 0) {
         panel.classList.add('empty');
-        list.innerHTML = '<div class="validation-warning">✓ Pedigride tutarsızlık bulunamadı.</div>';
+        list.innerHTML = `<div class="validation-warning">${t('valid.ok')}</div>`;
     } else {
         panel.classList.remove('empty');
         list.innerHTML = warnings.map(w => `<div class="validation-warning"><span class="warn-icon">⚠</span><span>${w}</span></div>`).join('');
     }
 }
 
+// ======================== I18N (LANGUAGE SUPPORT) ========================
+const I18N = {
+    tr: {
+        // Header
+        'app.title': 'Pedigri Çizim Uygulaması',
+        'mode.rare': '🧬 Nadir Hastalık',
+        'mode.cancer': '🩸 Kanser Pedigresi',
+        'btn.save': '💾 Kaydet',
+        'btn.load': '📂 Yükle',
+        'btn.share': '🔗 Paylaş',
+        'btn.export': '📥 Export ▾',
+        'btn.export.svg': '📄 SVG olarak indir',
+        'btn.export.png': '🖼️ PNG olarak indir',
+        'btn.export.pdf': '📋 PDF olarak indir',
+        'btn.export.csv': '📊 CSV olarak indir (üye listesi)',
+        'btn.clear': '🗑️ Temizle',
+        'btn.help': 'Yardım & Kısayollar',
+        'btn.theme': 'Tema değiştir',
+        // Tabs
+        'tab.add': 'Üye Ekle',
+        'tab.list': 'Aile Listesi',
+        'tab.relations': 'İlişkiler',
+        // Form labels
+        'label.name': 'AD SOYAD',
+        'label.sex': 'CİNSİYET',
+        'label.generation': 'NESİL (KUŞAK)',
+        'label.age': 'YAŞ',
+        'label.status': 'DURUM',
+        'label.affected': 'Etkilenmiş (Hasta)',
+        'label.carrier': 'Taşıyıcı',
+        'label.deceased': 'Vefat etmiş',
+        'label.proband': 'Proband (İndeks vaka)',
+        'label.extra': 'Ek Durumlar',
+        'label.pregnancy': 'Gebelik/Düşük Durumu',
+        'label.adopted': 'Evlat Edinme',
+        'label.disease.section': 'Hastalıklar',
+        'label.disease': 'Hastalık / Fenotip',
+        'label.cancer.section': '🩸 Kanser/Tümör (max 3)',
+        'label.cancer.bilateral': 'Bilateral (çift taraflı)',
+        'label.gene': 'Gen / Varyant',
+        'label.note': 'Not',
+        'label.twin': 'İkiz Durumu',
+        'label.twin.partner': 'İkiz Eşi',
+        'opt.male': 'Erkek',
+        'opt.female': 'Kadın',
+        'opt.unknown': 'Bilinmiyor',
+        'opt.gen.1': 'I (Büyük ebeveynler)',
+        'opt.gen.2': 'II (Ebeveynler)',
+        'opt.gen.3': 'III (Çocuklar)',
+        'opt.gen.4': 'IV (Torunlar)',
+        'opt.gen.5': 'V',
+        'opt.preg.none': 'Yok',
+        'opt.preg.P': 'P — Devam eden gebelik',
+        'opt.preg.SAB': 'SAB — Spontan abort (düşük)',
+        'opt.preg.TOP': 'TOP — Tıbbi tahliye',
+        'opt.preg.SB': 'SB — Ölü doğum',
+        'opt.adopt.none': 'Yok',
+        'opt.adopt.in': 'İçeri evlat edinilmiş',
+        'opt.adopt.out': 'Dışarı evlat verilmiş',
+        'opt.twin.none': 'İkiz değil',
+        'opt.twin.mono': 'Tek yumurta ikizi',
+        'opt.twin.di': 'Çift yumurta ikizi',
+        'btn.add': 'Üye Ekle',
+        'btn.update': 'Güncelle',
+        'btn.cancel': 'İptal',
+        'btn.delete': 'Sil',
+        'placeholder.name': 'Ör: Ahmet Yılmaz',
+        'placeholder.age': 'Ör: 45',
+        'placeholder.disease': 'Ör: Kistik Fibrozis',
+        'placeholder.cancer.type': 'Kanser türü...',
+        'placeholder.cancer.age': 'Yaş',
+        'placeholder.gene': 'Ör: BRCA1+, CFTR ΔF508',
+        'placeholder.note': 'Ek bilgi...',
+        'placeholder.search': '🔍 İsim, hastalık veya not ara...',
+        // Templates
+        'tmpl.section': '📋 Hazır Şablonlar',
+        'tmpl.denovo': 'De Novo Varyant Ailesi',
+        'tmpl.consang': 'Akraba Evliliği - Taşıyıcı Ebeveynler',
+        'tmpl.brca': 'BRCA1/2 Ailesi (Meme/Yumurtalık)',
+        'tmpl.lynch': 'Lynch Sendromu (Kolon/Endometrium)',
+        'tmpl.lifr': 'Li-Fraumeni Sendromu',
+        // List/filter
+        'filter.all': 'Tümü',
+        'filter.affected': '🔴 Etkilenmiş',
+        'filter.carrier': '🟡 Taşıyıcı',
+        'filter.deceased': '⚫ Vefat',
+        'filter.proband': '▶ Proband',
+        // Empty
+        'empty.list': 'Henüz aile üyesi eklenmedi.',
+        'empty.list2': 'Üye eklemek için "Üye Ekle" sekmesine gidin.',
+        // Stats
+        'stats.title': '📊 İstatistikler',
+        'stats.total': 'Toplam Birey',
+        'stats.gens': 'Nesil Sayısı',
+        'stats.affected': 'Etkilenmiş',
+        'stats.carriers': 'Taşıyıcı',
+        'stats.deceased': 'Vefat Etmiş',
+        'stats.sex': 'Cinsiyet Dağılımı',
+        'stats.couples': 'Eş İlişkisi',
+        'stats.rate': 'Etkilenme Oranı',
+        'stats.tumors': 'Toplam Tümör',
+        'stats.affected.ind': 'Etkilenmiş Birey',
+        'stats.avgage': 'Ort. Tanı Yaşı',
+        'stats.early': 'Erken Yaş (<50)',
+        'stats.bilateral': 'Bilateral',
+        'stats.topcancer': 'En Sık Kanser',
+        // Validation
+        'valid.title': '⚠️ Pedigri Uyarıları',
+        'valid.ok': '✓ Pedigride tutarsızlık bulunamadı.',
+        // History
+        'hist.title': '⏰ Değişiklik Geçmişi',
+        'hist.clear': 'Temizle',
+        'hist.now': 'şimdi',
+        'hist.min': ' dk önce',
+        'hist.hour': ' sa önce',
+        'hist.day': ' gün önce',
+        // Relations
+        'rel.partner.title': 'Eş İlişkisi (Evlilik)',
+        'rel.partner.tip': '💡 İpucu: Aynı kişiyi birden fazla eşle ilişkilendirebilirsiniz (yeniden evlilik için).',
+        'rel.partner1': 'Kişi 1',
+        'rel.partner2': 'Kişi 2',
+        'rel.consang': 'Akraba evliliği (çift çizgi)',
+        'rel.divorced': 'Boşanmış (çift slash //)',
+        'rel.btn.pair': 'Eşleştir',
+        'rel.parent.title': 'Ebeveyn-Çocuk İlişkisi',
+        'rel.parent.couple': 'Ebeveyn Çifti',
+        'rel.parent.child': 'Çocuk',
+        'rel.btn.connect': 'Bağla',
+        'rel.list.title': 'Mevcut İlişkiler',
+        'rel.empty': 'Henüz ilişki tanımlanmadı.',
+        'select.placeholder': 'Seçin...',
+        // Toolbar
+        'toolbar.tools': 'ARAÇLAR',
+        'toolbar.add': 'EKLE',
+        'tool.undo': 'Geri Al (Ctrl+Z)',
+        'tool.redo': 'İleri Al (Ctrl+Y)',
+        'tool.move': 'Taşı (Sürükle)',
+        'tool.connect': 'Bağla (Çizgi Çek)',
+        'tool.consan': 'Akraba Evliliği (Çift Çizgi)',
+        'tool.eraser': 'Silgi',
+        'tool.grid': 'Kılavuz Çizgiler',
+        'tool.autolayout': 'Otomatik Yerleşim (Düzenle)',
+        'tool.male': 'Erkek Ekle',
+        'tool.female': 'Kadın Ekle',
+        'tool.affmale': 'Etkilenmiş Erkek',
+        'tool.afffemale': 'Etkilenmiş Kadın',
+        'tool.carmale': 'Taşıyıcı Erkek',
+        'tool.carfemale': 'Taşıyıcı Kadın',
+        'tool.abort': 'Abort',
+        'tool.cancel': 'İptal',
+        'tool.zoomin': 'Yakınlaştır',
+        'tool.zoomout': 'Uzaklaştır',
+        'tool.zoomreset': 'Sıfırla',
+        'tool.minimap': 'Mini Harita',
+        // Legend
+        'lg.title': 'Sembol Açıklamaları',
+        'lg.male': 'Erkek',
+        'lg.female': 'Kadın',
+        'lg.affected': 'Etkilenmiş',
+        'lg.carrier': 'Taşıyıcı',
+        'lg.deceased': 'Vefat',
+        'lg.abort': 'Abort',
+        'lg.preg': 'Gebelik',
+        'lg.sab': 'SAB (Düşük)',
+        'lg.divorce': 'Boşanma',
+        'lg.adopt': 'Evlat edinme',
+        // Batch
+        'batch.selected': 'seçili',
+        'batch.delete': '🗑️ Sil',
+        'batch.affected': '🔴 Etkilenmiş',
+        'batch.healthy': '⚪ Sağlıklı',
+        'batch.carrier': '🟡 Taşıyıcı',
+        'batch.deceased': '⚫ Vefat',
+        'batch.cancel': '✕ Vazgeç',
+    },
+    en: {
+        'app.title': 'Pedigree Drawing Application',
+        'mode.rare': '🧬 Rare Disease',
+        'mode.cancer': '🩸 Cancer Pedigree',
+        'btn.save': '💾 Save',
+        'btn.load': '📂 Load',
+        'btn.share': '🔗 Share',
+        'btn.export': '📥 Export ▾',
+        'btn.export.svg': '📄 Download as SVG',
+        'btn.export.png': '🖼️ Download as PNG',
+        'btn.export.pdf': '📋 Download as PDF',
+        'btn.export.csv': '📊 Download as CSV (member list)',
+        'btn.clear': '🗑️ Clear',
+        'btn.help': 'Help & Shortcuts',
+        'btn.theme': 'Toggle theme',
+        'tab.add': 'Add Member',
+        'tab.list': 'Family List',
+        'tab.relations': 'Relationships',
+        'label.name': 'NAME',
+        'label.sex': 'SEX',
+        'label.generation': 'GENERATION',
+        'label.age': 'AGE',
+        'label.status': 'STATUS',
+        'label.affected': 'Affected',
+        'label.carrier': 'Carrier',
+        'label.deceased': 'Deceased',
+        'label.proband': 'Proband (Index case)',
+        'label.extra': 'Additional Status',
+        'label.pregnancy': 'Pregnancy/Loss Status',
+        'label.adopted': 'Adoption',
+        'label.disease.section': 'Diseases',
+        'label.disease': 'Disease / Phenotype',
+        'label.cancer.section': '🩸 Cancer/Tumor (max 3)',
+        'label.cancer.bilateral': 'Bilateral',
+        'label.gene': 'Gene / Variant',
+        'label.note': 'Note',
+        'label.twin': 'Twin Status',
+        'label.twin.partner': 'Twin Partner',
+        'opt.male': 'Male',
+        'opt.female': 'Female',
+        'opt.unknown': 'Unknown',
+        'opt.gen.1': 'I (Grandparents)',
+        'opt.gen.2': 'II (Parents)',
+        'opt.gen.3': 'III (Children)',
+        'opt.gen.4': 'IV (Grandchildren)',
+        'opt.gen.5': 'V',
+        'opt.preg.none': 'None',
+        'opt.preg.P': 'P — Ongoing pregnancy',
+        'opt.preg.SAB': 'SAB — Spontaneous abortion',
+        'opt.preg.TOP': 'TOP — Termination of pregnancy',
+        'opt.preg.SB': 'SB — Stillbirth',
+        'opt.adopt.none': 'None',
+        'opt.adopt.in': 'Adopted in',
+        'opt.adopt.out': 'Adopted out',
+        'opt.twin.none': 'Not a twin',
+        'opt.twin.mono': 'Monozygotic twin',
+        'opt.twin.di': 'Dizygotic twin',
+        'btn.add': 'Add Member',
+        'btn.update': 'Update',
+        'btn.cancel': 'Cancel',
+        'btn.delete': 'Delete',
+        'placeholder.name': 'e.g. John Smith',
+        'placeholder.age': 'e.g. 45',
+        'placeholder.disease': 'e.g. Cystic Fibrosis',
+        'placeholder.cancer.type': 'Cancer type...',
+        'placeholder.cancer.age': 'Age',
+        'placeholder.gene': 'e.g. BRCA1+, CFTR ΔF508',
+        'placeholder.note': 'Additional info...',
+        'placeholder.search': '🔍 Search by name, disease or note...',
+        'tmpl.section': '📋 Templates',
+        'tmpl.denovo': 'De Novo Variant Family',
+        'tmpl.consang': 'Consanguineous Marriage - Carrier Parents',
+        'tmpl.brca': 'BRCA1/2 Family (Breast/Ovarian)',
+        'tmpl.lynch': 'Lynch Syndrome (Colon/Endometrial)',
+        'tmpl.lifr': 'Li-Fraumeni Syndrome',
+        'filter.all': 'All',
+        'filter.affected': '🔴 Affected',
+        'filter.carrier': '🟡 Carrier',
+        'filter.deceased': '⚫ Deceased',
+        'filter.proband': '▶ Proband',
+        'empty.list': 'No family members added yet.',
+        'empty.list2': 'Go to "Add Member" tab to add members.',
+        'stats.title': '📊 Statistics',
+        'stats.total': 'Total Members',
+        'stats.gens': 'Generations',
+        'stats.affected': 'Affected',
+        'stats.carriers': 'Carriers',
+        'stats.deceased': 'Deceased',
+        'stats.sex': 'Sex Distribution',
+        'stats.couples': 'Partnerships',
+        'stats.rate': 'Affection Rate',
+        'stats.tumors': 'Total Tumors',
+        'stats.affected.ind': 'Affected Members',
+        'stats.avgage': 'Avg. Diagnosis Age',
+        'stats.early': 'Early Onset (<50)',
+        'stats.bilateral': 'Bilateral',
+        'stats.topcancer': 'Most Frequent',
+        'valid.title': '⚠️ Pedigree Warnings',
+        'valid.ok': '✓ No inconsistencies found.',
+        'hist.title': '⏰ Change History',
+        'hist.clear': 'Clear',
+        'hist.now': 'just now',
+        'hist.min': 'min ago',
+        'hist.hour': 'h ago',
+        'hist.day': 'd ago',
+        'rel.partner.title': 'Partnership (Marriage)',
+        'rel.partner.tip': '💡 Tip: You can pair the same person with multiple partners (for remarriage).',
+        'rel.partner1': 'Person 1',
+        'rel.partner2': 'Person 2',
+        'rel.consang': 'Consanguineous (double line)',
+        'rel.divorced': 'Divorced (double slash //)',
+        'rel.btn.pair': 'Pair',
+        'rel.parent.title': 'Parent-Child Relationship',
+        'rel.parent.couple': 'Parent Couple',
+        'rel.parent.child': 'Child',
+        'rel.btn.connect': 'Connect',
+        'rel.list.title': 'Existing Relationships',
+        'rel.empty': 'No relationships defined yet.',
+        'select.placeholder': 'Select...',
+        'toolbar.tools': 'TOOLS',
+        'toolbar.add': 'ADD',
+        'tool.undo': 'Undo (Ctrl+Z)',
+        'tool.redo': 'Redo (Ctrl+Y)',
+        'tool.move': 'Move (Drag)',
+        'tool.connect': 'Connect (Draw line)',
+        'tool.consan': 'Consanguineous Marriage (Double line)',
+        'tool.eraser': 'Eraser',
+        'tool.grid': 'Guide Lines',
+        'tool.autolayout': 'Auto-layout',
+        'tool.male': 'Add Male',
+        'tool.female': 'Add Female',
+        'tool.affmale': 'Affected Male',
+        'tool.afffemale': 'Affected Female',
+        'tool.carmale': 'Carrier Male',
+        'tool.carfemale': 'Carrier Female',
+        'tool.abort': 'Abort',
+        'tool.cancel': 'Cancel',
+        'tool.zoomin': 'Zoom In',
+        'tool.zoomout': 'Zoom Out',
+        'tool.zoomreset': 'Reset',
+        'tool.minimap': 'Minimap',
+        'lg.title': 'Symbol Legend',
+        'lg.male': 'Male',
+        'lg.female': 'Female',
+        'lg.affected': 'Affected',
+        'lg.carrier': 'Carrier',
+        'lg.deceased': 'Deceased',
+        'lg.abort': 'Abort',
+        'lg.preg': 'Pregnancy',
+        'lg.sab': 'SAB (Loss)',
+        'lg.divorce': 'Divorce',
+        'lg.adopt': 'Adoption',
+        'batch.selected': 'selected',
+        'batch.delete': '🗑️ Delete',
+        'batch.affected': '🔴 Affected',
+        'batch.healthy': '⚪ Healthy',
+        'batch.carrier': '🟡 Carrier',
+        'batch.deceased': '⚫ Deceased',
+        'batch.cancel': '✕ Cancel',
+    }
+};
+
+let currentLang = 'tr';
+const LANG_KEY = 'pedigreeApp_lang';
+
+function t(key) {
+    return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.tr[key]) || key;
+}
+
+function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.setAttribute('title', t(key));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.setAttribute('placeholder', t(key));
+    });
+    // Update document title
+    document.title = t('app.title');
+    // Update lang button
+    const btn = document.getElementById('langBtn');
+    if (btn) btn.textContent = currentLang === 'tr' ? '🇹🇷 TR' : '🇬🇧 EN';
+    // Re-render dynamic content
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof renderPedigree === 'function') renderPedigree();
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'tr' ? 'en' : 'tr';
+    try { localStorage.setItem(LANG_KEY, currentLang); } catch (e) {}
+    applyTranslations();
+}
+
 // ======================== CHANGE HISTORY ========================
 function formatRelativeTime(ts) {
     const diff = Math.floor((Date.now() - ts) / 1000);
-    if (diff < 60) return 'şimdi';
-    if (diff < 3600) return Math.floor(diff / 60) + ' dk önce';
-    if (diff < 86400) return Math.floor(diff / 3600) + ' sa önce';
-    return Math.floor(diff / 86400) + ' gün önce';
+    if (diff < 60) return t('hist.now');
+    if (diff < 3600) return Math.floor(diff / 60) + t('hist.min');
+    if (diff < 86400) return Math.floor(diff / 3600) + t('hist.hour');
+    return Math.floor(diff / 86400) + t('hist.day');
 }
 
 const ACTION_ICONS = {
@@ -3864,6 +4238,12 @@ try {
     if (savedTheme === 'dark') applyTheme('dark');
 } catch (e) {}
 
+// Apply saved language
+try {
+    const savedLang = localStorage.getItem(LANG_KEY);
+    if (savedLang === 'en' || savedLang === 'tr') currentLang = savedLang;
+} catch (e) {}
+
 // Priority: URL hash (shared link) > autosave
 const loadedFromHash = tryLoadFromHash();
 const loadedAutosave = loadedFromHash || tryLoadAutosave();
@@ -3878,6 +4258,9 @@ try {
 
 // Apply mode (default 'rare', or whatever was loaded)
 setMode(familyData.mode || 'rare');
+
+// Apply translations to all UI elements
+applyTranslations();
 
 // Initialize
 renderPedigree();
