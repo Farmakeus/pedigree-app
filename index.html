@@ -3526,6 +3526,7 @@ function updateResetTemplateButton() {
 // De Novo Varyant: Sağlıklı akraba-olmayan ebeveynler, tek etkilenmiş çocuk (proband)
 function loadTemplateDeNovo() {
     clearAllSilent();
+    setMode('rare');
 
     // Generation I - Büyükanne/büyükbaba (hepsi sağlıklı)
     addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1
@@ -3566,6 +3567,7 @@ function loadTemplateDeNovo() {
 // Akraba evliliği: Taşıyıcı ebeveynler, otozomal resesif kalıtım
 function loadTemplateConsanguineous() {
     clearAllSilent();
+    setMode('rare');
 
     // Generation I - İki ayrı büyük ebeveyn ailesi
     addMemberDirect('', 'male', 1, null, false, false, false, false, [], 'none', null, '');   // 1 - Büyükbaba A
