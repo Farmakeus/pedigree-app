@@ -509,6 +509,55 @@
         }
         .batch-toolbar button:hover { background: rgba(255,255,255,0.3); }
         .batch-toolbar button.danger { background: #e74c3c; border-color: #e74c3c; }
+
+        /* ===== Toast Notification (undo support) ===== */
+        .toast-container {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            z-index: 5000; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            background: #2c3e50; color: white; padding: 10px 16px;
+            border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            display: flex; align-items: center; gap: 14px; font-size: 13px;
+            min-width: 280px; pointer-events: auto;
+            animation: toastIn 0.25s ease-out;
+        }
+        .toast.fade-out { animation: toastOut 0.25s ease-in forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(20px); } }
+        .toast .toast-msg { flex: 1; }
+        .toast .toast-icon { font-size: 16px; }
+        .toast button {
+            background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);
+            padding: 4px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;
+            font-weight: 600; transition: background 0.15s;
+        }
+        .toast button:hover { background: rgba(255,255,255,0.35); }
+        .toast button.toast-close {
+            background: transparent; border: none; padding: 2px 6px;
+            font-size: 16px; opacity: 0.6;
+        }
+        .toast button.toast-close:hover { opacity: 1; background: transparent; }
+
+        /* ===== Custom tooltip for toolbar/buttons ===== */
+        .ui-tooltip {
+            position: fixed; background: #2c3e50; color: white;
+            padding: 6px 10px; border-radius: 5px; font-size: 12px;
+            pointer-events: none; z-index: 6000; opacity: 0;
+            transition: opacity 0.15s ease-in;
+            max-width: 240px; line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .ui-tooltip.show { opacity: 1; }
+        .ui-tooltip::after {
+            content: ''; position: absolute;
+            border: 5px solid transparent;
+        }
+        .ui-tooltip.tip-left::after { right: -10px; top: 50%; margin-top: -5px; border-left-color: #2c3e50; }
+        .ui-tooltip.tip-right::after { left: -10px; top: 50%; margin-top: -5px; border-right-color: #2c3e50; }
+        .ui-tooltip.tip-bottom::after { top: -10px; left: 50%; margin-left: -5px; border-bottom-color: #2c3e50; }
+        .ui-tooltip.tip-top::after { bottom: -10px; left: 50%; margin-left: -5px; border-top-color: #2c3e50; }
     </style>
 </head>
 <body>
@@ -858,8 +907,14 @@
     <div id="legendContent"></div>
 </div>
 
-<!-- Hover tooltip -->
+<!-- Hover tooltip (member info) -->
 <div class="pedigree-tooltip" id="pedigreeTooltip"></div>
+
+<!-- Custom UI tooltip (for toolbar/buttons) -->
+<div class="ui-tooltip" id="uiTooltip"></div>
+
+<!-- Toast notifications container -->
+<div class="toast-container" id="toastContainer"></div>
 
 <!-- Help & Shortcuts Modal -->
 <div class="help-modal-overlay" id="helpModalOverlay" onclick="if(event.target===this)closeHelpModal()">
@@ -1063,7 +1118,8 @@ function editMember(id) {
 }
 
 function deleteMember(id) {
-    if (!confirm('Bu üyeyi silmek istediğinize emin misiniz?')) return;
+    const m = familyData.members.find(x => x.id === id);
+    const memberName = m ? (m.name || `Birey ${id}`) : `#${id}`;
     familyData.members = familyData.members.filter(m => m.id !== id);
     familyData.partnerships = familyData.partnerships.filter(p => p.partner1 !== id && p.partner2 !== id);
     familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== id);
@@ -1073,6 +1129,13 @@ function deleteMember(id) {
     });
     updateUI();
     renderPedigree();
+    // Show undo toast (saveState was called by the wrapper before deletion)
+    if (typeof showToast === 'function') {
+        showToast(`${t('toast.deleted')}: <b>${memberName}</b>`, {
+            icon: '🗑️',
+            undoCallback: () => undo()
+        });
+    }
 }
 
 function cancelEdit() {
@@ -1271,12 +1334,18 @@ function removePartnership(idx) {
     familyData.partnerships.splice(idx, 1);
     updateUI();
     renderPedigree();
+    if (typeof showToast === 'function') {
+        showToast(t('toast.partnership.removed'), { icon: '✂️', undoCallback: () => undo() });
+    }
 }
 
 function removeParentChild(idx) {
     familyData.parentChildLinks.splice(idx, 1);
     updateUI();
     renderPedigree();
+    if (typeof showToast === 'function') {
+        showToast(t('toast.parentchild.removed'), { icon: '✂️', undoCallback: () => undo() });
+    }
 }
 
 // ======================== UI UPDATES ========================
@@ -1812,6 +1881,13 @@ const I18N = {
         'batch.carrier': '🟡 Taşıyıcı',
         'batch.deceased': '⚫ Vefat',
         'batch.cancel': '✕ Vazgeç',
+        // Toast
+        'toast.deleted': 'Birey silindi',
+        'toast.batch.deleted': 'birey silindi',
+        'toast.partnership.removed': 'Eş ilişkisi kaldırıldı',
+        'toast.parentchild.removed': 'Ebeveyn-çocuk bağlantısı kaldırıldı',
+        'toast.undo': '↶ Geri Al',
+        'toast.close': 'Kapat',
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
@@ -1972,6 +2048,12 @@ const I18N = {
         'batch.carrier': '🟡 Carrier',
         'batch.deceased': '⚫ Deceased',
         'batch.cancel': '✕ Cancel',
+        'toast.deleted': 'Member deleted',
+        'toast.batch.deleted': 'members deleted',
+        'toast.partnership.removed': 'Partnership removed',
+        'toast.parentchild.removed': 'Parent-child link removed',
+        'toast.undo': '↶ Undo',
+        'toast.close': 'Close',
     }
 };
 
@@ -1989,7 +2071,12 @@ function applyTranslations() {
     });
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
-        el.setAttribute('title', t(key));
+        // If element has custom tooltip behavior attached, store in data-tip-original instead
+        if (el.hasAttribute('data-tip-original')) {
+            el.setAttribute('data-tip-original', t(key));
+        } else {
+            el.setAttribute('title', t(key));
+        }
     });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
@@ -2009,6 +2096,120 @@ function toggleLanguage() {
     currentLang = currentLang === 'tr' ? 'en' : 'tr';
     try { localStorage.setItem(LANG_KEY, currentLang); } catch (e) {}
     applyTranslations();
+}
+
+// ======================== TOAST NOTIFICATIONS (with Undo) ========================
+let toastIdCounter = 0;
+function showToast(message, options = {}) {
+    const { icon = 'ℹ️', undoCallback = null, duration = 5000 } = options;
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const id = ++toastIdCounter;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.dataset.id = id;
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-msg">${message}</span>
+        ${undoCallback ? `<button class="toast-undo">${t('toast.undo')}</button>` : ''}
+        <button class="toast-close" title="${t('toast.close')}">×</button>
+    `;
+    container.appendChild(toast);
+
+    const dismiss = () => {
+        if (!toast.parentElement) return;
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 250);
+    };
+
+    if (undoCallback) {
+        toast.querySelector('.toast-undo').addEventListener('click', () => {
+            undoCallback();
+            dismiss();
+        });
+    }
+    toast.querySelector('.toast-close').addEventListener('click', dismiss);
+
+    if (duration > 0) setTimeout(dismiss, duration);
+    return { id, dismiss };
+}
+
+// ======================== CUSTOM UI TOOLTIPS ========================
+// Replaces native browser tooltips with a styled, delayed tooltip
+const uiTooltipEl = document.getElementById('uiTooltip');
+let tooltipShowTimer = null;
+let tooltipHideTimer = null;
+const TOOLTIP_DELAY_MS = 500;
+
+function getTooltipText(el) {
+    // Prefer data-i18n-title (for translated tooltips), fall back to title
+    const i18nKey = el.getAttribute('data-i18n-title');
+    if (i18nKey) return t(i18nKey);
+    return el.getAttribute('data-tip-original') || el.getAttribute('title') || '';
+}
+
+function showUITooltip(el) {
+    const text = getTooltipText(el);
+    if (!text) return;
+    uiTooltipEl.textContent = text;
+    uiTooltipEl.className = 'ui-tooltip';
+    // Position (default: to the left of element with arrow pointing right)
+    const rect = el.getBoundingClientRect();
+    // Wait one frame for sizing
+    requestAnimationFrame(() => {
+        const tipRect = uiTooltipEl.getBoundingClientRect();
+        // Try: left of element, vertically centered
+        let left = rect.left - tipRect.width - 10;
+        let top = rect.top + (rect.height - tipRect.height) / 2;
+        let arrowClass = 'tip-left';
+        // If off-screen on left, place to the right
+        if (left < 8) {
+            left = rect.right + 10;
+            arrowClass = 'tip-right';
+        }
+        // If off-screen vertically, clamp
+        if (top < 8) top = 8;
+        if (top + tipRect.height > window.innerHeight - 8) top = window.innerHeight - tipRect.height - 8;
+        uiTooltipEl.style.left = left + 'px';
+        uiTooltipEl.style.top = top + 'px';
+        uiTooltipEl.className = 'ui-tooltip show ' + arrowClass;
+    });
+}
+
+function hideUITooltip() {
+    clearTimeout(tooltipShowTimer);
+    uiTooltipEl.classList.remove('show');
+}
+
+function attachTooltipBehavior(el) {
+    // Save original title so we can use it as text source, then strip title to suppress native tooltip
+    if (el.hasAttribute('title')) {
+        el.setAttribute('data-tip-original', el.getAttribute('title'));
+        el.removeAttribute('title');
+    }
+    el.addEventListener('mouseenter', (e) => {
+        clearTimeout(tooltipHideTimer);
+        clearTimeout(tooltipShowTimer);
+        tooltipShowTimer = setTimeout(() => showUITooltip(el), TOOLTIP_DELAY_MS);
+    });
+    el.addEventListener('mouseleave', () => {
+        clearTimeout(tooltipShowTimer);
+        tooltipHideTimer = setTimeout(hideUITooltip, 80);
+    });
+    el.addEventListener('mousedown', hideUITooltip); // hide on click
+}
+
+function initUITooltips() {
+    // Apply to all toolbar buttons + header buttons that have a tooltip
+    const selectors = [
+        '.place-toolbar button',
+        '.zoom-controls button',
+        '.minimap-toggle',
+        '.header-actions button',
+        '.mode-toggle button',
+        '.batch-toolbar button'
+    ];
+    document.querySelectorAll(selectors.join(',')).forEach(attachTooltipBehavior);
 }
 
 // ======================== CHANGE HISTORY ========================
@@ -2420,6 +2621,26 @@ function renderPedigree() {
         }
     }
 
+    // ===== SMART LINE ROUTING =====
+    // Detect if a horizontal partnership line would pass through any other node
+    // and if so, route it as a curve above (or below) the obstructing nodes.
+    function findIntermediateNodes(p1, p2, lineY, excludeIds) {
+        // Find all other members whose shape intersects the horizontal segment from p1.x to p2.x at lineY
+        const minX = Math.min(p1.x, p2.x);
+        const maxX = Math.max(p1.x, p2.x);
+        const obstacles = [];
+        familyData.members.forEach(m => {
+            if (excludeIds.includes(m.id)) return;
+            const mp = positions[m.id];
+            if (!mp) return;
+            // Check if member is within horizontal range AND vertical range close to lineY
+            const horizontalIntersect = mp.x + NODE_R > minX + 4 && mp.x - NODE_R < maxX - 4;
+            const verticalIntersect = Math.abs(mp.y - lineY) < NODE_R + 6;
+            if (horizontalIntersect && verticalIntersect) obstacles.push(mp);
+        });
+        return obstacles;
+    }
+
     // Draw partnership lines (from shape edges, not centers)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
@@ -2432,26 +2653,52 @@ function renderPedigree() {
         // Anchor points at shape edges
         const a1 = getEdgeAnchor(m1, pos1, pos2.x, pos2.y);
         const a2 = getEdgeAnchor(m2, pos2, pos1.x, pos1.y);
-        // Use consistent Y for horizontal line (average of anchors)
         const lineY = (a1.y + a2.y) / 2;
 
-        svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
+        // Smart routing: check if any other node would be in the way
+        const obstacles = findIntermediateNodes(pos1, pos2, lineY, [p.partner1, p.partner2]);
 
-        if (p.consanguinity) {
-            const gap = 6;
-            svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
-        }
-
-        // Divorce indicator: double slash (//) at midpoint of partnership line
-        if (p.divorced) {
-            const midPX = (a1.x + a2.x) / 2;
-            const slashH = 14;
-            const slashGap = 5;
-            const dy = p.consanguinity ? 3 : 0;
-            // First slash
-            svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
-            // Second slash
-            svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+        if (obstacles.length === 0) {
+            // No obstacles: draw normal straight horizontal line
+            svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
+            if (p.consanguinity) {
+                const gap = 6;
+                svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
+            }
+            if (p.divorced) {
+                const midPX = (a1.x + a2.x) / 2;
+                const slashH = 14, slashGap = 5;
+                const dy = p.consanguinity ? 3 : 0;
+                svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+                svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+            }
+        } else {
+            // Obstacles present: draw curved arc above the obstacles (consanguineous/distant relative pattern)
+            // Determine arc height based on how far up we need to go
+            const archHeight = NODE_R + 30;
+            const peakY = lineY - archHeight;
+            const startX = a1.x, startY = a1.y;
+            const endX = a2.x, endY = a2.y;
+            const midX = (startX + endX) / 2;
+            // Smooth cubic bezier curve over the obstacles
+            // Start: rise straight up from anchor, then arc, then come down
+            const ctrlOffset = Math.abs(endX - startX) * 0.25;
+            const path = `M ${startX} ${startY} ` +
+                         `C ${startX + ctrlOffset} ${peakY}, ${endX - ctrlOffset} ${peakY}, ${endX} ${endY}`;
+            svgContent += `<path d="${path}" stroke="#333" stroke-width="1.5" fill="none" />`;
+            if (p.consanguinity) {
+                // Second parallel curve slightly above
+                const gap = 6;
+                const path2 = `M ${startX} ${startY - gap/2} ` +
+                              `C ${startX + ctrlOffset} ${peakY - gap}, ${endX - ctrlOffset} ${peakY - gap}, ${endX} ${endY - gap/2}`;
+                svgContent += `<path d="${path2}" stroke="#333" stroke-width="1.5" fill="none" />`;
+            }
+            if (p.divorced) {
+                // Slashes at top center of arc
+                const slashH = 14, slashGap = 5;
+                svgContent += `<line x1="${midX - slashGap - 3}" y1="${peakY + slashH/2}" x2="${midX - slashGap + 5}" y2="${peakY - slashH/2}" stroke="#333" stroke-width="2" />`;
+                svgContent += `<line x1="${midX + slashGap - 3}" y1="${peakY + slashH/2}" x2="${midX + slashGap + 5}" y2="${peakY - slashH/2}" stroke="#333" stroke-width="2" />`;
+            }
         }
     });
 
@@ -3574,14 +3821,18 @@ canvasContainer.addEventListener('mousedown', (e) => {
     if (toolMode === 'eraser') {
         const m = findMemberAtPos(pos);
         if (m) {
-            if (confirm(`"${m.name || 'Birey ' + m.id}" silinsin mi?`)) {
-                saveState();
-                familyData.members = familyData.members.filter(x => x.id !== m.id);
-                familyData.partnerships = familyData.partnerships.filter(p => p.partner1 !== m.id && p.partner2 !== m.id);
-                familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== m.id);
-                familyData.members.forEach(x => { if (x.twinPartnerId === m.id) { x.twinPartnerId = null; x.twinType = 'none'; } });
-                updateUI(); renderPedigree();
-            }
+            // Inline delete with undo toast — no confirm dialog
+            const memberName = m.name || `Birey ${m.id}`;
+            saveState('delete_member', memberName);
+            familyData.members = familyData.members.filter(x => x.id !== m.id);
+            familyData.partnerships = familyData.partnerships.filter(p => p.partner1 !== m.id && p.partner2 !== m.id);
+            familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== m.id);
+            familyData.members.forEach(x => { if (x.twinPartnerId === m.id) { x.twinPartnerId = null; x.twinType = 'none'; } });
+            updateUI(); renderPedigree();
+            showToast(`${t('toast.deleted')}: <b>${memberName}</b>`, {
+                icon: '🗑️',
+                undoCallback: () => undo()
+            });
         }
         return;
     }
@@ -4035,8 +4286,8 @@ function updateBatchToolbar() {
 
 function batchDelete() {
     if (selectedMemberIds.size === 0) return;
-    if (!confirm(`${selectedMemberIds.size} birey silinsin mi? (İlişkili tüm bağlantılar da temizlenir)`)) return;
-    saveState('batch', `${selectedMemberIds.size} birey silindi`);
+    const count = selectedMemberIds.size;
+    saveState('batch', `${count} birey silindi`);
     const ids = Array.from(selectedMemberIds);
     familyData.members = familyData.members.filter(m => !selectedMemberIds.has(m.id));
     familyData.partnerships = familyData.partnerships.filter(p => !selectedMemberIds.has(p.partner1) && !selectedMemberIds.has(p.partner2));
@@ -4048,6 +4299,10 @@ function batchDelete() {
     updateBatchToolbar();
     updateUI();
     renderPedigree();
+    showToast(`<b>${count}</b> ${t('toast.batch.deleted')}`, {
+        icon: '🗑️',
+        undoCallback: () => undo()
+    });
 }
 
 function batchSetAffected(value) {
@@ -4138,11 +4393,9 @@ document.addEventListener('keydown', (e) => {
     }
     if ((e.key === 'Delete' || e.key === 'Backspace') && focusedMemberId != null) {
         e.preventDefault();
-        if (confirm(`Bu üyeyi silmek istediğinize emin misiniz?`)) {
-            const id = focusedMemberId;
-            focusedMemberId = null;
-            deleteMember(id);
-        }
+        const id = focusedMemberId;
+        focusedMemberId = null;
+        deleteMember(id); // shows undo toast — no confirm needed
         return;
     }
     // Ctrl+A: select all
@@ -4261,6 +4514,9 @@ setMode(familyData.mode || 'rare');
 
 // Apply translations to all UI elements
 applyTranslations();
+
+// Initialize custom UI tooltips on toolbar/header buttons
+initUITooltips();
 
 // Initialize
 renderPedigree();
