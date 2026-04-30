@@ -2765,6 +2765,37 @@ function renderPedigree() {
         }
     }
 
+    // Top-edge anchor with horizontal offset (for top-routed connections)
+    // Ensures the anchor point lies ON the shape boundary (not floating)
+    // - Square: top edge is flat → just (x + offset, y - NODE_R)
+    // - Circle: boundary is curved → y depends on x: y = -sqrt(R² - x²)
+    // - Diamond (unknown): top point is at center → use directional intersection
+    function topEdgeAnchor(member, pos, xOffset) {
+        // Clamp offset so it stays within the shape
+        const maxOffset = NODE_R - 4; // small safety margin
+        const dx = Math.max(-maxOffset, Math.min(maxOffset, xOffset));
+        if (member.abort) {
+            // abort symbol is narrow — minimal offset
+            return { x: pos.x + dx * 0.3, y: pos.y - 14 };
+        }
+        if (member.sex === 'female') {
+            // Circle boundary: y = pos.y - sqrt(R² - dx²)
+            const dy = Math.sqrt(NODE_R * NODE_R - dx * dx);
+            return { x: pos.x + dx, y: pos.y - dy };
+        } else if (member.sex === 'male') {
+            // Square: top edge is flat
+            return { x: pos.x + dx, y: pos.y - NODE_R };
+        } else {
+            // Diamond: top vertex is single point; offset proportionally on the upper-side edges
+            // Upper-right edge from (pos.x, pos.y - R) to (pos.x + R, pos.y)
+            // Upper-left edge from (pos.x, pos.y - R) to (pos.x - R, pos.y)
+            // Parametrize: point = (pos.x + t * dirX * R, pos.y - R + t * R) where t in [0,1]
+            const t = Math.abs(dx) / NODE_R;
+            const dirSign = dx >= 0 ? 1 : -1;
+            return { x: pos.x + dirSign * t * NODE_R, y: pos.y - NODE_R + t * NODE_R };
+        }
+    }
+
     // ===== SMART LINE ROUTING =====
     // Detect if a horizontal partnership line would pass through any other node
     // and if so, route it as a curve above (or below) the obstructing nodes.
@@ -2824,29 +2855,36 @@ function renderPedigree() {
         } else {
             // === Smart Top-Orthogonal Routing for distant relationships ===
             // Calculate routing Y above all obstacles (clear of any node)
-            // Find the minimum Y among all nodes in the row + obstacles, then go above
             const minObstacleY = Math.min(pos1.y, pos2.y, ...obstacles.map(o => o.y));
             const routingY = minObstacleY - NODE_R - 35;
-
-            // Midpoint x = exact center of two partners (per requirement)
+            // Midpoint x = exact center of two partners
             const midX = (pos1.x + pos2.x) / 2;
-            // Top edges of each partner (where vertical line attaches)
-            const p1TopY = pos1.y - NODE_R;
-            const p2TopY = pos2.y - NODE_R;
 
-            // Vertical from partner 1 top edge UP to routingY
-            svgContent += `<line x1="${pos1.x}" y1="${p1TopY}" x2="${pos1.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
-            // Horizontal across at routingY
-            svgContent += `<line x1="${pos1.x}" y1="${routingY}" x2="${pos2.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
-            // Vertical from routingY DOWN to partner 2 top edge
-            svgContent += `<line x1="${pos2.x}" y1="${routingY}" x2="${pos2.x}" y2="${p2TopY}" stroke="#333" stroke-width="1.5" />`;
+            // Directional top-edge anchor: shift exit point toward the partner direction
+            // so it doesn't overlap the central parent-child line of this node
+            const TOP_EXIT_OFFSET = 10;
+            // For partner 1: exit toward partner 2's direction
+            const dir1 = pos2.x > pos1.x ? 1 : -1;
+            // For partner 2: exit toward partner 1's direction
+            const dir2 = pos1.x > pos2.x ? 1 : -1;
+            const a1Top = topEdgeAnchor(m1, pos1, dir1 * TOP_EXIT_OFFSET);
+            const a2Top = topEdgeAnchor(m2, pos2, dir2 * TOP_EXIT_OFFSET);
+
+            // Orthogonal U-shape: vertical up from a1, horizontal at routingY, vertical down to a2
+            svgContent += `<line x1="${a1Top.x}" y1="${a1Top.y}" x2="${a1Top.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${a1Top.x}" y1="${routingY}" x2="${a2Top.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
+            svgContent += `<line x1="${a2Top.x}" y1="${routingY}" x2="${a2Top.x}" y2="${a2Top.y}" stroke="#333" stroke-width="1.5" />`;
 
             if (p.consanguinity) {
-                // Second parallel set, offset upward
+                // Second parallel set with additional outward offset
                 const gap = 6;
-                svgContent += `<line x1="${pos1.x - gap}" y1="${p1TopY}" x2="${pos1.x - gap}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
-                svgContent += `<line x1="${pos1.x - gap}" y1="${routingY - gap}" x2="${pos2.x + gap}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
-                svgContent += `<line x1="${pos2.x + gap}" y1="${routingY - gap}" x2="${pos2.x + gap}" y2="${p2TopY}" stroke="#333" stroke-width="1.5" />`;
+                const c1x = a1Top.x - dir1 * gap;
+                const c2x = a2Top.x - dir2 * gap;
+                const c1Top = topEdgeAnchor(m1, pos1, (dir1 * TOP_EXIT_OFFSET) - dir1 * gap);
+                const c2Top = topEdgeAnchor(m2, pos2, (dir2 * TOP_EXIT_OFFSET) - dir2 * gap);
+                svgContent += `<line x1="${c1Top.x}" y1="${c1Top.y}" x2="${c1Top.x}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${c1Top.x}" y1="${routingY - gap}" x2="${c2Top.x}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${c2Top.x}" y1="${routingY - gap}" x2="${c2Top.x}" y2="${c2Top.y}" stroke="#333" stroke-width="1.5" />`;
             }
             if (p.divorced) {
                 const slashH = 14, slashGap = 5;
