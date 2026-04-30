@@ -2636,87 +2636,85 @@ function computeLayout() {
         });
     });
 
-    // ============ LEFT-TO-RIGHT PACKING (no center bias) ============
-    // For each generation, pack members from left to right respecting:
-    //   1. Minimum spacing between adjacent nodes
-    //   2. Ideal X (parent midpoint) when possible — but only as a "preferred" position
-    //   3. NO compression: if ideal X conflicts with min spacing, push outward
-    //   4. Adaptive spacing: denser generations get slightly more room per node
+    // ============ POSITION CALCULATION ============
+    // Strategy: sequential placement preserves template layouts.
+    // After sequential pass, multi-child sibling groups are centered under parents.
+    // No barycenter (avoids center compression), no aggressive packing.
     const positions = {};
+
+    // Pre-compute: for each child, sibling index within their parent group + total siblings
+    const siblingIdx = {}, siblingCount = {};
+    familyData.parentChildLinks.forEach(l => {
+        const key = `${l.parent1}-${l.parent2}`;
+        if (siblingCount[key] == null) siblingCount[key] = 0;
+        siblingIdx[l.childId] = siblingCount[key];
+        siblingCount[key]++;
+    });
 
     genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
+        const startX = MARGIN;
         const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
 
-        // Adaptive horizontal gap based on density and connections
-        // More members in this generation OR more partnerships → slightly larger gap
-        const partnershipsInGen = familyData.partnerships.filter(p =>
-            genMembers.find(m => m.id === p.partner1) && genMembers.find(m => m.id === p.partner2)
-        ).length;
-        const densityFactor = Math.min(1.4, 1 + (genMembers.length / 30) + (partnershipsInGen / 20));
-        const minGap = (NODE_W + H_GAP) * densityFactor;
-
-        // Compute ideal X for each member (in original ordered sequence)
-        const idealX = {};
+        // Sequential placement (predictable, template-friendly)
         genMembers.forEach((m, i) => {
-            if (m.customX != null) {
-                idealX[m.id] = m.customX;
-                return;
-            }
-            // Try lineage-derived (parent midpoint)
-            const parentLink = familyData.parentChildLinks.find(l => l.childId === m.id);
-            if (parentLink && positions[parentLink.parent1] && positions[parentLink.parent2]) {
-                idealX[m.id] = (positions[parentLink.parent1].x + positions[parentLink.parent2].x) / 2;
-            } else {
-                // No parents known: use sequential placement
-                idealX[m.id] = MARGIN + i * minGap + NODE_W / 2;
-            }
-        });
-
-        // Pack left-to-right: each member at max(idealX, prevX + minGap)
-        // This NEVER pulls anyone toward center — only pushes outward when needed
-        let prevX = -Infinity;
-        genMembers.forEach(m => {
             if (m.customX != null && m.customY != null) {
                 positions[m.id] = { x: m.customX, y: m.customY };
-                prevX = Math.max(prevX, m.customX);
-                return;
+            } else {
+                positions[m.id] = {
+                    x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
+                    y: genY
+                };
             }
-            const wantedX = idealX[m.id];
-            const minAllowedX = prevX + minGap;
-            const x = Math.max(wantedX, minAllowedX, MARGIN + NODE_W / 2);
-            positions[m.id] = { x, y: genY };
-            prevX = x;
         });
     });
 
-    // ============ CHILDREN-CENTERING (single child only, no compression) ============
-    // For single children: center under parents (preserves clinical pedigree convention)
-    // For multiple children: keep their packed positions (no forced compression)
+    // ============ CENTER CHILDREN UNDER PARENTS ============
+    // Standard pedigree convention: distribute siblings evenly around parent midpoint
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
         if (!pos1 || !pos2) return;
+        const parentCenterX = (pos1.x + pos2.x) / 2;
         const children = familyData.parentChildLinks
             .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
             .map(l => l.childId)
             .filter(id => positions[id]);
+        if (children.length === 0) return;
+
+        // Single child: always centered under parents (overrides customX)
         if (children.length === 1) {
-            const parentCenterX = (pos1.x + pos2.x) / 2;
-            const childPos = positions[children[0]];
-            const childGen = familyData.members.find(m => m.id === children[0])?.generation;
-            if (childGen != null) {
-                // Find this child's neighbors in the same generation to ensure no overlap
-                const sameGenSorted = familyData.members
-                    .filter(m => m.generation === childGen && m.id !== children[0] && positions[m.id])
-                    .map(m => positions[m.id].x).sort((a, b) => a - b);
-                const minGap = NODE_W + H_GAP;
-                const leftBound = sameGenSorted.filter(x => x < parentCenterX).pop();
-                const rightBound = sameGenSorted.find(x => x > parentCenterX);
-                let centerX = parentCenterX;
-                if (leftBound != null && centerX < leftBound + minGap) centerX = leftBound + minGap;
-                if (rightBound != null && centerX > rightBound - minGap) centerX = rightBound - minGap;
-                childPos.x = centerX;
+            positions[children[0]].x = parentCenterX;
+            return;
+        }
+        // Multiple children: distribute evenly around parent midpoint
+        // Skip custom-placed children
+        const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
+        const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
+        const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
+        children.forEach((childId, i) => {
+            const child = familyData.members.find(m => m.id === childId);
+            if (child && child.customX != null) return;
+            positions[childId].x = childStartX + i * (NODE_W + childGap);
+        });
+    });
+
+    // ============ OVERLAP RESOLUTION (per generation, sorted by X) ============
+    // After centering, neighboring sibling groups may overlap. Push apart minimally.
+    genKeys.forEach(gen => {
+        const genMembers = generations[gen];
+        const autoMembers = genMembers.filter(m => m.customX == null);
+        const sorted = autoMembers.map(m => ({ id: m.id, x: positions[m.id].x }))
+            .sort((a, b) => a.x - b.x);
+        const minGap = NODE_W + H_GAP / 2;
+        for (let i = 1; i < sorted.length; i++) {
+            const needed = sorted[i - 1].x + minGap;
+            if (sorted[i].x < needed) {
+                const shift = needed - sorted[i].x;
+                for (let j = i; j < sorted.length; j++) {
+                    positions[sorted[j].id].x += shift;
+                    sorted[j].x += shift;
+                }
             }
         }
     });
