@@ -4911,7 +4911,226 @@ window.runTemplateTests = function() {
     return results;
 };
 
-console.log('%c💡 Template tests available: run %crunTemplateTests()%c in console', 'color:#888', 'color:#3498db;font-weight:bold;background:#eaf2fd;padding:2px 6px;border-radius:3px', 'color:#888');
+// ======================== LAYOUT INVARIANT TESTS ========================
+// Tests fundamental layout rules that must NEVER break:
+//   - Single child centered under parents
+//   - No overlapping nodes (min spacing)
+//   - No NaN/negative positions
+//   - Children below their parents (Y axis)
+//   - Partner positions valid
+// Run from console: runLayoutTests()
+window.runLayoutTests = function() {
+    const savedState = JSON.stringify(serializeFamilyData());
+    const allResults = [];
+    console.log('%c━━━ Layout Invariant Tests ━━━', 'color:#9b59b6;font-weight:bold;font-size:14px');
+
+    // ===== Test 1: Single child auto-centering =====
+    function testSingleChildCentering() {
+        const errors = [];
+        clearAllSilent();
+        addMemberDirect('Father', 'male', 1, 40, false, false, false, false, [], 'none', null, '');
+        addMemberDirect('Mother', 'female', 1, 38, false, false, false, false, [], 'none', null, '');
+        addMemberDirect('OnlyChild', 'unknown', 2, 10, false, false, false, true, [], 'none', null, '');
+        familyData.partnerships.push({ partner1: 1, partner2: 2, consanguinity: false });
+        familyData.parentChildLinks.push({ parent1: 1, parent2: 2, childId: 3 });
+        renderPedigree();
+        const layout = computeLayout();
+        const p1X = layout.positions[1].x;
+        const p2X = layout.positions[2].x;
+        const childX = layout.positions[3].x;
+        const expectedCenterX = (p1X + p2X) / 2;
+        if (Math.abs(childX - expectedCenterX) > 0.5) {
+            errors.push(`Single child not centered: childX=${childX.toFixed(1)}, expected=${expectedCenterX.toFixed(1)}`);
+        }
+        return errors;
+    }
+
+    // ===== Test 2: No overlapping nodes =====
+    function testNoOverlap() {
+        const errors = [];
+        clearAllSilent();
+        // Create 6 members in same generation
+        for (let i = 0; i < 6; i++) {
+            addMemberDirect(`M${i}`, i % 2 === 0 ? 'male' : 'female', 1, 30, false, false, false, false, [], 'none', null, '');
+        }
+        renderPedigree();
+        const layout = computeLayout();
+        const sortedX = familyData.members.map(m => layout.positions[m.id].x).sort((a, b) => a - b);
+        const NODE_W = 60;
+        for (let i = 1; i < sortedX.length; i++) {
+            const gap = sortedX[i] - sortedX[i - 1];
+            if (gap < NODE_W) {
+                errors.push(`Nodes overlap: x1=${sortedX[i-1].toFixed(1)}, x2=${sortedX[i].toFixed(1)}, gap=${gap.toFixed(1)} < ${NODE_W}`);
+            }
+        }
+        return errors;
+    }
+
+    // ===== Test 3: No NaN or negative positions =====
+    function testValidPositions() {
+        const errors = [];
+        clearAllSilent();
+        loadTemplateBRCA();
+        familyData.members.forEach(m => {
+            if (Number.isNaN(m.customX) || Number.isNaN(m.customY)) {
+                errors.push(`Member ${m.id} has NaN position`);
+            }
+            if (m.customX < 0 || m.customY < 0) {
+                errors.push(`Member ${m.id} has negative position: (${m.customX}, ${m.customY})`);
+            }
+        });
+        return errors;
+    }
+
+    // ===== Test 4: Children below parents (Y axis) =====
+    function testChildrenBelowParents() {
+        const errors = [];
+        clearAllSilent();
+        loadTemplateConsanguineous();
+        familyData.parentChildLinks.forEach(l => {
+            const child = familyData.members.find(m => m.id === l.childId);
+            const p1 = familyData.members.find(m => m.id === l.parent1);
+            const p2 = familyData.members.find(m => m.id === l.parent2);
+            if (child && p1 && child.customY <= p1.customY) {
+                errors.push(`Child ${child.id} (Y=${child.customY}) not below parent ${p1.id} (Y=${p1.customY})`);
+            }
+            if (child && p2 && child.customY <= p2.customY) {
+                errors.push(`Child ${child.id} (Y=${child.customY}) not below parent ${p2.id} (Y=${p2.customY})`);
+            }
+        });
+        return errors;
+    }
+
+    // ===== Test 5: Multi-partner layout (P1-CENTER-P2) =====
+    function testMultiPartner() {
+        const errors = [];
+        clearAllSilent();
+        addMemberDirect('A', 'female', 1, null, false, false, false, false, [], 'none', null, '');
+        addMemberDirect('B', 'male', 1, null, false, false, false, false, [], 'none', null, ''); // central
+        addMemberDirect('C', 'female', 1, null, false, false, false, false, [], 'none', null, '');
+        familyData.partnerships.push({ partner1: 1, partner2: 2, consanguinity: false });
+        familyData.partnerships.push({ partner1: 2, partner2: 3, consanguinity: false });
+        renderPedigree();
+        const layout = computeLayout();
+        const aX = layout.positions[1].x;
+        const bX = layout.positions[2].x;
+        const cX = layout.positions[3].x;
+        // B should be between A and C
+        if (!((aX < bX && bX < cX) || (cX < bX && bX < aX))) {
+            errors.push(`Multi-partner not P1-CENTER-P2: A=${aX.toFixed(1)}, B=${bX.toFixed(1)}, C=${cX.toFixed(1)}`);
+        }
+        return errors;
+    }
+
+    // ===== Test 6: Custom positions preserved =====
+    function testCustomPositionsPreserved() {
+        const errors = [];
+        clearAllSilent();
+        addMemberDirect('A', 'male', 1, null, false, false, false, false, [], 'none', null, '', false, 500, 200);
+        addMemberDirect('B', 'female', 1, null, false, false, false, false, [], 'none', null, '', false, 700, 200);
+        renderPedigree();
+        const layout = computeLayout();
+        if (Math.abs(layout.positions[1].x - 500) > 0.5) errors.push(`Custom X not preserved for member 1: got ${layout.positions[1].x}`);
+        if (Math.abs(layout.positions[2].x - 700) > 0.5) errors.push(`Custom X not preserved for member 2: got ${layout.positions[2].x}`);
+        return errors;
+    }
+
+    // ===== Test 7: Status change does not move node =====
+    function testStatusChangeNoMove() {
+        const errors = [];
+        clearAllSilent();
+        addMemberDirect('Test', 'male', 1, 40, false, false, false, false, [], 'none', null, '', false, 300, 150);
+        renderPedigree();
+        const before = { x: familyData.members[0].customX, y: familyData.members[0].customY };
+        // Simulate status change
+        familyData.members[0].affected = true;
+        renderPedigree();
+        const after = { x: familyData.members[0].customX, y: familyData.members[0].customY };
+        if (before.x !== after.x || before.y !== after.y) {
+            errors.push(`Position changed on status update: (${before.x},${before.y}) → (${after.x},${after.y})`);
+        }
+        return errors;
+    }
+
+    // ===== Test 8: Layout returns valid structure =====
+    function testLayoutStructure() {
+        const errors = [];
+        clearAllSilent();
+        loadTemplateLynch();
+        const layout = computeLayout();
+        if (!layout || typeof layout !== 'object') errors.push('computeLayout returned invalid result');
+        else {
+            if (!layout.positions || typeof layout.positions !== 'object') errors.push('Missing positions object');
+            if (typeof layout.width !== 'number' || layout.width <= 0) errors.push(`Invalid width: ${layout.width}`);
+            if (typeof layout.height !== 'number' || layout.height <= 0) errors.push(`Invalid height: ${layout.height}`);
+            familyData.members.forEach(m => {
+                if (!layout.positions[m.id]) errors.push(`Missing position for member ${m.id}`);
+            });
+        }
+        return errors;
+    }
+
+    const tests = [
+        { name: 'Single child auto-centering', fn: testSingleChildCentering },
+        { name: 'No overlapping nodes (min-gap)', fn: testNoOverlap },
+        { name: 'Valid positions (no NaN/negative)', fn: testValidPositions },
+        { name: 'Children below parents (Y axis)', fn: testChildrenBelowParents },
+        { name: 'Multi-partner layout (P1-CENTER-P2)', fn: testMultiPartner },
+        { name: 'Custom positions preserved', fn: testCustomPositionsPreserved },
+        { name: 'Status change does not move node', fn: testStatusChangeNoMove },
+        { name: 'Layout returns valid structure', fn: testLayoutStructure },
+    ];
+
+    tests.forEach(test => {
+        let errors = [];
+        try {
+            errors = test.fn() || [];
+        } catch (e) {
+            errors = [`Exception: ${e.message}`];
+        }
+        const passed = errors.length === 0;
+        allResults.push({ ...test, passed, errors });
+        const icon = passed ? '%c✓' : '%c✗';
+        const color = passed ? 'color:#27ae60;font-weight:bold' : 'color:#e74c3c;font-weight:bold';
+        console.log(`${icon} ${test.name}`, color);
+        errors.forEach(err => console.log(`    %c→ ${err}`, 'color:#e74c3c'));
+    });
+
+    // Restore previous state
+    try { loadFamilyData(JSON.parse(savedState)); } catch (e) {}
+
+    const passedCount = allResults.filter(r => r.passed).length;
+    const totalCount = allResults.length;
+    const summaryColor = passedCount === totalCount ? 'color:#27ae60' : 'color:#e74c3c';
+    console.log(`%c━━━ ${passedCount}/${totalCount} layout tests passed ━━━`, `${summaryColor};font-weight:bold;font-size:14px`);
+    return allResults;
+};
+
+// ======================== MASTER TEST RUNNER ========================
+window.runAllTests = function() {
+    console.log('%c═══════════════════════════════════════', 'color:#2c3e50;font-weight:bold');
+    console.log('%c  RUNNING ALL TESTS', 'color:#2c3e50;font-weight:bold;font-size:16px');
+    console.log('%c═══════════════════════════════════════', 'color:#2c3e50;font-weight:bold');
+    const tplResults = runTemplateTests();
+    console.log(''); // blank line
+    const layoutResults = runLayoutTests();
+    console.log('');
+    const allPassed = [...tplResults, ...layoutResults].every(r => r.passed);
+    const totalCount = tplResults.length + layoutResults.length;
+    const passedCount = [...tplResults, ...layoutResults].filter(r => r.passed).length;
+    const finalColor = allPassed ? 'color:#27ae60' : 'color:#e74c3c';
+    console.log(`%c═══ FINAL: ${passedCount}/${totalCount} tests passed ${allPassed ? '🎉' : '⚠️'} ═══`, `${finalColor};font-weight:bold;font-size:16px`);
+    return { templates: tplResults, layout: layoutResults, allPassed };
+};
+
+console.log('%c💡 Tests available: %crunTemplateTests()%c %crunLayoutTests()%c %crunAllTests()',
+    'color:#888',
+    'color:#3498db;font-weight:bold;background:#eaf2fd;padding:2px 6px;border-radius:3px',
+    'color:#888',
+    'color:#9b59b6;font-weight:bold;background:#f3e5f5;padding:2px 6px;border-radius:3px',
+    'color:#888',
+    'color:#27ae60;font-weight:bold;background:#e8f5e9;padding:2px 6px;border-radius:3px'
+);
 
 // Initialize
 renderPedigree();
