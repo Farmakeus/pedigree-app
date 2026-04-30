@@ -2641,6 +2641,11 @@ function renderPedigree() {
         return obstacles;
     }
 
+    // Track which partnerships are top-routed so parent-child drops align correctly
+    // Map: "partner1-partner2" → { topRouted: true, routingY }
+    const partnershipRoutingMap = {};
+    function partnershipKey(p) { return `${p.partner1}-${p.partner2}`; }
+
     // Draw partnership lines (from shape edges, not centers)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
@@ -2659,7 +2664,7 @@ function renderPedigree() {
         const obstacles = findIntermediateNodes(pos1, pos2, lineY, [p.partner1, p.partner2]);
 
         if (obstacles.length === 0) {
-            // No obstacles: draw normal straight horizontal line
+            // === Normal: straight horizontal partnership line ===
             svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
             if (p.consanguinity) {
                 const gap = 6;
@@ -2673,32 +2678,40 @@ function renderPedigree() {
                 svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
             }
         } else {
-            // Obstacles present: draw curved arc above the obstacles (consanguineous/distant relative pattern)
-            // Determine arc height based on how far up we need to go
-            const archHeight = NODE_R + 30;
-            const peakY = lineY - archHeight;
-            const startX = a1.x, startY = a1.y;
-            const endX = a2.x, endY = a2.y;
-            const midX = (startX + endX) / 2;
-            // Smooth cubic bezier curve over the obstacles
-            // Start: rise straight up from anchor, then arc, then come down
-            const ctrlOffset = Math.abs(endX - startX) * 0.25;
-            const path = `M ${startX} ${startY} ` +
-                         `C ${startX + ctrlOffset} ${peakY}, ${endX - ctrlOffset} ${peakY}, ${endX} ${endY}`;
-            svgContent += `<path d="${path}" stroke="#333" stroke-width="1.5" fill="none" />`;
+            // === Smart Top-Orthogonal Routing for distant relationships ===
+            // Calculate routing Y above all obstacles (clear of any node)
+            // Find the minimum Y among all nodes in the row + obstacles, then go above
+            const minObstacleY = Math.min(pos1.y, pos2.y, ...obstacles.map(o => o.y));
+            const routingY = minObstacleY - NODE_R - 35;
+
+            // Midpoint x = exact center of two partners (per requirement)
+            const midX = (pos1.x + pos2.x) / 2;
+            // Top edges of each partner (where vertical line attaches)
+            const p1TopY = pos1.y - NODE_R;
+            const p2TopY = pos2.y - NODE_R;
+
+            // Vertical from partner 1 top edge UP to routingY
+            svgContent += `<line x1="${pos1.x}" y1="${p1TopY}" x2="${pos1.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
+            // Horizontal across at routingY
+            svgContent += `<line x1="${pos1.x}" y1="${routingY}" x2="${pos2.x}" y2="${routingY}" stroke="#333" stroke-width="1.5" />`;
+            // Vertical from routingY DOWN to partner 2 top edge
+            svgContent += `<line x1="${pos2.x}" y1="${routingY}" x2="${pos2.x}" y2="${p2TopY}" stroke="#333" stroke-width="1.5" />`;
+
             if (p.consanguinity) {
-                // Second parallel curve slightly above
+                // Second parallel set, offset upward
                 const gap = 6;
-                const path2 = `M ${startX} ${startY - gap/2} ` +
-                              `C ${startX + ctrlOffset} ${peakY - gap}, ${endX - ctrlOffset} ${peakY - gap}, ${endX} ${endY - gap/2}`;
-                svgContent += `<path d="${path2}" stroke="#333" stroke-width="1.5" fill="none" />`;
+                svgContent += `<line x1="${pos1.x - gap}" y1="${p1TopY}" x2="${pos1.x - gap}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${pos1.x - gap}" y1="${routingY - gap}" x2="${pos2.x + gap}" y2="${routingY - gap}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${pos2.x + gap}" y1="${routingY - gap}" x2="${pos2.x + gap}" y2="${p2TopY}" stroke="#333" stroke-width="1.5" />`;
             }
             if (p.divorced) {
-                // Slashes at top center of arc
                 const slashH = 14, slashGap = 5;
-                svgContent += `<line x1="${midX - slashGap - 3}" y1="${peakY + slashH/2}" x2="${midX - slashGap + 5}" y2="${peakY - slashH/2}" stroke="#333" stroke-width="2" />`;
-                svgContent += `<line x1="${midX + slashGap - 3}" y1="${peakY + slashH/2}" x2="${midX + slashGap + 5}" y2="${peakY - slashH/2}" stroke="#333" stroke-width="2" />`;
+                svgContent += `<line x1="${midX - slashGap - 3}" y1="${routingY + slashH/2}" x2="${midX - slashGap + 5}" y2="${routingY - slashH/2}" stroke="#333" stroke-width="2" />`;
+                svgContent += `<line x1="${midX + slashGap - 3}" y1="${routingY + slashH/2}" x2="${midX + slashGap + 5}" y2="${routingY - slashH/2}" stroke="#333" stroke-width="2" />`;
             }
+
+            // Record routing info for parent-child rendering and connect dots
+            partnershipRoutingMap[partnershipKey(p)] = { topRouted: true, routingY, midX };
         }
     });
 
@@ -2720,13 +2733,19 @@ function renderPedigree() {
         const consanGap = p.consanguinity ? 3 : 0;
 
         // Sibship line Y: place it just above children (20px above child top)
-        // This puts the horizontal jog closer to the children, avoiding awkward S-shapes
         const childPositions = children.map(id => positions[id]);
         const minChildY = Math.min(...childPositions.map(p => p.y));
         const sibshipY = minChildY - NODE_R - 20;
 
-        // Vertical line from partnership midpoint down to sibship level
-        svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
+        // If partnership is top-routed, drop from the top routing line midpoint instead
+        const routing = partnershipRoutingMap[partnershipKey(p)];
+        if (routing && routing.topRouted) {
+            // Drop straight down from (midX, routingY) all the way past the partners to sibshipY
+            svgContent += `<line x1="${midX}" y1="${routing.routingY}" x2="${midX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
+        } else {
+            // Normal: vertical line from partnership midpoint down to sibship level
+            svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
+        }
 
         if (children.length === 1) {
             const childPos = positions[children[0]];
@@ -3038,7 +3057,12 @@ function renderPedigree() {
             if (!pos1 || !pos2) return;
             const midX = (pos1.x + pos2.x) / 2;
             const midY = (pos1.y + pos2.y) / 2;
-            const dropY = midY + 70;
+            // For top-routed partnerships, place green dot just below the routing line
+            // so it visually emerges from the connection's midpoint
+            const routing = partnershipRoutingMap[`${p.partner1}-${p.partner2}`];
+            const dropY = routing && routing.topRouted
+                ? routing.routingY + 14  // just below the top horizontal line
+                : midY + 70;
             coupleMidpoints.push({ x: midX, y: dropY, partner1: p.partner1, partner2: p.partner2 });
             // Green dot at couple drop point
             svgContent += `<circle cx="${midX}" cy="${dropY}" r="7" fill="#27ae60" stroke="white" stroke-width="2" opacity="0.9"/>`;
