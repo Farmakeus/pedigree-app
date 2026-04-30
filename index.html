@@ -2515,89 +2515,125 @@ function computeLayout() {
 
     const genKeys = Object.keys(generations).map(Number).sort((a, b) => a - b);
 
-    // Order members within each generation to minimize crossings
-    // Place partnered people next to each other (multiple partnerships → P1-Person-P2-...)
-    genKeys.forEach(gen => {
+    // ============ HIERARCHICAL TOP-DOWN ORDERING ============
+    // For each generation, build "blocks" (units that stay together in layout):
+    //   - A block = a partnership (couple/triple) OR a single individual
+    //   - Children of the same parent couple are grouped by their birth order
+    // Sort blocks left→right by position derived from upper generation (parents)
+    // This produces a tree-like layout where families don't cross over.
+
+    // Helper: get partner IDs of a member within the same generation
+    function getPartnersInGen(memberId, genMembers) {
+        const ids = new Set();
+        familyData.partnerships.forEach(p => {
+            if (p.partner1 === memberId && genMembers.find(m => m.id === p.partner2)) ids.add(p.partner2);
+            if (p.partner2 === memberId && genMembers.find(m => m.id === p.partner1)) ids.add(p.partner1);
+        });
+        return [...ids];
+    }
+
+    // Track member's "lineage anchor X" — derived from parent midpoint (assigned during top-down pass)
+    const lineageX = {};
+
+    genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
-        const ordered = [];
-        const placed = new Set();
 
-        // Build partnership map for this generation
-        const partnersOf = {}; // memberId → [partnerId, ...]
-        familyData.partnerships.forEach(p => {
-            const m1 = genMembers.find(m => m.id === p.partner1);
-            const m2 = genMembers.find(m => m.id === p.partner2);
-            if (m1 && m2) {
-                if (!partnersOf[p.partner1]) partnersOf[p.partner1] = [];
-                if (!partnersOf[p.partner2]) partnersOf[p.partner2] = [];
-                partnersOf[p.partner1].push(p.partner2);
-                partnersOf[p.partner2].push(p.partner1);
-            }
-        });
-
-        // First place people with multiple partners as central nodes: P1-PERSON-P2(-P3...)
-        const multiPartners = Object.keys(partnersOf).map(Number)
-            .filter(id => partnersOf[id].length >= 2);
-        multiPartners.forEach(centralId => {
-            if (placed.has(centralId)) return;
-            const central = genMembers.find(m => m.id === centralId);
-            if (!central) return;
-            const partners = partnersOf[centralId].map(pid => genMembers.find(m => m.id === pid)).filter(Boolean);
-            // Place: partner1, central, partner2, partner3, ...
-            if (partners.length > 0 && !placed.has(partners[0].id)) {
-                ordered.push(partners[0]); placed.add(partners[0].id);
-            }
-            ordered.push(central); placed.add(centralId);
-            partners.slice(1).forEach(p => {
-                if (!placed.has(p.id)) { ordered.push(p); placed.add(p.id); }
-            });
-        });
-
-        // Then place remaining couples together
-        familyData.partnerships.forEach(p => {
-            const m1 = genMembers.find(m => m.id === p.partner1);
-            const m2 = genMembers.find(m => m.id === p.partner2);
-            if (m1 && m2 && !placed.has(m1.id) && !placed.has(m2.id)) {
-                ordered.push(m1, m2);
-                placed.add(m1.id);
-                placed.add(m2.id);
-            }
-        });
-
-        // Then place children in order of their parent couples
-        const childrenOfGen = familyData.parentChildLinks
-            .filter(l => {
-                const child = genMembers.find(m => m.id === l.childId);
-                return child && !placed.has(child.id);
-            });
-
-        // Group children by parent couple
-        const coupleChildren = {};
-        childrenOfGen.forEach(l => {
-            const key = `${l.parent1}-${l.parent2}`;
-            if (!coupleChildren[key]) coupleChildren[key] = [];
-            const child = genMembers.find(m => m.id === l.childId);
-            if (child) coupleChildren[key].push(child);
-        });
-
-        Object.values(coupleChildren).forEach(children => {
-            children.forEach(c => {
-                if (!placed.has(c.id)) {
-                    ordered.push(c);
-                    placed.add(c.id);
-                }
-            });
-        });
-
-        // Place remaining
+        // Step 1: Compute lineage X for each member
         genMembers.forEach(m => {
-            if (!placed.has(m.id)) {
-                ordered.push(m);
-                placed.add(m.id);
+            const parentLink = familyData.parentChildLinks.find(l => l.childId === m.id);
+            if (parentLink && lineageX[parentLink.parent1] != null && lineageX[parentLink.parent2] != null) {
+                lineageX[m.id] = (lineageX[parentLink.parent1] + lineageX[parentLink.parent2]) / 2;
             }
         });
 
+        // Step 2: Build blocks
+        //   - A "couple-block" with central person + their partners (siblings of this person also attached)
+        //   - Members without partners and without joined siblings are single-blocks
+        const blocks = []; // each block: { members: [member array, in left-to-right order], anchorX }
+        const placedInBlock = new Set();
+
+        // Helper: pick anchor X for sorting blocks
+        function blockAnchor(membersArr) {
+            // Use lineage X if available, else partnership-based, else infinity (sort to end)
+            const xs = membersArr.map(m => lineageX[m.id]).filter(x => x != null);
+            if (xs.length > 0) return xs.reduce((a, b) => a + b, 0) / xs.length;
+            return Infinity;
+        }
+
+        // Build couple-blocks: for each member, if they have partner(s) in this gen, they form a block
+        // We process members in original order to be deterministic
+        genMembers.forEach(m => {
+            if (placedInBlock.has(m.id)) return;
+            const partners = getPartnersInGen(m.id, genMembers);
+            if (partners.length === 0) return; // single, handle later
+
+            // For multi-partner: place P1, M, P2(, P3...)
+            if (partners.length >= 2) {
+                const blockMembers = [];
+                const partnerObjs = partners.map(pid => genMembers.find(x => x.id === pid)).filter(Boolean);
+                // Place first partner left, then central, then remaining partners on right
+                if (partnerObjs[0] && !placedInBlock.has(partnerObjs[0].id)) {
+                    blockMembers.push(partnerObjs[0]);
+                    placedInBlock.add(partnerObjs[0].id);
+                }
+                blockMembers.push(m);
+                placedInBlock.add(m.id);
+                partnerObjs.slice(1).forEach(p => {
+                    if (!placedInBlock.has(p.id)) {
+                        blockMembers.push(p);
+                        placedInBlock.add(p.id);
+                    }
+                });
+                blocks.push({ members: blockMembers, anchorX: blockAnchor(blockMembers) });
+                return;
+            }
+
+            // Simple couple: order so the partner closer to the LEFT (lower lineageX) is on the left
+            const partnerObj = genMembers.find(x => x.id === partners[0]);
+            if (!partnerObj || placedInBlock.has(partnerObj.id)) return;
+            const myX = lineageX[m.id];
+            const pX = lineageX[partnerObj.id];
+            let blockMembers;
+            if (myX != null && pX != null && pX < myX) {
+                blockMembers = [partnerObj, m]; // partner on left
+            } else {
+                blockMembers = [m, partnerObj];
+            }
+            placedInBlock.add(m.id);
+            placedInBlock.add(partnerObj.id);
+            blocks.push({ members: blockMembers, anchorX: blockAnchor(blockMembers) });
+        });
+
+        // Singles: each remaining member is its own block
+        genMembers.forEach(m => {
+            if (placedInBlock.has(m.id)) return;
+            blocks.push({ members: [m], anchorX: blockAnchor([m]) });
+            placedInBlock.add(m.id);
+        });
+
+        // Step 3: Sort blocks by anchorX (stable: ties preserve insertion order)
+        blocks.sort((a, b) => {
+            if (a.anchorX === Infinity && b.anchorX === Infinity) return 0;
+            if (a.anchorX === Infinity) return 1;
+            if (b.anchorX === Infinity) return -1;
+            return a.anchorX - b.anchorX;
+        });
+
+        // Flatten blocks into ordered list
+        const ordered = [];
+        blocks.forEach(block => block.members.forEach(m => ordered.push(m)));
         generations[gen] = ordered;
+
+        // Step 4: Assign provisional positions (sequential) and update lineageX so next gen can use it
+        const startX = MARGIN;
+        ordered.forEach((m, i) => {
+            const provisionalX = startX + i * (NODE_W + H_GAP) + NODE_W / 2;
+            // Use customX if user manually placed, else lineage if known, else provisional
+            const xToUse = (m.customX != null) ? m.customX :
+                           (lineageX[m.id] != null ? null : provisionalX); // null means defer to children-centering
+            if (xToUse != null) lineageX[m.id] = xToUse;
+            else if (lineageX[m.id] == null) lineageX[m.id] = provisionalX;
+        });
     });
 
     // Calculate positions
@@ -2606,22 +2642,20 @@ function computeLayout() {
 
     genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
-        const totalWidth = genMembers.length * NODE_W + (genMembers.length - 1) * H_GAP;
         const startX = MARGIN;
         const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
 
         genMembers.forEach((m, i) => {
-            // Use custom position if placed via click, otherwise auto-layout
             if (m.customX != null && m.customY != null) {
                 positions[m.id] = { x: m.customX, y: m.customY };
             } else {
-                positions[m.id] = {
-                    x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
-                    y: genY
-                };
+                // Prefer lineage-derived X (for children of known parents),
+                // else sequential by ordering position
+                const sequentialX = startX + i * (NODE_W + H_GAP) + NODE_W / 2;
+                const x = (lineageX[m.id] != null && genIdx > 0) ? lineageX[m.id] : sequentialX;
+                positions[m.id] = { x, y: genY };
             }
         });
-        maxWidth = Math.max(maxWidth, startX + totalWidth + MARGIN);
     });
 
     // Adjust children to be centered under their parents
@@ -2654,6 +2688,48 @@ function computeLayout() {
             });
         }
     });
+
+    // ============ BARYCENTER REFINEMENT (2 passes) ============
+    // For each member without customX, move toward avg X of related members
+    // (parents, partners, children) to reduce line lengths and crossings.
+    function refineByBarycenter() {
+        genKeys.forEach((gen, genIdx) => {
+            const genMembers = generations[gen];
+            genMembers.forEach(m => {
+                if (m.customX != null) return;
+                const related = [];
+                // Parents
+                const pl = familyData.parentChildLinks.find(l => l.childId === m.id);
+                if (pl && positions[pl.parent1] && positions[pl.parent2]) {
+                    related.push((positions[pl.parent1].x + positions[pl.parent2].x) / 2);
+                }
+                // Partners
+                familyData.partnerships.forEach(p => {
+                    let other = null;
+                    if (p.partner1 === m.id) other = p.partner2;
+                    else if (p.partner2 === m.id) other = p.partner1;
+                    if (other && positions[other]) related.push(positions[other].x);
+                });
+                // Children
+                const childIds = familyData.parentChildLinks
+                    .filter(l => l.parent1 === m.id || l.parent2 === m.id)
+                    .map(l => l.childId)
+                    .filter(id => positions[id]);
+                if (childIds.length > 0) {
+                    const avgChildX = childIds.reduce((s, id) => s + positions[id].x, 0) / childIds.length;
+                    related.push(avgChildX);
+                }
+                if (related.length > 0) {
+                    const avg = related.reduce((s, v) => s + v, 0) / related.length;
+                    // Move halfway toward target (smooth iterative refinement)
+                    positions[m.id].x = (positions[m.id].x + avg) / 2;
+                }
+            });
+        });
+    }
+    // 2 iterative passes for stability
+    refineByBarycenter();
+    refineByBarycenter();
 
     // Resolve overlaps within generations — only shift the overlapping node, not the entire tail
     genKeys.forEach(gen => {
