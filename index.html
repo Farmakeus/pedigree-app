@@ -2636,117 +2636,87 @@ function computeLayout() {
         });
     });
 
-    // Calculate positions
+    // ============ LEFT-TO-RIGHT PACKING (no center bias) ============
+    // For each generation, pack members from left to right respecting:
+    //   1. Minimum spacing between adjacent nodes
+    //   2. Ideal X (parent midpoint) when possible — but only as a "preferred" position
+    //   3. NO compression: if ideal X conflicts with min spacing, push outward
+    //   4. Adaptive spacing: denser generations get slightly more room per node
     const positions = {};
-    let maxWidth = 0;
 
     genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
-        const startX = MARGIN;
         const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
 
+        // Adaptive horizontal gap based on density and connections
+        // More members in this generation OR more partnerships → slightly larger gap
+        const partnershipsInGen = familyData.partnerships.filter(p =>
+            genMembers.find(m => m.id === p.partner1) && genMembers.find(m => m.id === p.partner2)
+        ).length;
+        const densityFactor = Math.min(1.4, 1 + (genMembers.length / 30) + (partnershipsInGen / 20));
+        const minGap = (NODE_W + H_GAP) * densityFactor;
+
+        // Compute ideal X for each member (in original ordered sequence)
+        const idealX = {};
         genMembers.forEach((m, i) => {
+            if (m.customX != null) {
+                idealX[m.id] = m.customX;
+                return;
+            }
+            // Try lineage-derived (parent midpoint)
+            const parentLink = familyData.parentChildLinks.find(l => l.childId === m.id);
+            if (parentLink && positions[parentLink.parent1] && positions[parentLink.parent2]) {
+                idealX[m.id] = (positions[parentLink.parent1].x + positions[parentLink.parent2].x) / 2;
+            } else {
+                // No parents known: use sequential placement
+                idealX[m.id] = MARGIN + i * minGap + NODE_W / 2;
+            }
+        });
+
+        // Pack left-to-right: each member at max(idealX, prevX + minGap)
+        // This NEVER pulls anyone toward center — only pushes outward when needed
+        let prevX = -Infinity;
+        genMembers.forEach(m => {
             if (m.customX != null && m.customY != null) {
                 positions[m.id] = { x: m.customX, y: m.customY };
-            } else {
-                // Prefer lineage-derived X (for children of known parents),
-                // else sequential by ordering position
-                const sequentialX = startX + i * (NODE_W + H_GAP) + NODE_W / 2;
-                const x = (lineageX[m.id] != null && genIdx > 0) ? lineageX[m.id] : sequentialX;
-                positions[m.id] = { x, y: genY };
+                prevX = Math.max(prevX, m.customX);
+                return;
             }
+            const wantedX = idealX[m.id];
+            const minAllowedX = prevX + minGap;
+            const x = Math.max(wantedX, minAllowedX, MARGIN + NODE_W / 2);
+            positions[m.id] = { x, y: genY };
+            prevX = x;
         });
     });
 
-    // Adjust children to be centered under their parents
+    // ============ CHILDREN-CENTERING (single child only, no compression) ============
+    // For single children: center under parents (preserves clinical pedigree convention)
+    // For multiple children: keep their packed positions (no forced compression)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
         if (!pos1 || !pos2) return;
-
-        const parentCenterX = (pos1.x + pos2.x) / 2;
-
         const children = familyData.parentChildLinks
             .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
             .map(l => l.childId)
             .filter(id => positions[id]);
-
-        if (children.length === 0) return;
-
-        // Single child auto-centering: ALWAYS center under parents (overrides customX)
         if (children.length === 1) {
-            positions[children[0]].x = parentCenterX;
-        } else {
-            // Multiple children: dynamic spacing (skip custom-placed)
-            const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
-            const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
-            const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
-            children.forEach((childId, i) => {
-                const child = members.find(m => m.id === childId);
-                if (child && child.customX != null) return;
-                positions[childId].x = childStartX + i * (NODE_W + childGap);
-            });
-        }
-    });
-
-    // ============ BARYCENTER REFINEMENT (2 passes) ============
-    // For each member without customX, move toward avg X of related members
-    // (parents, partners, children) to reduce line lengths and crossings.
-    function refineByBarycenter() {
-        genKeys.forEach((gen, genIdx) => {
-            const genMembers = generations[gen];
-            genMembers.forEach(m => {
-                if (m.customX != null) return;
-                const related = [];
-                // Parents
-                const pl = familyData.parentChildLinks.find(l => l.childId === m.id);
-                if (pl && positions[pl.parent1] && positions[pl.parent2]) {
-                    related.push((positions[pl.parent1].x + positions[pl.parent2].x) / 2);
-                }
-                // Partners
-                familyData.partnerships.forEach(p => {
-                    let other = null;
-                    if (p.partner1 === m.id) other = p.partner2;
-                    else if (p.partner2 === m.id) other = p.partner1;
-                    if (other && positions[other]) related.push(positions[other].x);
-                });
-                // Children
-                const childIds = familyData.parentChildLinks
-                    .filter(l => l.parent1 === m.id || l.parent2 === m.id)
-                    .map(l => l.childId)
-                    .filter(id => positions[id]);
-                if (childIds.length > 0) {
-                    const avgChildX = childIds.reduce((s, id) => s + positions[id].x, 0) / childIds.length;
-                    related.push(avgChildX);
-                }
-                if (related.length > 0) {
-                    const avg = related.reduce((s, v) => s + v, 0) / related.length;
-                    // Move halfway toward target (smooth iterative refinement)
-                    positions[m.id].x = (positions[m.id].x + avg) / 2;
-                }
-            });
-        });
-    }
-    // 2 iterative passes for stability
-    refineByBarycenter();
-    refineByBarycenter();
-
-    // Resolve overlaps within generations — only shift the overlapping node, not the entire tail
-    genKeys.forEach(gen => {
-        const genMembers = generations[gen];
-        const autoMembers = genMembers.filter(m => m.customX == null);
-        const genPositions = autoMembers.map(m => ({ id: m.id, x: positions[m.id].x }));
-        genPositions.sort((a, b) => a.x - b.x);
-
-        for (let i = 1; i < genPositions.length; i++) {
-            const minGap = NODE_W + H_GAP / 2;
-            const needed = genPositions[i - 1].x + minGap;
-            if (genPositions[i].x < needed) {
-                const shift = needed - genPositions[i].x;
-                // Only shift this node and subsequent ones that would also overlap
-                for (let j = i; j < genPositions.length; j++) {
-                    positions[genPositions[j].id].x += shift;
-                }
+            const parentCenterX = (pos1.x + pos2.x) / 2;
+            const childPos = positions[children[0]];
+            const childGen = familyData.members.find(m => m.id === children[0])?.generation;
+            if (childGen != null) {
+                // Find this child's neighbors in the same generation to ensure no overlap
+                const sameGenSorted = familyData.members
+                    .filter(m => m.generation === childGen && m.id !== children[0] && positions[m.id])
+                    .map(m => positions[m.id].x).sort((a, b) => a - b);
+                const minGap = NODE_W + H_GAP;
+                const leftBound = sameGenSorted.filter(x => x < parentCenterX).pop();
+                const rightBound = sameGenSorted.find(x => x > parentCenterX);
+                let centerX = parentCenterX;
+                if (leftBound != null && centerX < leftBound + minGap) centerX = leftBound + minGap;
+                if (rightBound != null && centerX > rightBound - minGap) centerX = rightBound - minGap;
+                childPos.x = centerX;
             }
         }
     });
