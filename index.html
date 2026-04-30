@@ -770,6 +770,7 @@
                     <button class="sample-btn" onclick="loadTemplateDeNovo()" data-i18n="tmpl.denovo">De Novo Varyant Ailesi</button>
                     <button class="sample-btn" onclick="loadTemplateConsanguineous()" data-i18n="tmpl.consang">Akraba Evliliği - Taşıyıcı Ebeveynler</button>
                 </div>
+                <button id="resetTemplateBtn" class="sample-btn" onclick="resetCurrentTemplate()" style="display:none; margin-top:8px; background:#fff8e1; border-color:#f39c12; color:#e67e22;" data-i18n="tmpl.reset">↺ Şablonu Orijinal Düzene Sıfırla</button>
             </div>
         </div>
 
@@ -2027,6 +2028,9 @@ const I18N = {
         'toast.close': 'Kapat',
         'rel.click.toedit': 'Düzenlemek için tıkla',
         'rel.updated': '✓ İlişki güncellendi',
+        'tmpl.reset': '↺ Şablonu Orijinal Düzene Sıfırla',
+        'tmpl.reset.confirm': 'Şablon orijinal düzenine geri yüklensin mi? Manuel değişiklikler kaybolacak.',
+        'autolayout.warn.template': 'Bu pedigri bir şablondan yüklenmiş. Otomatik yerleşim şablon düzenini bozacak. Devam edilsin mi?',
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
@@ -2195,6 +2199,9 @@ const I18N = {
         'toast.close': 'Close',
         'rel.click.toedit': 'Click to edit',
         'rel.updated': '✓ Relationship updated',
+        'tmpl.reset': '↺ Reset Template to Original',
+        'tmpl.reset.confirm': 'Reset template to original layout? Your manual changes will be lost.',
+        'autolayout.warn.template': 'This pedigree is loaded from a template. Auto-layout will override the template structure. Continue?',
     }
 };
 
@@ -3440,12 +3447,19 @@ function exportCSV() {
 // ======================== AUTO-LAYOUT ========================
 function autoLayout() {
     if (familyData.members.length === 0) return;
-    if (!confirm('Tüm bireylerin manuel olarak ayarlanan pozisyonları sıfırlanıp otomatik yerleşim uygulanacak. Devam edilsin mi?')) return;
+    // Special warning if a template is loaded
+    if (currentLoadedTemplate) {
+        if (!confirm(t('autolayout.warn.template'))) return;
+    } else {
+        if (!confirm('Tüm bireylerin manuel olarak ayarlanan pozisyonları sıfırlanıp otomatik yerleşim uygulanacak. Devam edilsin mi?')) return;
+    }
     saveState();
     familyData.members.forEach(m => {
         m.customX = null;
         m.customY = null;
     });
+    currentLoadedTemplate = null; // template lock kaldırıldı
+    updateResetTemplateButton();
     updateUI();
     renderPedigree();
 }
@@ -3463,12 +3477,49 @@ function toRoman(num) {
 
 function clearAll() {
     if (!confirm('Tüm verileri silmek istediğinize emin misiniz?')) return;
-    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1 };
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: familyData.mode || 'rare' };
     currentDiseases = [];
     editingMemberId = null;
+    currentLoadedTemplate = null;
+    updateResetTemplateButton();
     resetForm();
     updateUI();
     renderPedigree();
+}
+
+// ======================== TEMPLATE SYSTEM ========================
+// Track which template was last loaded (for "Reset to Template" feature)
+let currentLoadedTemplate = null;
+
+// Lock template positions: snapshot current auto-layout into customX/customY
+// This makes the template render the same way regardless of algorithm changes
+function lockTemplatePositions() {
+    const layout = computeLayout();
+    if (!layout || !layout.positions) return;
+    familyData.members.forEach(m => {
+        const pos = layout.positions[m.id];
+        if (pos) {
+            m.customX = pos.x;
+            m.customY = pos.y;
+        }
+    });
+}
+
+// Reset the currently loaded template (re-runs its loader function)
+function resetCurrentTemplate() {
+    if (!currentLoadedTemplate) return;
+    if (!confirm(t('tmpl.reset.confirm'))) return;
+    saveState('reset_template', currentLoadedTemplate);
+    if (typeof window[currentLoadedTemplate] === 'function') {
+        window[currentLoadedTemplate]();
+    }
+}
+
+// Update reset button visibility/state when template is loaded
+function updateResetTemplateButton() {
+    const btn = document.getElementById('resetTemplateBtn');
+    if (!btn) return;
+    btn.style.display = currentLoadedTemplate ? '' : 'none';
 }
 
 // ======================== SAMPLE DATA ========================
@@ -3505,8 +3556,11 @@ function loadTemplateDeNovo() {
         { parent1: 5, parent2: 6, childId: 8 }
     );
 
+    lockTemplatePositions();           // 🔒 Lock layout positions
+    currentLoadedTemplate = 'loadTemplateDeNovo';
     updateUI();
     renderPedigree();
+    updateResetTemplateButton();
 }
 
 // Akraba evliliği: Taşıyıcı ebeveynler, otozomal resesif kalıtım
@@ -3544,8 +3598,11 @@ function loadTemplateConsanguineous() {
         { parent1: 5, parent2: 6, childId: 9 }   // Kuzen çift → sağlıklı çocuk
     );
 
+    lockTemplatePositions();
+    currentLoadedTemplate = 'loadTemplateConsanguineous';
     updateUI();
     renderPedigree();
+    updateResetTemplateButton();
 }
 
 // ======================== CANCER TEMPLATES ========================
@@ -3604,7 +3661,10 @@ function loadTemplateBRCA() {
         { parent1: m1, parent2: m2, childId: c2 },
         { parent1: m1, parent2: m2, childId: c3 }
     );
+    lockTemplatePositions();
+    currentLoadedTemplate = 'loadTemplateBRCA';
     updateUI(); renderPedigree();
+    updateResetTemplateButton();
 }
 
 function loadTemplateLynch() {
@@ -3644,7 +3704,10 @@ function loadTemplateLynch() {
         { parent1: m1, parent2: m2, childId: c2 },
         { parent1: m1, parent2: m2, childId: c3 }
     );
+    lockTemplatePositions();
+    currentLoadedTemplate = 'loadTemplateLynch';
     updateUI(); renderPedigree();
+    updateResetTemplateButton();
 }
 
 function loadTemplateLiFraumeni() {
@@ -3679,7 +3742,10 @@ function loadTemplateLiFraumeni() {
         { parent1: m1, parent2: m2, childId: c2 },
         { parent1: m1, parent2: m2, childId: c3 }
     );
+    lockTemplatePositions();
+    currentLoadedTemplate = 'loadTemplateLiFraumeni';
     updateUI(); renderPedigree();
+    updateResetTemplateButton();
 }
 
 function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proband, diseases, twinType, twinPId, note, abort, customX, customY) {
@@ -4767,6 +4833,83 @@ applyTranslations();
 
 // Initialize custom UI tooltips on toolbar/header buttons
 initUITooltips();
+
+// ======================== TEMPLATE TEST SUITE ========================
+// Run from console: runTemplateTests()
+// Validates that each template loads correctly with expected node counts,
+// relationships, and that all members get positioned (no NaN/missing)
+window.runTemplateTests = function() {
+    const tests = [
+        { name: 'De Novo Varyant Ailesi', fn: 'loadTemplateDeNovo', mode: 'rare', expected: { members: 8, partnerships: 3, parentChild: 4 }},
+        { name: 'Akraba Evliliği', fn: 'loadTemplateConsanguineous', mode: 'rare', expected: { members: 9, partnerships: 3, parentChild: 5 }},
+        { name: 'BRCA1/2 Ailesi', fn: 'loadTemplateBRCA', mode: 'cancer', expected: { members: 11, partnerships: 4, parentChild: 7 }},
+        { name: 'Lynch Sendromu', fn: 'loadTemplateLynch', mode: 'cancer', expected: { members: 9, partnerships: 3, parentChild: 5 }},
+        { name: 'Li-Fraumeni', fn: 'loadTemplateLiFraumeni', mode: 'cancer', expected: { members: 7, partnerships: 2, parentChild: 4 }},
+    ];
+
+    const savedState = JSON.stringify(serializeFamilyData());
+    const results = [];
+    console.log('%c━━━ Template Test Suite ━━━', 'color:#3498db;font-weight:bold;font-size:14px');
+
+    tests.forEach(test => {
+        const errors = [];
+        try {
+            window[test.fn]();
+            // Check counts
+            if (familyData.members.length !== test.expected.members) {
+                errors.push(`Member count: expected ${test.expected.members}, got ${familyData.members.length}`);
+            }
+            if (familyData.partnerships.length !== test.expected.partnerships) {
+                errors.push(`Partnership count: expected ${test.expected.partnerships}, got ${familyData.partnerships.length}`);
+            }
+            if (familyData.parentChildLinks.length !== test.expected.parentChild) {
+                errors.push(`Parent-child count: expected ${test.expected.parentChild}, got ${familyData.parentChildLinks.length}`);
+            }
+            if (familyData.mode !== test.mode) {
+                errors.push(`Mode: expected ${test.mode}, got ${familyData.mode}`);
+            }
+            // Check that lock worked: every member must have customX/customY
+            const unlocked = familyData.members.filter(m => m.customX == null || m.customY == null);
+            if (unlocked.length > 0) {
+                errors.push(`${unlocked.length} members not locked (missing customX/Y)`);
+            }
+            // Check for NaN positions
+            const nan = familyData.members.filter(m =>
+                Number.isNaN(m.customX) || Number.isNaN(m.customY) ||
+                m.customX < 0 || m.customY < 0
+            );
+            if (nan.length > 0) {
+                errors.push(`${nan.length} members have invalid positions`);
+            }
+            // Check overlap (any two members at same X+Y)
+            const seen = {};
+            familyData.members.forEach(m => {
+                const key = `${Math.round(m.customX)},${Math.round(m.customY)}`;
+                if (seen[key]) errors.push(`Position conflict: ${seen[key]} and ${m.id} at ${key}`);
+                seen[key] = m.id;
+            });
+        } catch (e) {
+            errors.push(`Exception: ${e.message}`);
+        }
+        const passed = errors.length === 0;
+        results.push({ ...test, passed, errors });
+        const icon = passed ? '%c✓' : '%c✗';
+        const color = passed ? 'color:#27ae60;font-weight:bold' : 'color:#e74c3c;font-weight:bold';
+        console.log(`${icon} ${test.name}`, color);
+        errors.forEach(err => console.log(`    %c→ ${err}`, 'color:#e74c3c'));
+    });
+
+    // Restore previous state
+    try { loadFamilyData(JSON.parse(savedState)); } catch (e) {}
+
+    const passedCount = results.filter(r => r.passed).length;
+    const totalCount = results.length;
+    const summaryColor = passedCount === totalCount ? 'color:#27ae60' : 'color:#e74c3c';
+    console.log(`%c━━━ ${passedCount}/${totalCount} tests passed ━━━`, `${summaryColor};font-weight:bold;font-size:14px`);
+    return results;
+};
+
+console.log('%c💡 Template tests available: run %crunTemplateTests()%c in console', 'color:#888', 'color:#3498db;font-weight:bold;background:#eaf2fd;padding:2px 6px;border-radius:3px', 'color:#888');
 
 // Initialize
 renderPedigree();
