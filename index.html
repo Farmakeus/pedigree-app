@@ -558,6 +558,38 @@
         .ui-tooltip.tip-right::after { left: -10px; top: 50%; margin-top: -5px; border-right-color: #2c3e50; }
         .ui-tooltip.tip-bottom::after { top: -10px; left: 50%; margin-left: -5px; border-bottom-color: #2c3e50; }
         .ui-tooltip.tip-top::after { bottom: -10px; left: 50%; margin-left: -5px; border-top-color: #2c3e50; }
+
+        /* ===== Relations list with inline toggles ===== */
+        .rel-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 10px; border: 1px solid #eee; border-radius: 6px;
+            margin-bottom: 6px; transition: all 0.15s;
+        }
+        .rel-item:hover { border-color: #3498db; background: #f8fbff; }
+        .rel-item.editing {
+            border-color: #f39c12; background: #fffbf0;
+            box-shadow: 0 0 0 2px rgba(243,156,18,0.15);
+        }
+        .rel-info {
+            flex: 1; cursor: pointer; display: flex; align-items: center;
+            justify-content: space-between; gap: 8px; min-width: 0;
+        }
+        .rel-name { font-size: 12px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .rel-chips { display: flex; gap: 4px; flex-shrink: 0; }
+        .rel-chip {
+            padding: 2px 8px; border: 1px solid #ddd; background: #fff;
+            border-radius: 4px; cursor: pointer; font-size: 11px; color: #888;
+            transition: all 0.15s; font-weight: 600;
+        }
+        .rel-chip:hover { border-color: #3498db; color: #3498db; }
+        .rel-chip.active {
+            background: #3498db; color: white; border-color: #3498db;
+        }
+        body.dark-theme .rel-item { background: #2a2e36; border-color: #3a3f48; }
+        body.dark-theme .rel-item:hover { border-color: #5dade2; background: #2f3540; }
+        body.dark-theme .rel-item.editing { background: #3d3a1f; border-color: #d39e00; }
+        body.dark-theme .rel-chip { background: #242830; border-color: #3a3f48; color: #aaa; }
+        body.dark-theme .rel-chip:hover { color: #5dade2; border-color: #5dade2; }
     </style>
 </head>
 <body>
@@ -1292,7 +1324,32 @@ function addPartnership() {
     const p1 = parseInt(document.getElementById('partner1').value);
     const p2 = parseInt(document.getElementById('partner2').value);
     if (!p1 || !p2 || p1 === p2) { alert('İki farklı kişi seçin.'); return; }
+    const consang = document.getElementById('consanguinity').checked;
+    const divorced = document.getElementById('divorced').checked;
 
+    // EDIT MODE: if a partnership is loaded for editing, update it
+    if (editingPartnershipIdx != null && familyData.partnerships[editingPartnershipIdx]) {
+        const existing = familyData.partnerships[editingPartnershipIdx];
+        // Check duplicate (other than self)
+        const dup = familyData.partnerships.some((p, idx) =>
+            idx !== editingPartnershipIdx &&
+            ((p.partner1 === p1 && p.partner2 === p2) || (p.partner1 === p2 && p.partner2 === p1))
+        );
+        if (dup) { alert('Bu eşleşme başka bir kayıtta mevcut.'); return; }
+        existing.partner1 = p1;
+        existing.partner2 = p2;
+        existing.consanguinity = consang;
+        existing.divorced = divorced;
+        cancelPartnershipEdit();
+        updateUI();
+        renderPedigree();
+        if (typeof showToast === 'function') {
+            showToast(t('rel.updated'), { icon: '✏️', undoCallback: () => undo(), duration: 2500 });
+        }
+        return;
+    }
+
+    // ADD MODE: create new partnership
     const exists = familyData.partnerships.some(p =>
         (p.partner1 === p1 && p.partner2 === p2) || (p.partner1 === p2 && p.partner2 === p1)
     );
@@ -1300,13 +1357,21 @@ function addPartnership() {
 
     familyData.partnerships.push({
         partner1: p1, partner2: p2,
-        consanguinity: document.getElementById('consanguinity').checked,
-        divorced: document.getElementById('divorced').checked
+        consanguinity: consang,
+        divorced: divorced
     });
     document.getElementById('consanguinity').checked = false;
     document.getElementById('divorced').checked = false;
     updateUI();
     renderPedigree();
+}
+
+function cancelPartnershipEdit() {
+    editingPartnershipIdx = null;
+    document.getElementById('consanguinity').checked = false;
+    document.getElementById('divorced').checked = false;
+    const btn = document.querySelector('button[onclick="addPartnership()"]');
+    if (btn) btn.textContent = t('rel.btn.pair');
 }
 
 function addParentChild() {
@@ -1316,10 +1381,27 @@ function addParentChild() {
 
     const [p1, p2] = coupleVal.split('-').map(Number);
 
+    // Prevent duplicate (same couple → same child)
     const exists = familyData.parentChildLinks.some(l =>
         l.parent1 === p1 && l.parent2 === p2 && l.childId === childId
     );
     if (exists) { alert('Bu bağlantı zaten mevcut.'); return; }
+
+    // Logical conflict check: same child already has different parents
+    const conflict = familyData.parentChildLinks.find(l =>
+        l.childId === childId && !(l.parent1 === p1 && l.parent2 === p2)
+    );
+    if (conflict) {
+        const child = familyData.members.find(m => m.id === childId);
+        const cn = child ? (child.name || 'Birey ' + childId) : '';
+        if (!confirm(`⚠️ "${cn}" zaten başka ebeveynlere bağlı. Yine de eklensin mi?`)) return;
+    }
+
+    // Logical conflict: child can't be parent of self or parents
+    if (childId === p1 || childId === p2) {
+        alert('⚠️ Bir birey kendi ebeveyni olamaz.');
+        return;
+    }
 
     familyData.parentChildLinks.push({ parent1: p1, parent2: p2, childId: childId });
     updateUI();
@@ -1510,9 +1592,18 @@ function updateRelationsList() {
         const m1 = familyData.members.find(m => m.id === p.partner1);
         const m2 = familyData.members.find(m => m.id === p.partner2);
         if (!m1 || !m2) return;
-        html += `<div class="member-item">
-            <div class="member-info"><div class="member-name">${m1.name || 'Birey '+m1.id} ⚭ ${m2.name || 'Birey '+m2.id}${p.consanguinity ? ' (akraba)' : ''}${p.divorced ? ' (boşanmış)' : ''}</div></div>
-            <button class="btn btn-sm btn-danger" onclick="removePartnership(${i})">Sil</button>
+        const n1 = m1.name || 'Birey ' + m1.id;
+        const n2 = m2.name || 'Birey ' + m2.id;
+        const isEditing = editingPartnershipIdx === i;
+        html += `<div class="rel-item ${isEditing ? 'editing' : ''}" data-pidx="${i}">
+            <div class="rel-info" onclick="loadPartnershipToForm(${i})" title="${t('rel.click.toedit') || 'Düzenlemek için tıkla'}">
+                <span class="rel-name">${n1} ⚭ ${n2}</span>
+                <div class="rel-chips">
+                    <button class="rel-chip ${p.consanguinity ? 'active' : ''}" onclick="event.stopPropagation();togglePartnershipFlag(${i}, 'consanguinity')" title="${t('rel.consang')}">⚭⚭</button>
+                    <button class="rel-chip ${p.divorced ? 'active' : ''}" onclick="event.stopPropagation();togglePartnershipFlag(${i}, 'divorced')" title="${t('rel.divorced')}">//</button>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="removePartnership(${i})">${t('btn.delete')}</button>
         </div>`;
     });
 
@@ -1521,14 +1612,60 @@ function updateRelationsList() {
         const m2 = familyData.members.find(m => m.id === l.parent2);
         const child = familyData.members.find(m => m.id === l.childId);
         if (!m1 || !m2 || !child) return;
-        html += `<div class="member-item">
-            <div class="member-info"><div class="member-name">${m1.name} & ${m2.name} → ${child.name}</div></div>
-            <button class="btn btn-sm btn-danger" onclick="removeParentChild(${i})">Sil</button>
+        const n1 = m1.name || 'Birey ' + m1.id;
+        const n2 = m2.name || 'Birey ' + m2.id;
+        const cn = child.name || 'Birey ' + child.id;
+        html += `<div class="rel-item">
+            <div class="rel-info" onclick="loadParentChildToForm(${i})" title="${t('rel.click.toedit') || 'Düzenlemek için tıkla'}">
+                <span class="rel-name">${n1} &amp; ${n2} → ${cn}</span>
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="removeParentChild(${i})">${t('btn.delete')}</button>
         </div>`;
     });
 
     if (!html) html = `<div class="empty-state"><p>${t('rel.empty')}</p></div>`;
     container.innerHTML = html;
+}
+
+// Track which partnership is being edited (for visual feedback)
+let editingPartnershipIdx = null;
+
+function loadPartnershipToForm(idx) {
+    const p = familyData.partnerships[idx];
+    if (!p) return;
+    document.getElementById('partner1').value = p.partner1;
+    document.getElementById('partner2').value = p.partner2;
+    document.getElementById('consanguinity').checked = !!p.consanguinity;
+    document.getElementById('divorced').checked = !!p.divorced;
+    editingPartnershipIdx = idx;
+    // Update the "Eşleştir" button to "Güncelle"
+    const btn = document.querySelector('button[onclick="addPartnership()"]');
+    if (btn) btn.textContent = t('btn.update');
+    // Switch to relations tab
+    switchTab('relations');
+    updateRelationsList();
+}
+
+function loadParentChildToForm(idx) {
+    const l = familyData.parentChildLinks[idx];
+    if (!l) return;
+    document.getElementById('parentCouple').value = `${l.parent1}-${l.parent2}`;
+    document.getElementById('childSelect').value = l.childId;
+    switchTab('relations');
+}
+
+function togglePartnershipFlag(idx, flag) {
+    const p = familyData.partnerships[idx];
+    if (!p) return;
+    saveState('edit_partnership', `${flag} toggled`);
+    p[flag] = !p[flag];
+    updateUI();
+    renderPedigree();
+    if (typeof showToast === 'function') {
+        const labelMap = { consanguinity: t('rel.consang'), divorced: t('rel.divorced') };
+        const status = p[flag] ? '✓' : '✕';
+        showToast(`${status} ${labelMap[flag] || flag}`, { icon: '⚭', undoCallback: () => undo(), duration: 2500 });
+    }
 }
 
 function updateLegend() {
@@ -1888,6 +2025,8 @@ const I18N = {
         'toast.parentchild.removed': 'Ebeveyn-çocuk bağlantısı kaldırıldı',
         'toast.undo': '↶ Geri Al',
         'toast.close': 'Kapat',
+        'rel.click.toedit': 'Düzenlemek için tıkla',
+        'rel.updated': '✓ İlişki güncellendi',
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
@@ -2054,6 +2193,8 @@ const I18N = {
         'toast.parentchild.removed': 'Parent-child link removed',
         'toast.undo': '↶ Undo',
         'toast.close': 'Close',
+        'rel.click.toedit': 'Click to edit',
+        'rel.updated': '✓ Relationship updated',
     }
 };
 
@@ -2498,17 +2639,20 @@ function computeLayout() {
 
         if (children.length === 0) return;
 
-        // Dynamic spacing: fewer children = more spread, more children = tighter
-        const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
-        const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
-        const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
-
-        children.forEach((childId, i) => {
-            const child = members.find(m => m.id === childId);
-            // Don't override custom-placed children
-            if (child && child.customX != null) return;
-            positions[childId].x = childStartX + i * (NODE_W + childGap);
-        });
+        // Single child auto-centering: ALWAYS center under parents (overrides customX)
+        if (children.length === 1) {
+            positions[children[0]].x = parentCenterX;
+        } else {
+            // Multiple children: dynamic spacing (skip custom-placed)
+            const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
+            const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
+            const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
+            children.forEach((childId, i) => {
+                const child = members.find(m => m.id === childId);
+                if (child && child.customX != null) return;
+                positions[childId].x = childStartX + i * (NODE_W + childGap);
+            });
+        }
     });
 
     // Resolve overlaps within generations — only shift the overlapping node, not the entire tail
