@@ -2964,18 +2964,42 @@ function renderPedigree() {
         const obstacles = findIntermediateNodes(pos1, pos2, lineY, [p.partner1, p.partner2]);
 
         if (obstacles.length === 0) {
-            // === Normal: straight horizontal partnership line ===
-            svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
-            if (p.consanguinity) {
-                const gap = 6;
-                svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
-            }
-            if (p.divorced) {
-                const midPX = (a1.x + a2.x) / 2;
-                const slashH = 14, slashGap = 5;
-                const dy = p.consanguinity ? 3 : 0;
-                svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
-                svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+            // === Normal: horizontal partnership line ===
+            // Defensive: if partners have different Y (e.g. during drag), use orthogonal segments
+            // so line ALWAYS stays attached to nodes regardless of Y mismatch
+            const yDiff = Math.abs(a1.y - a2.y);
+            if (yDiff < 2) {
+                // Same Y: simple horizontal line
+                svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
+                if (p.consanguinity) {
+                    const gap = 6;
+                    svgContent += `<line x1="${a1.x}" y1="${lineY + gap}" x2="${a2.x}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
+                }
+                if (p.divorced) {
+                    const midPX = (a1.x + a2.x) / 2;
+                    const slashH = 14, slashGap = 5;
+                    const dy = p.consanguinity ? 3 : 0;
+                    svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+                    svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + dy + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY + dy - slashH/2}" stroke="#333" stroke-width="2" />`;
+                }
+            } else {
+                // Different Y: orthogonal U-segments (vertical stub → horizontal → vertical stub)
+                // Guarantees line stays attached to both anchor points
+                svgContent += `<line x1="${a1.x}" y1="${a1.y}" x2="${a1.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${a1.x}" y1="${lineY}" x2="${a2.x}" y2="${lineY}" stroke="#333" stroke-width="1.5" />`;
+                svgContent += `<line x1="${a2.x}" y1="${lineY}" x2="${a2.x}" y2="${a2.y}" stroke="#333" stroke-width="1.5" />`;
+                if (p.consanguinity) {
+                    const gap = 6;
+                    svgContent += `<line x1="${a1.x - gap}" y1="${a1.y}" x2="${a1.x - gap}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
+                    svgContent += `<line x1="${a1.x - gap}" y1="${lineY + gap}" x2="${a2.x + gap}" y2="${lineY + gap}" stroke="#333" stroke-width="1.5" />`;
+                    svgContent += `<line x1="${a2.x + gap}" y1="${lineY + gap}" x2="${a2.x + gap}" y2="${a2.y}" stroke="#333" stroke-width="1.5" />`;
+                }
+                if (p.divorced) {
+                    const midPX = (a1.x + a2.x) / 2;
+                    const slashH = 14, slashGap = 5;
+                    svgContent += `<line x1="${midPX - slashGap - 3}" y1="${lineY + slashH/2}" x2="${midPX - slashGap + 5}" y2="${lineY - slashH/2}" stroke="#333" stroke-width="2" />`;
+                    svgContent += `<line x1="${midPX + slashGap - 3}" y1="${lineY + slashH/2}" x2="${midPX + slashGap + 5}" y2="${lineY - slashH/2}" stroke="#333" stroke-width="2" />`;
+                }
             }
         } else {
             // === Smart Top-Orthogonal Routing for distant relationships ===
@@ -4253,7 +4277,15 @@ canvasContainer.addEventListener('mousemove', (e) => {
     }
     if (toolMode === 'move' && movingMemberId != null) {
         const m = familyData.members.find(m => m.id === movingMemberId);
-        if (m) { m.customX = pos.x; m.customY = pos.y; renderPedigree(); }
+        if (m) {
+            // Live Y-snap during drag: keeps node aligned to generation row
+            // Prevents partner/child lines from "floating" or disconnecting
+            const { gen, snapY } = guessGenerationFromY(pos.y);
+            m.customX = pos.x;
+            m.customY = snapY;
+            m.generation = gen;
+            renderPedigree();
+        }
     }
 });
 
@@ -4315,7 +4347,13 @@ canvasContainer.addEventListener('touchmove', (e) => {
     }
     if (toolMode === 'move' && movingMemberId != null) {
         const m = familyData.members.find(m => m.id === movingMemberId);
-        if (m) { m.customX = pos.x; m.customY = pos.y; renderPedigree(); }
+        if (m) {
+            const { gen, snapY } = guessGenerationFromY(pos.y);
+            m.customX = pos.x;
+            m.customY = snapY;
+            m.generation = gen;
+            renderPedigree();
+        }
     }
 }, { passive: false });
 
