@@ -1012,6 +1012,7 @@ const DISEASE_COLORS = [
 ];
 
 let lastLayout = null; // cached layout for hit-testing (move/connect tools)
+let layoutMemory = {}; // Map: memberId → {x, y} - stable layout positions for incremental updates
 
 // Cancer type list for autocomplete (Turkish, with English in parens for searchability)
 const CANCER_TYPES = [
@@ -2700,10 +2701,16 @@ function computeLayout() {
         const startX = MARGIN;
         const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
 
-        // Sequential placement (predictable, template-friendly)
+        // Sequential placement with layout memory:
+        // 1. customX/Y if user manually placed (highest priority)
+        // 2. layoutMemory if previously stable position exists (stability)
+        // 3. Sequential default (new members or first render)
         genMembers.forEach((m, i) => {
             if (m.customX != null && m.customY != null) {
                 positions[m.id] = { x: m.customX, y: m.customY };
+            } else if (layoutMemory[m.id] != null) {
+                // Use memorized position for stability — small edits don't shake the tree
+                positions[m.id] = { x: layoutMemory[m.id].x, y: genY };
             } else {
                 positions[m.id] = {
                     x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
@@ -2735,10 +2742,43 @@ function computeLayout() {
             return;
         }
         // Multiple children: distribute evenly around parent midpoint
+        // ===== EDGE CROSSING MINIMIZATION (D) =====
+        // Reorder children so that those with partners on a specific side go to that side.
+        // This reduces line crossings when partners come from outside the sibling group.
+        const childrenWithMeta = children.map(childId => {
+            const partners = familyData.partnerships.filter(pp =>
+                (pp.partner1 === childId || pp.partner2 === childId) &&
+                pp.partner1 !== p.partner1 && pp.partner1 !== p.partner2 &&
+                pp.partner2 !== p.partner1 && pp.partner2 !== p.partner2
+            );
+            // Average partner X (where the partner currently is in the layout)
+            let partnerAvgX = null;
+            if (partners.length > 0) {
+                const partnerXs = partners
+                    .map(pp => pp.partner1 === childId ? pp.partner2 : pp.partner1)
+                    .map(pid => positions[pid]?.x)
+                    .filter(x => x != null);
+                if (partnerXs.length > 0) {
+                    partnerAvgX = partnerXs.reduce((s, v) => s + v, 0) / partnerXs.length;
+                }
+            }
+            return { childId, partnerAvgX };
+        });
+        // Sort: those with partners further LEFT come first (left-most position)
+        // Those with partners further RIGHT come last
+        // Those without partners stay in middle (preserve original order)
+        childrenWithMeta.sort((a, b) => {
+            if (a.partnerAvgX == null && b.partnerAvgX == null) return 0;
+            if (a.partnerAvgX == null) return 0; // keep original (middle)
+            if (b.partnerAvgX == null) return 0;
+            return a.partnerAvgX - b.partnerAvgX;
+        });
+        const orderedChildren = childrenWithMeta.map(c => c.childId);
+
         const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
         const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
         const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
-        children.forEach((childId, i) => {
+        orderedChildren.forEach((childId, i) => {
             const child = familyData.members.find(m => m.id === childId);
             if (child && child.customX != null) return;
             positions[childId].x = childStartX + i * (NODE_W + childGap);
@@ -2746,13 +2786,29 @@ function computeLayout() {
         });
     });
 
-    // ============ FULL OVERLAP RESOLUTION (per generation) ============
-    // Critical bug fix: include ALL members (not just auto-placed) so custom-placed
-    // members participate in collision detection. Use proper edge-to-edge gap.
-    const MIN_NODE_GAP = 30; // pixels of clear space between node EDGES (not centers)
-    const minCenterDist = NODE_W + MIN_NODE_GAP; // 60 + 30 = 90px between centers
+    // ============ DENSITY-AWARE OVERLAP RESOLUTION (per generation) ============
+    // Adaptive spacing: count nodes per X bin, increase spacing in dense regions.
+    // Sparse regions stay compact, crowded regions expand more.
+    const BASE_NODE_GAP = 30;
+    const baseCenterDist = NODE_W + BASE_NODE_GAP; // 90px default
+
+    function getDensityFactor(gen) {
+        // If a generation has many members AND many partnerships, density is higher
+        const genMembers = generations[gen];
+        const partnersInGen = familyData.partnerships.filter(p =>
+            genMembers.find(m => m.id === p.partner1) && genMembers.find(m => m.id === p.partner2)
+        ).length;
+        // 0.0..0.5 extra factor based on density
+        const memberFactor = Math.min(0.3, genMembers.length / 30);
+        const partnerFactor = Math.min(0.3, partnersInGen / 15);
+        return 1 + memberFactor + partnerFactor; // 1.0..1.6
+    }
+
     genKeys.forEach(gen => {
         const genMembers = generations[gen];
+        const densityFactor = getDensityFactor(gen);
+        const minCenterDist = baseCenterDist * densityFactor;
+
         // Sort ALL members by X (including custom-placed ones)
         const sorted = genMembers
             .filter(m => positions[m.id])
@@ -2763,8 +2819,6 @@ function computeLayout() {
             const needed = sorted[i - 1].x + minCenterDist;
             if (sorted[i].x < needed) {
                 const shift = needed - sorted[i].x;
-                // Shift this node and all subsequent ones to the right
-                // EXCEPT locked (manually positioned) ones if they don't overlap
                 for (let j = i; j < sorted.length; j++) {
                     positions[sorted[j].id].x += shift;
                     sorted[j].x += shift;
@@ -2825,11 +2879,26 @@ function computeLayout() {
         totalHeight = Math.max(totalHeight, pos.y + NODE_R + 60);
     });
 
+    // Save final positions to layout memory for next render (stability)
+    // Only members WITHOUT customX (auto-placed ones) are memorized,
+    // because custom-placed members already have stable positions.
+    Object.entries(positions).forEach(([memberId, pos]) => {
+        const m = familyData.members.find(mm => mm.id === parseInt(memberId));
+        if (m && m.customX == null) {
+            layoutMemory[memberId] = { x: pos.x, y: pos.y };
+        }
+    });
+
     return {
         positions,
         width: totalWidth,
         height: totalHeight
     };
+}
+
+// Clear layout memory (called when major structural change occurs, e.g. clearAll, load, autoLayout)
+function clearLayoutMemory() {
+    layoutMemory = {};
 }
 
 // ======================== PEDIGREE RENDERER ========================
@@ -2946,6 +3015,54 @@ function renderPedigree() {
     const partnershipRoutingMap = {};
     function partnershipKey(p) { return `${p.partner1}-${p.partner2}`; }
 
+    // ============ MULTI-LEVEL LANE ASSIGNMENT ============
+    // Pre-pass: collect all top-routed partnerships and assign them to non-overlapping
+    // horizontal "lanes" (different Y levels) so they don't visually stack on each other.
+    const topRoutedJobs = []; // { p, pos1, pos2, m1, m2, baseRoutingY, minX, maxX }
+    familyData.partnerships.forEach(p => {
+        const pos1 = positions[p.partner1];
+        const pos2 = positions[p.partner2];
+        if (!pos1 || !pos2) return;
+        const m1 = familyData.members.find(m => m.id === p.partner1);
+        const m2 = familyData.members.find(m => m.id === p.partner2);
+        if (!m1 || !m2) return;
+        const lineY = (pos1.y + pos2.y) / 2;
+        const obstacles = findIntermediateNodes(pos1, pos2, lineY, [p.partner1, p.partner2]);
+        if (obstacles.length === 0) return; // not top-routed
+        const minObstacleY = Math.min(pos1.y, pos2.y, ...obstacles.map(o => o.y));
+        const baseRoutingY = minObstacleY - NODE_R - 35;
+        const minX = Math.min(pos1.x, pos2.x);
+        const maxX = Math.max(pos1.x, pos2.x);
+        topRoutedJobs.push({ p, pos1, pos2, m1, m2, baseRoutingY, minX, maxX });
+    });
+
+    // Greedy lane assignment: sort by minX, assign lowest available lane
+    // Each lane stores [minX, maxX] of partnerships in it
+    topRoutedJobs.sort((a, b) => a.minX - b.minX);
+    const lanes = []; // lanes[i] = array of {minX, maxX} occupants
+    const LANE_HEIGHT = 22; // pixels between stacked routes
+    topRoutedJobs.forEach(job => {
+        // Find first lane that has no horizontal overlap with this job
+        let chosenLane = -1;
+        for (let i = 0; i < lanes.length; i++) {
+            const conflicts = lanes[i].some(occ => !(job.maxX < occ.minX - 8 || job.minX > occ.maxX + 8));
+            if (!conflicts) { chosenLane = i; break; }
+        }
+        if (chosenLane < 0) {
+            chosenLane = lanes.length;
+            lanes.push([]);
+        }
+        lanes[chosenLane].push({ minX: job.minX, maxX: job.maxX });
+        // Store assigned lane on job (higher lane = higher position = smaller Y)
+        job.assignedRoutingY = job.baseRoutingY - chosenLane * LANE_HEIGHT;
+    });
+
+    // Build quick lookup: partnership key → assigned routingY
+    const assignedRoutingY = {};
+    topRoutedJobs.forEach(job => {
+        assignedRoutingY[partnershipKey(job.p)] = job.assignedRoutingY;
+    });
+
     // Draw partnership lines (from shape edges, not centers)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
@@ -3003,9 +3120,12 @@ function renderPedigree() {
             }
         } else {
             // === Smart Top-Orthogonal Routing for distant relationships ===
-            // Calculate routing Y above all obstacles (clear of any node)
+            // Use lane-assigned routing Y if available (multi-level lanes prevent overlap)
             const minObstacleY = Math.min(pos1.y, pos2.y, ...obstacles.map(o => o.y));
-            const routingY = minObstacleY - NODE_R - 35;
+            const baseRoutingY = minObstacleY - NODE_R - 35;
+            const routingY = assignedRoutingY[partnershipKey(p)] != null
+                ? assignedRoutingY[partnershipKey(p)]
+                : baseRoutingY;
             // Midpoint x = exact center of two partners
             const midX = (pos1.x + pos2.x) / 2;
 
@@ -3552,6 +3672,7 @@ function autoLayout() {
         if (!confirm('Tüm bireylerin manuel olarak ayarlanan pozisyonları sıfırlanıp otomatik yerleşim uygulanacak. Devam edilsin mi?')) return;
     }
     saveState();
+    clearLayoutMemory(); // fresh layout, ignore memory
     familyData.members.forEach(m => {
         m.customX = null;
         m.customY = null;
@@ -3867,6 +3988,7 @@ function clearAllSilent() {
     currentDiseases = [];
     currentCancers = [];
     editingMemberId = null;
+    clearLayoutMemory();
 }
 
 // ======================== UNDO / REDO ========================
