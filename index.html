@@ -257,27 +257,57 @@
 
         /* ===== Tutorial Tour Tooltip ===== */
         .tour-tooltip {
-            position: fixed; background: #3498db; color: white;
-            padding: 14px 18px; border-radius: 8px; max-width: 280px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3); z-index: 2100;
+            position: fixed; background: linear-gradient(135deg, #3498db, #2980b9); color: white;
+            padding: 16px 20px; border-radius: 10px; max-width: 320px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.35); z-index: 2100;
             font-size: 13px; line-height: 1.5; display: none;
+            animation: tourFadeIn 0.3s ease-out;
+        }
+        @keyframes tourFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .tour-tooltip.show { display: block; }
-        .tour-tooltip h4 { margin-bottom: 6px; font-size: 14px; }
-        .tour-tooltip .tour-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
-        .tour-tooltip button {
-            background: white; color: #3498db; border: none; padding: 5px 12px;
-            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+        .tour-tooltip h4 { margin-bottom: 8px; font-size: 15px; font-weight: 600; }
+        .tour-progress {
+            display: flex; gap: 4px; margin-bottom: 12px; align-items: center;
         }
-        .tour-tooltip button.skip { background: rgba(255,255,255,0.2); color: white; }
-        .tour-arrow {
-            position: absolute; width: 14px; height: 14px; background: #3498db;
-            transform: rotate(45deg);
+        .tour-dot {
+            flex: 1; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px;
+            transition: background 0.2s;
+        }
+        .tour-dot.done { background: rgba(255,255,255,0.7); }
+        .tour-dot.active { background: white; box-shadow: 0 0 6px rgba(255,255,255,0.6); }
+        .tour-counter {
+            font-size: 11px; opacity: 0.85; margin-left: 8px; white-space: nowrap;
+        }
+        .tour-tooltip .tour-actions {
+            margin-top: 14px; display: flex; gap: 8px; justify-content: space-between;
+            align-items: center;
+        }
+        .tour-actions-left, .tour-actions-right { display: flex; gap: 6px; }
+        .tour-tooltip button {
+            background: white; color: #2980b9; border: none; padding: 6px 14px;
+            border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: all 0.15s;
+        }
+        .tour-tooltip button:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .tour-tooltip button.skip, .tour-tooltip button.back {
+            background: rgba(255,255,255,0.2); color: white;
+        }
+        .tour-tooltip button.back:hover { background: rgba(255,255,255,0.3); }
+        .tour-tooltip button:disabled {
+            opacity: 0.4; cursor: not-allowed; transform: none;
         }
         .tour-highlight {
             position: relative; z-index: 2050;
-            box-shadow: 0 0 0 4px rgba(52,152,219,0.5), 0 0 0 9999px rgba(0,0,0,0.4) !important;
-            border-radius: 4px;
+            box-shadow: 0 0 0 4px rgba(52,152,219,0.6), 0 0 0 9999px rgba(0,0,0,0.5) !important;
+            border-radius: 6px;
+            animation: tourPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes tourPulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(52,152,219,0.6), 0 0 0 9999px rgba(0,0,0,0.5); }
+            50% { box-shadow: 0 0 0 6px rgba(52,152,219,0.85), 0 0 0 9999px rgba(0,0,0,0.5); }
         }
 
         /* ===== Dark Theme ===== */
@@ -952,55 +982,78 @@
 <!-- Help & Shortcuts Modal -->
 <div class="help-modal-overlay" id="helpModalOverlay" onclick="if(event.target===this)closeHelpModal()">
     <div class="help-modal">
-        <button class="close-btn" onclick="closeHelpModal()">Kapat ✕</button>
-        <h2>📚 Yardım & Klavye Kısayolları</h2>
+        <button class="close-btn" onclick="closeHelpModal()" data-i18n="help.close">Kapat ✕</button>
+        <h2 data-i18n="help.title">📚 Yardım & Klavye Kısayolları</h2>
 
-        <h3>⌨️ Klavye Kısayolları</h3>
+        <button onclick="closeHelpModal(); startTour();" style="display:block; width:100%; padding:10px; margin:8px 0 16px; background:linear-gradient(135deg,#3498db,#2980b9); color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;" data-i18n="help.replay.tour">🎓 Tanıtım Turunu Yeniden İzle</button>
+
+        <h3 data-i18n="help.shortcuts.title">⌨️ Klavye Kısayolları</h3>
         <ul>
-            <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> — Geri Al</li>
-            <li><kbd>Ctrl</kbd> + <kbd>Y</kbd> veya <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — İleri Al</li>
-            <li><kbd>Ctrl</kbd> + <kbd>S</kbd> — Pedigri'yi kaydet (JSON)</li>
-            <li><kbd>?</kbd> — Bu yardım panelini aç</li>
-            <li><kbd>Esc</kbd> — Aktif aracı/paneli kapat</li>
+            <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> — <span data-i18n="help.sc.undo">Geri Al</span></li>
+            <li><kbd>Ctrl</kbd> + <kbd>Y</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — <span data-i18n="help.sc.redo">İleri Al</span></li>
+            <li><kbd>Ctrl</kbd> + <kbd>S</kbd> — <span data-i18n="help.sc.save">Pedigri'yi kaydet (JSON)</span></li>
+            <li><kbd>Ctrl</kbd> + <kbd>A</kbd> — <span data-i18n="help.sc.selectall">Tüm bireyleri seç</span></li>
+            <li><kbd>Tab</kbd> — <span data-i18n="help.sc.tab">Sonraki bireye geç (klavye gezinti)</span></li>
+            <li><kbd>Enter</kbd> — <span data-i18n="help.sc.enter">Odaklı bireyi düzenle</span></li>
+            <li><kbd>Delete</kbd> — <span data-i18n="help.sc.delete">Odaklı bireyi sil</span></li>
+            <li><kbd>?</kbd> — <span data-i18n="help.sc.help">Bu yardım panelini aç</span></li>
+            <li><kbd>Esc</kbd> — <span data-i18n="help.sc.esc">Aktif aracı/paneli kapat</span></li>
         </ul>
 
-        <h3>🖱️ Fare İşlemleri</h3>
+        <h3 data-i18n="help.mouse.title">🖱️ Fare İşlemleri</h3>
         <ul>
-            <li><strong>Şekle çift tıkla</strong> — Düzenleme paneline geç</li>
-            <li><strong>Şeklin üzerine gel</strong> — Bilgileri tooltip'te gör</li>
-            <li><strong>Bağla aracı</strong> — Şekiller arası çizgi çek (aynı nesil = eş, farklı nesil = ebeveyn-çocuk, yeşil nokta = kardeş ekle)</li>
-            <li><strong>Taşı aracı</strong> — Şekli sürükle, Y otomatik nesil hizasına oturur</li>
-            <li><strong>Silgi aracı</strong> — Şekle tıkla → silinir</li>
+            <li><strong data-i18n="help.mouse.dblclick">Şekle çift tıkla</strong> — <span data-i18n="help.mouse.dblclick.desc">Düzenleme paneline geç</span></li>
+            <li><strong data-i18n="help.mouse.hover">Şeklin üzerine gel</strong> — <span data-i18n="help.mouse.hover.desc">Bilgileri tooltip'te gör</span></li>
+            <li><strong data-i18n="help.mouse.shift">Shift + Tıkla</strong> — <span data-i18n="help.mouse.shift.desc">Çoklu seçim (toplu işlem için)</span></li>
+            <li><strong data-i18n="help.mouse.connect">Bağla aracı</strong> — <span data-i18n="help.mouse.connect.desc">Şekiller arası çizgi çek (aynı nesil = eş, farklı nesil = ebeveyn-çocuk, yeşil nokta = kardeş ekle)</span></li>
+            <li><strong data-i18n="help.mouse.move">Taşı aracı</strong> — <span data-i18n="help.mouse.move.desc">Şekli sürükle, Y otomatik nesil hizasına oturur</span></li>
+            <li><strong data-i18n="help.mouse.eraser">Silgi aracı</strong> — <span data-i18n="help.mouse.eraser.desc">Şekle tıkla → silinir (Geri Al ile dönülebilir)</span></li>
         </ul>
 
-        <h3>🧬 Sembol Anlamları</h3>
+        <h3 data-i18n="help.symbols.title">🧬 Sembol Anlamları</h3>
         <ul>
-            <li>□ Erkek &nbsp;&nbsp; ○ Kadın &nbsp;&nbsp; ◇ Bilinmiyor</li>
-            <li>■ / ● Etkilenmiş (Hasta)</li>
-            <li>⊡ / ⊙ Taşıyıcı</li>
-            <li>Çapraz çizgi = Vefat</li>
-            <li>Tek çizgi (—) Eş, Çift çizgi (═) Akraba evliliği, Çift slash (//) Boşanmış</li>
-            <li>Köşeli parantez [□] Evlat edinme</li>
-            <li>♢P Devam eden gebelik, ▼ SAB (düşük), ▼/ TOP (tahliye), SB Ölü doğum</li>
+            <li><span data-i18n="help.sym.shapes">□ Erkek &nbsp;&nbsp; ○ Kadın &nbsp;&nbsp; ◇ Bilinmiyor</span></li>
+            <li><span data-i18n="help.sym.affected">■ / ● Etkilenmiş (Hasta)</span></li>
+            <li><span data-i18n="help.sym.carrier">⊡ / ⊙ Taşıyıcı</span></li>
+            <li><span data-i18n="help.sym.deceased">Çapraz çizgi = Vefat</span></li>
+            <li><span data-i18n="help.sym.lines">Tek çizgi (—) Eş · Çift çizgi (═) Akraba evliliği · Çift slash (//) Boşanmış</span></li>
+            <li><span data-i18n="help.sym.adoption">Köşeli parantez [□] Evlat edinme</span></li>
+            <li><span data-i18n="help.sym.pregnancy">♢P Devam eden gebelik · ▼ SAB (düşük) · ▼/ TOP (tahliye) · SB Ölü doğum</span></li>
         </ul>
 
-        <h3>💾 Veri Yönetimi</h3>
+        <h3 data-i18n="help.data.title">💾 Veri Yönetimi</h3>
         <ul>
-            <li><strong>Otomatik kayıt:</strong> Tüm değişiklikler tarayıcıda otomatik saklanır</li>
-            <li><strong>Kaydet:</strong> JSON dosyası olarak indir (yedekleme/paylaşım)</li>
-            <li><strong>Yükle:</strong> Daha önce kaydettiğin JSON'u geri yükle</li>
-            <li><strong>Export:</strong> SVG / PNG / PDF olarak çıktı al</li>
+            <li><strong data-i18n="help.data.autosave">Otomatik kayıt:</strong> <span data-i18n="help.data.autosave.desc">Tüm değişiklikler tarayıcıda otomatik saklanır</span></li>
+            <li><strong data-i18n="help.data.save">Kaydet:</strong> <span data-i18n="help.data.save.desc">JSON dosyası olarak indir (yedekleme/paylaşım)</span></li>
+            <li><strong data-i18n="help.data.load">Yükle:</strong> <span data-i18n="help.data.load.desc">Daha önce kaydettiğin JSON'u geri yükle</span></li>
+            <li><strong data-i18n="help.data.share">Paylaş:</strong> <span data-i18n="help.data.share.desc">Pedigri'yi URL içinde kodlayıp link olarak paylaş</span></li>
+            <li><strong data-i18n="help.data.export">Export:</strong> <span data-i18n="help.data.export.desc">SVG / PNG / PDF / CSV olarak çıktı al</span></li>
+        </ul>
+
+        <h3 data-i18n="help.modes.title">🧬 Modlar</h3>
+        <ul>
+            <li><strong data-i18n="help.modes.rare">🧬 Nadir Hastalık:</strong> <span data-i18n="help.modes.rare.desc">Mendel kalıtım, tek hastalık/fenotip alanı</span></li>
+            <li><strong data-i18n="help.modes.cancer">🩸 Kanser Pedigresi:</strong> <span data-i18n="help.modes.cancer.desc">Onkogenetik, çoklu kanser (max 3) + tanı yaşı + bilateral</span></li>
         </ul>
     </div>
 </div>
 
 <!-- Tutorial tour -->
 <div class="tour-tooltip" id="tourTooltip">
+    <div class="tour-progress">
+        <div id="tourProgressBars" style="display:flex; gap:4px; flex:1;"></div>
+        <span class="tour-counter" id="tourCounter"></span>
+    </div>
     <h4 id="tourTitle"></h4>
     <div id="tourBody"></div>
     <div class="tour-actions">
-        <button class="skip" onclick="endTour()">Atla</button>
-        <button onclick="nextTourStep()" id="tourNextBtn">İleri →</button>
+        <div class="tour-actions-left">
+            <button class="skip" onclick="endTour()" id="tourSkipBtn">Atla</button>
+        </div>
+        <div class="tour-actions-right">
+            <button class="back" onclick="prevTourStep()" id="tourBackBtn">← Geri</button>
+            <button onclick="nextTourStep()" id="tourNextBtn">İleri →</button>
+        </div>
     </div>
 </div>
 
@@ -2049,6 +2102,76 @@ const I18N = {
         'tip.cancer.bilateral': 'Bilateral = çift taraflı (örn. her iki memede de meme kanseri). Etkilenmiş Y veya Z gibi simetrik organlarda anlamlıdır.',
         'tip.disease': 'Hastalık veya fenotip adı. Birden fazla eklenebilir (örn. Diyabet + Hipertansiyon).',
         'tip.note': 'Klinik notlar, ek bilgiler, soru işaretleri.',
+        // Help modal
+        'help.title': '📚 Yardım & Klavye Kısayolları',
+        'help.close': 'Kapat ✕',
+        'help.replay.tour': '🎓 Tanıtım Turunu Yeniden İzle',
+        'help.shortcuts.title': '⌨️ Klavye Kısayolları',
+        'help.sc.undo': 'Geri Al',
+        'help.sc.redo': 'İleri Al',
+        'help.sc.save': 'Pedigri\'yi kaydet (JSON)',
+        'help.sc.selectall': 'Tüm bireyleri seç',
+        'help.sc.tab': 'Sonraki bireye geç (klavye gezinti)',
+        'help.sc.enter': 'Odaklı bireyi düzenle',
+        'help.sc.delete': 'Odaklı bireyi sil',
+        'help.sc.help': 'Bu yardım panelini aç',
+        'help.sc.esc': 'Aktif aracı/paneli kapat',
+        'help.mouse.title': '🖱️ Fare İşlemleri',
+        'help.mouse.dblclick': 'Şekle çift tıkla',
+        'help.mouse.dblclick.desc': 'Düzenleme paneline geç',
+        'help.mouse.hover': 'Şeklin üzerine gel',
+        'help.mouse.hover.desc': 'Bilgileri tooltip\'te gör',
+        'help.mouse.shift': 'Shift + Tıkla',
+        'help.mouse.shift.desc': 'Çoklu seçim (toplu işlem için)',
+        'help.mouse.connect': 'Bağla aracı',
+        'help.mouse.connect.desc': 'Şekiller arası çizgi çek (aynı nesil = eş, farklı nesil = ebeveyn-çocuk, yeşil nokta = kardeş ekle)',
+        'help.mouse.move': 'Taşı aracı',
+        'help.mouse.move.desc': 'Şekli sürükle, Y otomatik nesil hizasına oturur',
+        'help.mouse.eraser': 'Silgi aracı',
+        'help.mouse.eraser.desc': 'Şekle tıkla → silinir (Geri Al ile dönülebilir)',
+        'help.symbols.title': '🧬 Sembol Anlamları',
+        'help.sym.shapes': '□ Erkek &nbsp;&nbsp; ○ Kadın &nbsp;&nbsp; ◇ Bilinmiyor',
+        'help.sym.affected': '■ / ● Etkilenmiş (Hasta)',
+        'help.sym.carrier': '⊡ / ⊙ Taşıyıcı',
+        'help.sym.deceased': 'Çapraz çizgi = Vefat',
+        'help.sym.lines': 'Tek çizgi (—) Eş · Çift çizgi (═) Akraba evliliği · Çift slash (//) Boşanmış',
+        'help.sym.adoption': 'Köşeli parantez [□] Evlat edinme',
+        'help.sym.pregnancy': '♢P Devam eden gebelik · ▼ SAB (düşük) · ▼/ TOP (tahliye) · SB Ölü doğum',
+        'help.data.title': '💾 Veri Yönetimi',
+        'help.data.autosave': 'Otomatik kayıt:',
+        'help.data.autosave.desc': 'Tüm değişiklikler tarayıcıda otomatik saklanır',
+        'help.data.save': 'Kaydet:',
+        'help.data.save.desc': 'JSON dosyası olarak indir (yedekleme/paylaşım)',
+        'help.data.load': 'Yükle:',
+        'help.data.load.desc': 'Daha önce kaydettiğin JSON\'u geri yükle',
+        'help.data.share': 'Paylaş:',
+        'help.data.share.desc': 'Pedigri\'yi URL içinde kodlayıp link olarak paylaş',
+        'help.data.export': 'Export:',
+        'help.data.export.desc': 'SVG / PNG / PDF / CSV olarak çıktı al',
+        'help.modes.title': '🧬 Modlar',
+        'help.modes.rare': '🧬 Nadir Hastalık:',
+        'help.modes.rare.desc': 'Mendel kalıtım, tek hastalık/fenotip alanı',
+        'help.modes.cancer': '🩸 Kanser Pedigresi:',
+        'help.modes.cancer.desc': 'Onkogenetik, çoklu kanser (max 3) + tanı yaşı + bilateral',
+        // Tutorial steps
+        'tour.step': 'Adım',
+        'tour.of': '/',
+        'tour.skip': 'Atla',
+        'tour.next': 'İleri →',
+        'tour.finish': 'Bitir ✓',
+        'tour.back': '← Geri',
+        'tour.welcome.title': '👋 Hoş geldin!',
+        'tour.welcome.body': 'Bu uygulama ile genetik pedigri (soyağacı) çizebilirsin. Sol panelden form ile veya sağ taraftaki araçlarla şekil ekleyebilirsin.',
+        'tour.add.title': '➕ Şekil Ekleme',
+        'tour.add.body': 'Sağ taraftaki araçlardan bir sembol seç (kare = erkek, daire = kadın), sonra çizim alanına tıkla. Şekil otomatik olarak en yakın nesil hizasına yerleşir.',
+        'tour.connect.title': '🔗 Bağlantı',
+        'tour.connect.body': 'Bağla aracını seçince şekillerin merkezinde noktalar belirir. Siyah noktadan diğerine sürükle: aynı nesil = eş, farklı nesil = ebeveyn-çocuk. Yeşil noktadan kardeş ekleyebilirsin.',
+        'tour.move.title': '✋ Taşıma',
+        'tour.move.body': 'Taşı aracıyla bir şekli sürükleyip yerini değiştirebilirsin. Bağlı çizgiler otomatik takip eder.',
+        'tour.save.title': '💾 Kaydet ve Paylaş',
+        'tour.save.body': 'Çalışman tarayıcıda otomatik kaydedilir. Kaydet butonu ile JSON dosyasına alabilir, Export ile SVG/PNG/PDF olarak indirebilirsin.',
+        'tour.theme.title': '🎨 Tema & Yardım',
+        'tour.theme.body': 'Karanlık temaya geçebilir, ❓ butonu ile her zaman tüm kısayolları görebilirsin. İyi çizimler!',
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
@@ -2236,6 +2359,76 @@ const I18N = {
         'tip.cancer.bilateral': 'Bilateral = both sides (e.g. both breasts in breast cancer). Meaningful for symmetric organs.',
         'tip.disease': 'Disease or phenotype name. Multiple can be added (e.g. Diabetes + Hypertension).',
         'tip.note': 'Clinical notes, additional information, question marks.',
+        // Help modal
+        'help.title': '📚 Help & Keyboard Shortcuts',
+        'help.close': 'Close ✕',
+        'help.replay.tour': '🎓 Replay Tutorial Tour',
+        'help.shortcuts.title': '⌨️ Keyboard Shortcuts',
+        'help.sc.undo': 'Undo',
+        'help.sc.redo': 'Redo',
+        'help.sc.save': 'Save pedigree (JSON)',
+        'help.sc.selectall': 'Select all members',
+        'help.sc.tab': 'Move to next member (keyboard navigation)',
+        'help.sc.enter': 'Edit focused member',
+        'help.sc.delete': 'Delete focused member',
+        'help.sc.help': 'Open this help panel',
+        'help.sc.esc': 'Close active tool/panel',
+        'help.mouse.title': '🖱️ Mouse Actions',
+        'help.mouse.dblclick': 'Double-click on shape',
+        'help.mouse.dblclick.desc': 'Open editing panel',
+        'help.mouse.hover': 'Hover over shape',
+        'help.mouse.hover.desc': 'See information in tooltip',
+        'help.mouse.shift': 'Shift + Click',
+        'help.mouse.shift.desc': 'Multi-select (for batch operations)',
+        'help.mouse.connect': 'Connect tool',
+        'help.mouse.connect.desc': 'Draw line between shapes (same generation = spouse, different generation = parent-child, green dot = add sibling)',
+        'help.mouse.move': 'Move tool',
+        'help.mouse.move.desc': 'Drag the shape, Y auto-snaps to generation level',
+        'help.mouse.eraser': 'Eraser tool',
+        'help.mouse.eraser.desc': 'Click on shape → deleted (recoverable via Undo)',
+        'help.symbols.title': '🧬 Symbol Meanings',
+        'help.sym.shapes': '□ Male &nbsp;&nbsp; ○ Female &nbsp;&nbsp; ◇ Unknown',
+        'help.sym.affected': '■ / ● Affected',
+        'help.sym.carrier': '⊡ / ⊙ Carrier',
+        'help.sym.deceased': 'Diagonal slash = Deceased',
+        'help.sym.lines': 'Single line (—) Spouse · Double line (═) Consanguineous · Double slash (//) Divorced',
+        'help.sym.adoption': 'Square brackets [□] Adoption',
+        'help.sym.pregnancy': '♢P Ongoing pregnancy · ▼ SAB (loss) · ▼/ TOP (termination) · SB Stillbirth',
+        'help.data.title': '💾 Data Management',
+        'help.data.autosave': 'Auto-save:',
+        'help.data.autosave.desc': 'All changes are automatically saved in browser',
+        'help.data.save': 'Save:',
+        'help.data.save.desc': 'Download as JSON file (backup/sharing)',
+        'help.data.load': 'Load:',
+        'help.data.load.desc': 'Restore previously saved JSON',
+        'help.data.share': 'Share:',
+        'help.data.share.desc': 'Encode pedigree into URL and share as link',
+        'help.data.export': 'Export:',
+        'help.data.export.desc': 'Export as SVG / PNG / PDF / CSV',
+        'help.modes.title': '🧬 Modes',
+        'help.modes.rare': '🧬 Rare Disease:',
+        'help.modes.rare.desc': 'Mendelian inheritance, single disease/phenotype field',
+        'help.modes.cancer': '🩸 Cancer Pedigree:',
+        'help.modes.cancer.desc': 'Oncogenetics, multiple cancers (max 3) + diagnosis age + bilateral',
+        // Tutorial steps
+        'tour.step': 'Step',
+        'tour.of': '/',
+        'tour.skip': 'Skip',
+        'tour.next': 'Next →',
+        'tour.finish': 'Finish ✓',
+        'tour.back': '← Back',
+        'tour.welcome.title': '👋 Welcome!',
+        'tour.welcome.body': 'With this app, you can draw genetic pedigrees (family trees). Add shapes via the form on the left or via tools on the right.',
+        'tour.add.title': '➕ Adding Shapes',
+        'tour.add.body': 'Pick a symbol from the right toolbar (square = male, circle = female), then click on the canvas. The shape automatically snaps to the nearest generation row.',
+        'tour.connect.title': '🔗 Connecting',
+        'tour.connect.body': 'Activate the connect tool — dots appear in the center of shapes. Drag from one black dot to another: same generation = spouse, different generation = parent-child. Use the green dot to add siblings.',
+        'tour.move.title': '✋ Moving',
+        'tour.move.body': 'With the move tool, drag a shape to relocate it. Connected lines follow automatically.',
+        'tour.save.title': '💾 Save & Share',
+        'tour.save.body': 'Your work is auto-saved in the browser. Use Save for JSON download, or Export for SVG/PNG/PDF.',
+        'tour.theme.title': '🎨 Theme & Help',
+        'tour.theme.body': 'Toggle dark theme, and press ❓ anytime to see all shortcuts. Happy drawing!',
     }
 };
 
@@ -4917,37 +5110,14 @@ document.addEventListener('keydown', (e) => {
 
 // ======================== FIRST-USE TUTORIAL ========================
 const TOUR_KEY = 'pedigreeApp_tourSeen_v1';
+// Tour steps now use translation keys (TR/EN supported)
 const tourSteps = [
-    {
-        target: '.left-panel',
-        title: '👋 Hoş geldin!',
-        body: 'Bu uygulama ile genetik pedigri (soyağacı) çizebilirsin. Sol panelden form ile veya sağ taraftaki araçlarla şekil ekleyebilirsin.'
-    },
-    {
-        target: '#placeMaleBtn',
-        title: '➕ Şekil Ekleme',
-        body: 'Sağ taraftaki araçlardan bir sembol seç (kare = erkek, daire = kadın), sonra çizim alanına tıkla. Şekil otomatik olarak en yakın nesil hizasına yerleşir.'
-    },
-    {
-        target: '#connectBtn',
-        title: '🔗 Bağlantı',
-        body: 'Bağla aracını seçince şekillerin merkezinde noktalar belirir. Siyah noktadan diğerine sürükle: aynı nesil = eş, farklı nesil = ebeveyn-çocuk. Yeşil noktadan kardeş ekleyebilirsin.'
-    },
-    {
-        target: '#moveBtn',
-        title: '✋ Taşıma',
-        body: 'Taşı aracıyla bir şekli sürükleyip yerini değiştirebilirsin. Bağlı çizgiler otomatik takip eder.'
-    },
-    {
-        target: '.export-dropdown',
-        title: '💾 Kaydet ve Paylaş',
-        body: 'Çalışman tarayıcıda otomatik kaydedilir. Kaydet butonu ile JSON dosyasına alabilir, Export ile SVG/PNG/PDF olarak indirebilirsin.'
-    },
-    {
-        target: '#themeBtn',
-        title: '🎨 Tema & Yardım',
-        body: 'Karanlık temaya geçebilir, ❓ butonu ile her zaman tüm kısayolları görebilirsin. İyi çizimler!'
-    }
+    { target: '.left-panel',      titleKey: 'tour.welcome.title', bodyKey: 'tour.welcome.body' },
+    { target: '#placeMaleBtn',    titleKey: 'tour.add.title',     bodyKey: 'tour.add.body' },
+    { target: '#connectBtn',      titleKey: 'tour.connect.title', bodyKey: 'tour.connect.body' },
+    { target: '#moveBtn',         titleKey: 'tour.move.title',    bodyKey: 'tour.move.body' },
+    { target: '.export-dropdown', titleKey: 'tour.save.title',    bodyKey: 'tour.save.body' },
+    { target: '#themeBtn',        titleKey: 'tour.theme.title',   bodyKey: 'tour.theme.body' },
 ];
 let tourStep = 0;
 
@@ -4955,36 +5125,79 @@ function startTour() {
     tourStep = 0;
     showTourStep();
 }
+
 function showTourStep() {
     const step = tourSteps[tourStep];
     if (!step) { endTour(); return; }
     // Remove highlight from all
     document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
     const target = document.querySelector(step.target);
-    if (target) {
-        target.classList.add('tour-highlight');
-        const rect = target.getBoundingClientRect();
-        const tip = document.getElementById('tourTooltip');
-        document.getElementById('tourTitle').textContent = step.title;
-        document.getElementById('tourBody').textContent = step.body;
-        document.getElementById('tourNextBtn').textContent = (tourStep === tourSteps.length - 1) ? 'Bitir ✓' : 'İleri →';
-        tip.classList.add('show');
-        // Position tooltip near target
+    if (!target) { nextTourStep(); return; }
+
+    target.classList.add('tour-highlight');
+    const rect = target.getBoundingClientRect();
+    const tip = document.getElementById('tourTooltip');
+
+    // Update content (translated)
+    document.getElementById('tourTitle').textContent = t(step.titleKey);
+    document.getElementById('tourBody').textContent = t(step.bodyKey);
+
+    // Update progress bars
+    const progressContainer = document.getElementById('tourProgressBars');
+    progressContainer.innerHTML = tourSteps.map((_, i) => {
+        let cls = 'tour-dot';
+        if (i < tourStep) cls += ' done';
+        else if (i === tourStep) cls += ' active';
+        return `<div class="${cls}"></div>`;
+    }).join('');
+    document.getElementById('tourCounter').textContent = `${t('tour.step')} ${tourStep + 1}${t('tour.of')}${tourSteps.length}`;
+
+    // Update buttons
+    document.getElementById('tourNextBtn').textContent = (tourStep === tourSteps.length - 1) ? t('tour.finish') : t('tour.next');
+    document.getElementById('tourBackBtn').textContent = t('tour.back');
+    document.getElementById('tourBackBtn').disabled = tourStep === 0;
+    document.getElementById('tourSkipBtn').textContent = t('tour.skip');
+
+    tip.classList.add('show');
+
+    // Smart positioning — try right of element, fall back to left, top, or bottom
+    requestAnimationFrame(() => {
+        const tipRect = tip.getBoundingClientRect();
         let left = rect.right + 16;
         let top = rect.top;
-        if (left + 300 > window.innerWidth) left = rect.left - 300 - 16;
-        if (left < 10) left = 10;
-        if (top + 180 > window.innerHeight) top = window.innerHeight - 200;
+        // If off right side, try left
+        if (left + tipRect.width > window.innerWidth - 10) {
+            left = rect.left - tipRect.width - 16;
+        }
+        // If off left side too, place above or below
+        if (left < 10) {
+            left = Math.max(10, rect.left + rect.width / 2 - tipRect.width / 2);
+            top = rect.bottom + 16;
+            if (top + tipRect.height > window.innerHeight - 10) {
+                top = rect.top - tipRect.height - 16;
+            }
+        }
+        // Final clamp to viewport
+        if (top + tipRect.height > window.innerHeight - 10) top = window.innerHeight - tipRect.height - 10;
         if (top < 10) top = 10;
+        if (left + tipRect.width > window.innerWidth - 10) left = window.innerWidth - tipRect.width - 10;
         tip.style.left = left + 'px';
         tip.style.top = top + 'px';
-    }
+    });
 }
+
 function nextTourStep() {
     tourStep++;
     if (tourStep >= tourSteps.length) endTour();
     else showTourStep();
 }
+
+function prevTourStep() {
+    if (tourStep === 0) return;
+    tourStep--;
+    showTourStep();
+}
+
 function endTour() {
     document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
     document.getElementById('tourTooltip').classList.remove('show');
