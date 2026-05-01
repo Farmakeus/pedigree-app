@@ -2678,6 +2678,8 @@ function computeLayout() {
 
     // ============ CENTER CHILDREN UNDER PARENTS ============
     // Standard pedigree convention: distribute siblings evenly around parent midpoint
+    // Track which child positions came from centering (so they get re-checked for overlap)
+    const centeredChildren = new Set();
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
@@ -2692,10 +2694,10 @@ function computeLayout() {
         // Single child: always centered under parents (overrides customX)
         if (children.length === 1) {
             positions[children[0]].x = parentCenterX;
+            centeredChildren.add(children[0]);
             return;
         }
         // Multiple children: distribute evenly around parent midpoint
-        // Skip custom-placed children
         const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
         const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
         const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
@@ -2703,27 +2705,62 @@ function computeLayout() {
             const child = familyData.members.find(m => m.id === childId);
             if (child && child.customX != null) return;
             positions[childId].x = childStartX + i * (NODE_W + childGap);
+            centeredChildren.add(childId);
         });
     });
 
-    // ============ OVERLAP RESOLUTION (per generation, sorted by X) ============
-    // After centering, neighboring sibling groups may overlap. Push apart minimally.
+    // ============ FULL OVERLAP RESOLUTION (per generation) ============
+    // Critical bug fix: include ALL members (not just auto-placed) so custom-placed
+    // members participate in collision detection. Use proper edge-to-edge gap.
+    const MIN_NODE_GAP = 30; // pixels of clear space between node EDGES (not centers)
+    const minCenterDist = NODE_W + MIN_NODE_GAP; // 60 + 30 = 90px between centers
     genKeys.forEach(gen => {
         const genMembers = generations[gen];
-        const autoMembers = genMembers.filter(m => m.customX == null);
-        const sorted = autoMembers.map(m => ({ id: m.id, x: positions[m.id].x }))
+        // Sort ALL members by X (including custom-placed ones)
+        const sorted = genMembers
+            .filter(m => positions[m.id])
+            .map(m => ({ id: m.id, x: positions[m.id].x, isLocked: m.customX != null && !centeredChildren.has(m.id) }))
             .sort((a, b) => a.x - b.x);
-        const minGap = NODE_W + H_GAP / 2;
+
         for (let i = 1; i < sorted.length; i++) {
-            const needed = sorted[i - 1].x + minGap;
+            const needed = sorted[i - 1].x + minCenterDist;
             if (sorted[i].x < needed) {
                 const shift = needed - sorted[i].x;
+                // Shift this node and all subsequent ones to the right
+                // EXCEPT locked (manually positioned) ones if they don't overlap
                 for (let j = i; j < sorted.length; j++) {
                     positions[sorted[j].id].x += shift;
                     sorted[j].x += shift;
                 }
             }
         }
+    });
+
+    // ============ SECOND PASS: re-center single children after shift ============
+    // If overlap resolution shifted things, single children need to be recentered
+    familyData.partnerships.forEach(p => {
+        const pos1 = positions[p.partner1];
+        const pos2 = positions[p.partner2];
+        if (!pos1 || !pos2) return;
+        const children = familyData.parentChildLinks
+            .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
+            .map(l => l.childId)
+            .filter(id => positions[id]);
+        if (children.length !== 1) return;
+        const childPos = positions[children[0]];
+        const desiredX = (pos1.x + pos2.x) / 2;
+        // Check neighbors before forcing center
+        const childGen = familyData.members.find(m => m.id === children[0])?.generation;
+        if (childGen == null) return;
+        const sameGenSorted = familyData.members
+            .filter(m => m.generation === childGen && m.id !== children[0] && positions[m.id])
+            .map(m => positions[m.id].x).sort((a, b) => a - b);
+        const leftBound = sameGenSorted.filter(x => x < desiredX).pop();
+        const rightBound = sameGenSorted.find(x => x > desiredX);
+        let centerX = desiredX;
+        if (leftBound != null && centerX < leftBound + minCenterDist) centerX = leftBound + minCenterDist;
+        if (rightBound != null && centerX > rightBound - minCenterDist) centerX = rightBound - minCenterDist;
+        childPos.x = centerX;
     });
 
     // Normalize: only shift if nodes are truly outside the safe left/top edge
