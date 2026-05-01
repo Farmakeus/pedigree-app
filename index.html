@@ -636,7 +636,7 @@
                 <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name">
             </div>
             <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" data-i18n-title="tip.sex" title="Cinsiyet sembolü">
                     <label data-i18n="label.sex">Cinsiyet</label>
                     <select id="memberSex">
                         <option value="male" data-i18n="opt.male">Erkek</option>
@@ -644,7 +644,7 @@
                         <option value="unknown" data-i18n="opt.unknown">Bilinmiyor</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" data-i18n-title="tip.generation" title="Nesil numarası">
                     <label data-i18n="label.generation">Nesil (Kuşak)</label>
                     <select id="memberGeneration">
                         <option value="1" data-i18n="opt.gen.1">I (Büyük ebeveynler)</option>
@@ -661,19 +661,19 @@
             </div>
 
             <div class="section-title" data-i18n="label.status">Durum</div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.affected" title="Etkilenmiş bilgi">
                 <input type="checkbox" id="memberAffected">
                 <label for="memberAffected" data-i18n="label.affected">Etkilenmiş (Hasta)</label>
             </div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.carrier" title="Taşıyıcı bilgi">
                 <input type="checkbox" id="memberCarrier">
                 <label for="memberCarrier" data-i18n="label.carrier">Taşıyıcı</label>
             </div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.deceased" title="Vefat bilgi">
                 <input type="checkbox" id="memberDeceased">
                 <label for="memberDeceased" data-i18n="label.deceased">Vefat etmiş</label>
             </div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.proband" title="Proband bilgi">
                 <input type="checkbox" id="memberProband">
                 <label for="memberProband" data-i18n="label.proband">Proband (İndeks vaka)</label>
             </div>
@@ -681,7 +681,7 @@
             <details class="extra-conditions" style="margin:8px 0 12px 0; border:1px solid #e0e0e0; border-radius:6px; padding:0;">
                 <summary style="cursor:pointer; padding:8px 12px; font-size:12px; font-weight:600; color:#666; user-select:none;"><span data-i18n="label.extra">Ek Durumlar</span> ▾</summary>
                 <div style="padding:6px 12px 10px 12px;">
-                    <div class="form-group">
+                    <div class="form-group" data-i18n-title="tip.preg.section" title="Gebelik durumu">
                         <label data-i18n="label.pregnancy">Gebelik/Düşük Durumu</label>
                         <select id="memberPregnancy">
                             <option value="none" data-i18n="opt.preg.none">Yok</option>
@@ -691,7 +691,7 @@
                             <option value="SB" data-i18n="opt.preg.SB">SB — Ölü doğum</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" data-i18n-title="tip.adopted" title="Evlat edinme">
                         <label data-i18n="label.adopted">Evlat Edinme</label>
                         <select id="memberAdopted">
                             <option value="none" data-i18n="opt.adopt.none">Yok</option>
@@ -705,7 +705,7 @@
 
             <div class="rare-only">
                 <div class="section-title" data-i18n="label.disease.section">Hastalıklar</div>
-                <div class="form-group">
+                <div class="form-group" data-i18n-title="tip.disease" title="Hastalık bilgi">
                     <label data-i18n="label.disease">Hastalık / Fenotip</label>
                     <div style="display:flex;gap:6px;">
                         <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis" data-i18n-placeholder="placeholder.disease">
@@ -715,7 +715,7 @@
                 <div id="diseaseList" style="margin-bottom:12px;"></div>
             </div>
 
-            <div class="cancer-section">
+            <div class="cancer-section" data-i18n-title="tip.cancer.section" title="Kanser bilgi">
                 <div class="section-title" data-i18n="label.cancer.section">🩸 Kanser/Tümör (max 3)</div>
                 <div class="cancer-form-row">
                     <div class="autocomplete-wrap form-group" style="margin:0;">
@@ -729,7 +729,7 @@
                     </div>
                     <button class="btn btn-sm btn-primary" onclick="addCancerToMember()" style="height:34px;">+</button>
                 </div>
-                <div class="checkbox-group" style="margin-top:6px;">
+                <div class="checkbox-group" style="margin-top:6px;" data-i18n-title="tip.cancer.bilateral" title="Bilateral bilgi">
                     <input type="checkbox" id="cancerBilateral">
                     <label for="cancerBilateral" data-i18n="label.cancer.bilateral">Bilateral (çift taraflı)</label>
                 </div>
@@ -737,7 +737,7 @@
             </div>
 
             <div class="section-title" data-i18n="label.twin">İkiz Durumu</div>
-            <div class="form-group">
+            <div class="form-group" data-i18n-title="tip.twin" title="İkiz bilgi">
                 <select id="memberTwinType">
                     <option value="none" data-i18n="opt.twin.none">İkiz değil</option>
                     <option value="monozygotic" data-i18n="opt.twin.mono">Tek yumurta ikizi</option>
@@ -749,12 +749,12 @@
                 <select id="memberTwinPartner"></select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" data-i18n-title="tip.variant" title="Varyant bilgi">
                 <label data-i18n="label.gene">Gen / Varyant</label>
                 <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508" data-i18n-placeholder="placeholder.gene">
             </div>
 
-            <div class="form-group">
+            <div class="form-group" data-i18n-title="tip.note" title="Not bilgi">
                 <label data-i18n="label.note">Not</label>
                 <input type="text" id="memberNote" placeholder="Ek bilgi..." data-i18n-placeholder="placeholder.note">
             </div>
@@ -824,11 +824,11 @@
                     <select id="partner2"></select>
                 </div>
             </div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.consanguinity" title="Akraba evliliği bilgi">
                 <input type="checkbox" id="consanguinity">
                 <label for="consanguinity" data-i18n="rel.consang">Akraba evliliği (çift çizgi)</label>
             </div>
-            <div class="checkbox-group">
+            <div class="checkbox-group" data-i18n-title="tip.divorced" title="Boşanma bilgi">
                 <input type="checkbox" id="divorced">
                 <label for="divorced" data-i18n="rel.divorced">Boşanmış (çift slash //)</label>
             </div>
@@ -2031,6 +2031,23 @@ const I18N = {
         'tmpl.reset': '↺ Şablonu Orijinal Düzene Sıfırla',
         'tmpl.reset.confirm': 'Şablon orijinal düzenine geri yüklensin mi? Manuel değişiklikler kaybolacak.',
         'autolayout.warn.template': 'Bu pedigri bir şablondan yüklenmiş. Otomatik yerleşim şablon düzenini bozacak. Devam edilsin mi?',
+        // Form tooltips (clinical explanations)
+        'tip.affected': 'Hastalığa sahip / fenotip pozitif birey. Şekil tamamen dolu çizilir.',
+        'tip.carrier': 'Hastalığı taşıyan ama belirti göstermeyen birey (heterozigot). Şekil ortasında küçük dolu nokta belirir.',
+        'tip.deceased': 'Vefat etmiş birey. Şekil üzerinde diagonal çizgi (slash) belirir.',
+        'tip.proband': 'İndeks vaka (proband). Aileyi getiren ilk başvuran kişi. Sol altta ok ve "P" işareti ile gösterilir.',
+        'tip.consanguinity': 'Akraba evliliği (kuzen evliliği vb.). İki birey arasındaki bağlantı çift paralel çizgi ile gösterilir. Otozomal resesif hastalıkların akraba ailelerinde sıklığı artar.',
+        'tip.divorced': 'Boşanmış çift. Eş bağlantı çizgisinin ortasına çift slash (//) işareti eklenir.',
+        'tip.preg.section': 'Gebelik veya gebelik kaybı durumu. P (devam eden gebelik), SAB (spontan abort/düşük), TOP (tıbbi tahliye), SB (ölü doğum)',
+        'tip.adopted': 'Evlat edinme durumu. İçeri evlat = aile dışından gelen, dışarı evlat = aile dışına verilen. Köşeli parantezler [] ile gösterilir.',
+        'tip.variant': 'Bireyin taşıdığı genetik varyant. Örnek: BRCA1+, CFTR ΔF508. Şeklin altında mor renkte gösterilir.',
+        'tip.twin': 'Tek yumurta ikizi (monozigotik) genetik olarak özdeş, çift yumurta ikizi (dizigotik) ise normal kardeş gibi yarı paylaşımlıdır. Yatay bar ile bağlanır.',
+        'tip.sex': 'Erkek = kare, Kadın = daire, Bilinmiyor = elmas. Cinsiyet sembolü pedigri standardının temelidir.',
+        'tip.generation': 'Roma rakamlarıyla numaralandırılır. I = en üst nesil (büyükebeveynler), II = ebeveynler, III = çocuklar...',
+        'tip.cancer.section': 'Onkogenetik pedigride birey için kanser/tümör türleri. Her bireye max 3 kanser eklenebilir. Çoklu kanserler şekli dilimlere böler.',
+        'tip.cancer.bilateral': 'Bilateral = çift taraflı (örn. her iki memede de meme kanseri). Etkilenmiş Y veya Z gibi simetrik organlarda anlamlıdır.',
+        'tip.disease': 'Hastalık veya fenotip adı. Birden fazla eklenebilir (örn. Diyabet + Hipertansiyon).',
+        'tip.note': 'Klinik notlar, ek bilgiler, soru işaretleri.',
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
@@ -2202,6 +2219,22 @@ const I18N = {
         'tmpl.reset': '↺ Reset Template to Original',
         'tmpl.reset.confirm': 'Reset template to original layout? Your manual changes will be lost.',
         'autolayout.warn.template': 'This pedigree is loaded from a template. Auto-layout will override the template structure. Continue?',
+        'tip.affected': 'Affected individual (phenotype-positive). Shape is fully filled.',
+        'tip.carrier': 'Heterozygous carrier — carries the trait without showing symptoms. Small filled dot inside shape.',
+        'tip.deceased': 'Deceased individual. Diagonal slash through the shape.',
+        'tip.proband': 'Index case (proband) — first person to seek consultation, brings the family in. Marked with arrow and "P" label.',
+        'tip.consanguinity': 'Consanguineous marriage (e.g. cousin marriage). Connection drawn as double parallel lines. Increases recessive disease frequency in offspring.',
+        'tip.divorced': 'Divorced couple. Double slash (//) added to partnership line.',
+        'tip.preg.section': 'Pregnancy or pregnancy loss state. P (ongoing pregnancy), SAB (spontaneous abortion), TOP (termination), SB (stillbirth)',
+        'tip.adopted': 'Adoption status. Adopted-in = from outside family; adopted-out = given out. Indicated by square brackets [].',
+        'tip.variant': 'Genetic variant carried by individual. Example: BRCA1+, CFTR ΔF508. Shown in purple below shape.',
+        'tip.twin': 'Monozygotic = genetically identical; dizygotic = normal sibling sharing 50%. Connected by horizontal bar.',
+        'tip.sex': 'Male = square, Female = circle, Unknown = diamond. Sex symbol is the foundation of pedigree standard.',
+        'tip.generation': 'Numbered with Roman numerals. I = top (grandparents), II = parents, III = children...',
+        'tip.cancer.section': 'In cancer pedigrees, list of tumors/cancers per individual. Max 3 per person. Multiple cancers split the shape into sectors.',
+        'tip.cancer.bilateral': 'Bilateral = both sides (e.g. both breasts in breast cancer). Meaningful for symmetric organs.',
+        'tip.disease': 'Disease or phenotype name. Multiple can be added (e.g. Diabetes + Hypertension).',
+        'tip.note': 'Clinical notes, additional information, question marks.',
     }
 };
 
@@ -2348,14 +2381,18 @@ function attachTooltipBehavior(el) {
 }
 
 function initUITooltips() {
-    // Apply to all toolbar buttons + header buttons that have a tooltip
+    // Apply to all toolbar buttons + header buttons + LEFT PANEL form fields with explanations
     const selectors = [
         '.place-toolbar button',
         '.zoom-controls button',
         '.minimap-toggle',
         '.header-actions button',
         '.mode-toggle button',
-        '.batch-toolbar button'
+        '.batch-toolbar button',
+        // Left panel form elements with data-i18n-title
+        '.left-panel .form-group[data-i18n-title]',
+        '.left-panel .checkbox-group[data-i18n-title]',
+        '.left-panel .cancer-section[data-i18n-title]'
     ];
     document.querySelectorAll(selectors.join(',')).forEach(attachTooltipBehavior);
 }
