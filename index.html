@@ -3621,7 +3621,7 @@ function renderPedigree() {
         }
     });
 
-    // Grid lines
+    // Grid lines (full grid only when manually toggled)
     if (showGrid) {
         const gridSpacing = 50;
         for (let gx = 0; gx < width; gx += gridSpacing) {
@@ -3630,11 +3630,24 @@ function renderPedigree() {
         for (let gy = 0; gy < height; gy += gridSpacing) {
             svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#e8e8e8" stroke-width="0.5"/>`;
         }
-        // Generation guide lines
+    }
+    // Generation guide lines: shown when grid is on OR when in place mode (adding shapes)
+    // This helps user see exactly where the new shape will land
+    const showGenGuides = showGrid || (typeof toolMode !== 'undefined' && toolMode === 'place');
+    if (showGenGuides) {
         const genKeys2 = [...new Set(familyData.members.map(m => m.generation))].sort((a,b) => a-b);
-        genKeys2.forEach((gen, idx) => {
-            const gy = 80 + idx * (60 + 140) + 30;
-            svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#d0d8e8" stroke-width="1" stroke-dasharray="8,4"/>`;
+        // Always show at least 4 generation lines to help the user place new members
+        // Even if no members yet, show I, II, III, IV, V lines
+        const allGens = genKeys2.length > 0 ? genKeys2 : [1, 2, 3, 4, 5];
+        // Make sure all 5 standard generations are visible during place mode
+        const linesToShow = (toolMode === 'place')
+            ? Array.from(new Set([...allGens, 1, 2, 3, 4, 5])).sort((a,b) => a-b)
+            : allGens;
+        linesToShow.forEach((gen, idx) => {
+            const gy = 80 + (gen - 1) * (60 + 140) + 30;
+            svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#a0c8e8" stroke-width="1" stroke-dasharray="8,4" opacity="0.6"/>`;
+            // Optional generation label
+            svgContent += `<text x="20" y="${gy - 6}" font-size="11" fill="#7a9bb8" font-weight="600" opacity="0.7">${toRoman(gen)}</text>`;
         });
     }
 
@@ -4272,11 +4285,14 @@ const canvasContainer = document.getElementById('canvasContainer');
 const connectPreview = document.getElementById('connectPreview');
 
 function clearAllModes() {
+    const wasPlace = (toolMode === 'place');
     placeMode = null; toolMode = null; connectStart = null; movingMemberId = null;
     canvasContainer.classList.remove('tool-active', 'tool-move', 'dragging');
     connectPreview.innerHTML = '';
     // Hide connect dots
     if (showConnectDots) { showConnectDots = false; renderPedigree(); }
+    // Re-render to hide generation guides when leaving place mode
+    if (wasPlace) renderPedigree();
     // Don't clear grid button active state
     document.querySelectorAll('.place-toolbar button:not(#gridBtn):not(#consanBtn)').forEach(b => b.classList.remove('active'));
 }
@@ -4286,6 +4302,7 @@ function setPlaceMode(mode, btn) {
     clearAllModes(); placeMode = mode; toolMode = 'place';
     canvasContainer.classList.add('tool-active');
     btn.classList.add('active');
+    renderPedigree(); // show generation guide lines for placement
 }
 function setConnectMode(btn) {
     if (toolMode === 'connect') { clearAllModes(); return; }
