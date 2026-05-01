@@ -110,6 +110,49 @@
         #pedigree-svg {
             display: block;
         }
+        #labelToggleBtn { position: relative; }
+        #labelToggleBtn[data-label-mode="on"]::after,
+        #labelToggleBtn[data-label-mode="proband"]::after {
+            content: ''; position: absolute; top: 3px; right: 3px;
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #27ae60;
+            box-shadow: 0 0 0 1.5px white;
+        }
+        #labelToggleBtn[data-label-mode="proband"]::after { background: #e67e22; }
+        body.dark-theme #labelToggleBtn[data-label-mode="on"]::after,
+        body.dark-theme #labelToggleBtn[data-label-mode="proband"]::after {
+            box-shadow: 0 0 0 1.5px #2a2e36;
+        }
+        .pedigree-title-bar {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.85); backdrop-filter: blur(4px);
+            border: 1px solid #e1e4e8; border-radius: 8px;
+            padding: 4px 8px; z-index: 5;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            max-width: 70%;
+        }
+        .pedigree-title-bar input {
+            border: none; outline: none; background: transparent;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 16px; font-weight: 600; color: #2c3e50;
+            min-width: 200px; max-width: 360px; text-align: center;
+            padding: 4px 6px;
+        }
+        .pedigree-title-bar input::placeholder { color: #aaa; font-weight: 400; font-style: italic; }
+        .pedigree-title-bar input:focus { background: #f8f9fa; border-radius: 4px; }
+        .pedigree-title-bar button {
+            border: 1px solid #d0d7de; background: white; cursor: pointer;
+            border-radius: 6px; padding: 4px 8px; font-size: 12px; color: #555;
+            white-space: nowrap;
+        }
+        .pedigree-title-bar button:hover { background: #f0f6fc; border-color: #5dade2; color: #1a73e8; }
+        .pedigree-title-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
+        body.dark-theme .pedigree-title-bar { background: rgba(40,44,52,0.9); border-color: #3a3f48; }
+        body.dark-theme .pedigree-title-bar input { color: #f0f0f0; }
+        body.dark-theme .pedigree-title-bar input:focus { background: #2a2e36; }
+        body.dark-theme .pedigree-title-bar button { background: #2a2e36; border-color: #3a3f48; color: #ddd; }
+        body.dark-theme .pedigree-title-bar button:hover { background: #34394a; border-color: #5dade2; color: #5dade2; }
 
         .zoom-controls {
             position: absolute; top: 16px; right: 16px;
@@ -321,6 +364,7 @@
         body.dark-theme .right-panel { background: #2a2e36; }
         body.dark-theme .canvas-container { background: #2a2e36; }
         body.dark-theme #pedigree-svg text { fill: #ddd !important; }
+        body.dark-theme #pedigree-svg text.pedigree-title-text { fill: #f0f0f0 !important; }
         body.dark-theme #pedigree-svg rect:not([fill="none"]):not([fill="#333"]),
         body.dark-theme #pedigree-svg circle:not([fill="none"]):not([fill="#333"]):not([fill="#27ae60"]):not([fill="white"]):not([fill="transparent"]) { }
         body.dark-theme #pedigree-svg line { stroke: #ddd !important; }
@@ -642,6 +686,10 @@
                 <button onclick="exportPNG(); closeExportMenu()" data-i18n="btn.export.png">🖼️ PNG olarak indir</button>
                 <button onclick="exportPDF(); closeExportMenu()" data-i18n="btn.export.pdf">📋 PDF olarak indir</button>
                 <button onclick="exportCSV(); closeExportMenu()" data-i18n="btn.export.csv">📊 CSV olarak indir (üye listesi)</button>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; font-size:12px; color:#666; border-top:1px solid #eee; margin-top:4px; cursor:pointer;">
+                    <input type="checkbox" id="askFilenameToggle" style="margin:0;">
+                    <span data-i18n="export.askFilename">İndirmeden önce dosya adını sor</span>
+                </label>
             </div>
         </div>
         <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn">🇹🇷 TR</button>
@@ -885,6 +933,22 @@
     </div>
 
     <div class="right-panel">
+        <div class="pedigree-title-bar" id="pedigreeTitleBar">
+            <input type="text" id="pedigreeTitleInput"
+                   placeholder="Pedigri başlığı (aile adı veya proband)"
+                   data-i18n-placeholder="title.placeholder"
+                   data-i18n-title="title.tooltip"
+                   title="Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır"
+                   maxlength="80"
+                   oninput="onTitleInputChange(this.value)"
+                   onblur="onTitleInputBlur()">
+            <button id="useProbandNameBtn" onclick="useProbandNameAsTitle()"
+                    data-i18n-title="title.useProband"
+                    title="Proband adını başlık olarak kullan">🎯 <span data-i18n="title.useProband.short">Proband</span></button>
+            <button onclick="clearPedigreeTitle()"
+                    data-i18n-title="title.clear"
+                    title="Başlığı temizle">✕</button>
+        </div>
         <div class="canvas-container" id="canvasContainer">
             <svg id="pedigree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
             <svg id="connectPreview" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -929,6 +993,9 @@
                 </button>
                 <button id="gridBtn" onclick="toggleGrid(this)" data-i18n-title="tool.grid" title="Kılavuz Çizgiler">
                     <svg viewBox="0 0 24 24" width="18" height="18"><line x1="4" y1="8" x2="20" y2="8" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="4" y1="16" x2="20" y2="16" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="8" y1="4" x2="8" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/><line x1="16" y1="4" x2="16" y2="20" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/></svg>
+                </button>
+                <button id="labelToggleBtn" onclick="cycleLabelMode(this)" data-i18n-title="tool.labels" title="Etiketleri Göster (Kapalı/Açık/Yalnız Proband)">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="#555" stroke-width="1.8"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="bold" fill="#555" font-family="Arial">Aa</text></svg>
                 </button>
                 <button id="autoLayoutBtn" onclick="autoLayout()" data-i18n-title="tool.autolayout" title="Otomatik Yerleşim (Düzenle)">
                     <svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 6h18M3 12h18M3 18h18" stroke="#555" stroke-width="2"/><circle cx="6" cy="6" r="2" fill="#3498db"/><circle cx="12" cy="12" r="2" fill="#3498db"/><circle cx="18" cy="18" r="2" fill="#3498db"/></svg>
@@ -1002,7 +1069,7 @@
 
         <h3 data-i18n="help.mouse.title">🖱️ Fare İşlemleri</h3>
         <ul>
-            <li><strong data-i18n="help.mouse.dblclick">Şekle çift tıkla</strong> — <span data-i18n="help.mouse.dblclick.desc">Düzenleme paneline geç</span></li>
+            <li><strong data-i18n="help.mouse.dblclick">Şekle tıkla</strong> — <span data-i18n="help.mouse.dblclick.desc">Düzenleme paneline geç</span></li>
             <li><strong data-i18n="help.mouse.hover">Şeklin üzerine gel</strong> — <span data-i18n="help.mouse.hover.desc">Bilgileri tooltip'te gör</span></li>
             <li><strong data-i18n="help.mouse.shift">Shift + Tıkla</strong> — <span data-i18n="help.mouse.shift.desc">Çoklu seçim (toplu işlem için)</span></li>
             <li><strong data-i18n="help.mouse.connect">Bağla aracı</strong> — <span data-i18n="help.mouse.connect.desc">Şekiller arası çizgi çek (aynı nesil = eş, farklı nesil = ebeveyn-çocuk, yeşil nokta = kardeş ekle)</span></li>
@@ -1103,7 +1170,8 @@ let familyData = {
     parentChildLinks: [],
     diseases: new Set(),
     nextId: 1,
-    mode: 'rare'  // 'rare' or 'cancer'
+    mode: 'rare',  // 'rare' or 'cancer'
+    title: ''      // Pedigree title (family name or proband name)
 };
 
 let currentDiseases = [];
@@ -1111,6 +1179,10 @@ let editingMemberId = null;
 let zoomLevel = 1;
 let showGrid = false;
 let showConnectDots = false;
+// Label visibility under nodes: 'off' (default — clinical clean view), 'on' (all), 'proband' (proband only)
+let labelMode = 'off';
+const LABEL_MODE_KEY = 'pedigreeApp_labelMode';
+try { const saved = localStorage.getItem(LABEL_MODE_KEY); if (saved === 'on' || saved === 'off' || saved === 'proband') labelMode = saved; } catch (e) {}
 let coupleMidpoints = []; // {x, y, partner1, partner2} — for connect mode
 let consanMode = false; // When true, new partnerships are consanguineous
 
@@ -1179,7 +1251,9 @@ function editMember(id) {
     const m = familyData.members.find(x => x.id === id);
     if (!m) return;
 
+    // Single source of truth: keep canvas focus and panel editor in sync
     editingMemberId = id;
+    focusedMemberId = id;
     document.getElementById('memberName').value = m.name;
     document.getElementById('memberSex').value = m.sex;
     document.getElementById('memberGeneration').value = m.generation;
@@ -1202,6 +1276,17 @@ function editMember(id) {
     document.getElementById('addMemberBtn').textContent = t('btn.update');
     document.getElementById('cancelEditBtn').style.display = '';
     switchTab('add');
+    renderPedigree();
+    // Scroll the focused node into view
+    if (lastLayout) {
+        const p = lastLayout.positions[id];
+        const container = document.getElementById('canvasContainer');
+        if (p && container) {
+            const cx = p.x * zoomLevel - container.clientWidth / 2;
+            const cy = p.y * zoomLevel - container.clientHeight / 2;
+            container.scrollTo({ left: Math.max(0, cx), top: Math.max(0, cy), behavior: 'smooth' });
+        }
+    }
 }
 
 function deleteMember(id) {
@@ -1227,9 +1312,11 @@ function deleteMember(id) {
 
 function cancelEdit() {
     editingMemberId = null;
+    focusedMemberId = null;
     document.getElementById('addMemberBtn').textContent = t('btn.add');
     document.getElementById('cancelEditBtn').style.display = 'none';
     resetForm();
+    renderPedigree();
 }
 
 function resetForm() {
@@ -1507,6 +1594,7 @@ function updateUI() {
     updateStatsPanel();
     updateValidationPanel();
     updateHistoryPanel();
+    updateTitleBar();
 }
 
 function setMemberFilter(filter, btn) {
@@ -1906,6 +1994,14 @@ const I18N = {
         'app.title': 'Pedigri Çizim Uygulaması',
         'mode.rare': '🧬 Nadir Hastalık',
         'mode.cancer': '🩸 Kanser Pedigresi',
+        'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
+        'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
+        'title.useProband': 'Proband adını başlık olarak kullan',
+        'title.useProband.short': 'Proband',
+        'title.useProband.none': 'Önce bir bireyi proband olarak işaretleyin (adıyla birlikte).',
+        'title.clear': 'Başlığı temizle',
+        'export.askFilename': 'İndirmeden önce dosya adını sor',
+        'export.filename.prompt': 'Dosya adı:',
         'btn.save': '💾 Kaydet',
         'btn.load': '📂 Yükle',
         'btn.share': '🔗 Paylaş',
@@ -2040,6 +2136,10 @@ const I18N = {
         'tool.consan': 'Akraba Evliliği (Çift Çizgi)',
         'tool.eraser': 'Silgi',
         'tool.grid': 'Kılavuz Çizgiler',
+        'tool.labels': 'Birey Etiketlerini Göster (Kapalı/Açık/Yalnız Proband)',
+        'tool.labels.off': 'Etiketler: Kapalı (klinik görünüm) — tıklayarak göster',
+        'tool.labels.on': 'Etiketler: Açık — tıklayarak yalnız proband',
+        'tool.labels.proband': 'Etiketler: Yalnız Proband — tıklayarak kapat',
         'tool.autolayout': 'Otomatik Yerleşim (Düzenle)',
         'tool.male': 'Erkek Ekle',
         'tool.female': 'Kadın Ekle',
@@ -2117,7 +2217,7 @@ const I18N = {
         'help.sc.help': 'Bu yardım panelini aç',
         'help.sc.esc': 'Aktif aracı/paneli kapat',
         'help.mouse.title': '🖱️ Fare İşlemleri',
-        'help.mouse.dblclick': 'Şekle çift tıkla',
+        'help.mouse.dblclick': 'Şekle tıkla',
         'help.mouse.dblclick.desc': 'Düzenleme paneline geç',
         'help.mouse.hover': 'Şeklin üzerine gel',
         'help.mouse.hover.desc': 'Bilgileri tooltip\'te gör',
@@ -2177,6 +2277,14 @@ const I18N = {
         'app.title': 'Pedigree Drawing Application',
         'mode.rare': '🧬 Rare Disease',
         'mode.cancer': '🩸 Cancer Pedigree',
+        'title.placeholder': 'Pedigree title (family name or proband)',
+        'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
+        'title.useProband': 'Use proband name as title',
+        'title.useProband.short': 'Proband',
+        'title.useProband.none': 'Mark a member as proband first (with a name).',
+        'title.clear': 'Clear title',
+        'export.askFilename': 'Ask for filename before download',
+        'export.filename.prompt': 'Filename:',
         'btn.save': '💾 Save',
         'btn.load': '📂 Load',
         'btn.share': '🔗 Share',
@@ -2301,6 +2409,10 @@ const I18N = {
         'tool.consan': 'Consanguineous Marriage (Double line)',
         'tool.eraser': 'Eraser',
         'tool.grid': 'Guide Lines',
+        'tool.labels': 'Show Individual Labels (Off / On / Proband Only)',
+        'tool.labels.off': 'Labels: Off (clinical view) — click to show',
+        'tool.labels.on': 'Labels: On — click for proband only',
+        'tool.labels.proband': 'Labels: Proband only — click to hide',
         'tool.autolayout': 'Auto-layout',
         'tool.male': 'Add Male',
         'tool.female': 'Add Female',
@@ -2374,7 +2486,7 @@ const I18N = {
         'help.sc.help': 'Open this help panel',
         'help.sc.esc': 'Close active tool/panel',
         'help.mouse.title': '🖱️ Mouse Actions',
-        'help.mouse.dblclick': 'Double-click on shape',
+        'help.mouse.dblclick': 'Click on shape',
         'help.mouse.dblclick.desc': 'Open editing panel',
         'help.mouse.hover': 'Hover over shape',
         'help.mouse.hover.desc': 'See information in tooltip',
@@ -3017,6 +3129,9 @@ function computeLayout() {
     // Normalize: only shift if nodes are truly outside the safe left/top edge
     // Use a small safe edge (NODE_R + some padding), NOT the full MARGIN
     const safeEdge = NODE_R + 40; // just enough so shapes aren't clipped
+    // Reserve extra top space when a pedigree title is set
+    const topReserve = (familyData.title && familyData.title.trim()) ? 50 : 0;
+    const safeTop = safeEdge + topReserve;
     let minX = Infinity, minY = Infinity;
     Object.values(positions).forEach(pos => {
         minX = Math.min(minX, pos.x);
@@ -3027,8 +3142,8 @@ function computeLayout() {
         Object.values(positions).forEach(pos => pos.x += shiftX);
         // Do NOT modify member.customX — positions are recalculated each render
     }
-    if (minY < safeEdge) {
-        const shiftY = safeEdge - minY;
+    if (minY < safeTop) {
+        const shiftY = safeTop - minY;
         Object.values(positions).forEach(pos => pos.y += shiftY);
     }
 
@@ -3575,9 +3690,28 @@ function renderPedigree() {
             svgContent += `<text x="${arrowX - 5}" y="${arrowY + 5}" font-size="11" fill="#e67e22" font-weight="bold">P</text>`;
         }
 
-        // Name label (show "Birey X" if no name)
-        const displayName = m.name || `Birey ${m.id}`;
-        svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="${m.name ? '#333' : '#999'}">${displayName}</text>`;
+        // Name label — clinical pedigrees stay clean.
+        // CRITICAL: never render auto-generated "Birey N" / "Individual N" placeholders.
+        // Only render the user-supplied m.name. Internal m.id stays in the data layer only.
+        const userName = (m.name || '').trim();
+        const isFocusTarget = (focusedMemberId === m.id) || (editingMemberId === m.id);
+        const showThisLabel = !!userName && (
+            labelMode === 'on' ||
+            (labelMode === 'proband' && m.proband) ||
+            isFocusTarget
+        );
+        if (showThisLabel) {
+            const safeName = userName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Focus label gets a subtle pill background so it reads as temporary
+            if (isFocusTarget && labelMode === 'off') {
+                const padX = 6, padY = 3;
+                const approxW = Math.max(40, safeName.length * 6.2);
+                svgContent += `<rect x="${pos.x - approxW/2 - padX}" y="${pos.y + NODE_R + 6}" width="${approxW + padX*2}" height="${16 + padY*2}" rx="4" fill="#fff8e1" stroke="#e67e22" stroke-width="1" opacity="0.95"/>`;
+                svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 22}" text-anchor="middle" font-size="11" font-weight="600" fill="#b9651a">${safeName}</text>`;
+            } else {
+                svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
+            }
+        }
 
         // Age label
         let labelY = pos.y + NODE_R + 30;
@@ -3615,8 +3749,8 @@ function renderPedigree() {
             // Blue ring for selected
             svgContent += `<rect x="${pos.x - NODE_R - 6}" y="${pos.y - NODE_R - 6}" width="${NODE_R*2 + 12}" height="${NODE_R*2 + 12}" rx="6" fill="none" stroke="#3498db" stroke-width="3" stroke-dasharray="4,3" opacity="0.85"/>`;
         }
-        if (focusedMemberId === m.id) {
-            // Orange ring for keyboard focus
+        if (focusedMemberId === m.id || editingMemberId === m.id) {
+            // Orange ring for keyboard focus / panel-edit selection
             svgContent += `<rect x="${pos.x - NODE_R - 9}" y="${pos.y - NODE_R - 9}" width="${NODE_R*2 + 18}" height="${NODE_R*2 + 18}" rx="8" fill="none" stroke="#e67e22" stroke-width="2.5" opacity="0.9"/>`;
         }
     });
@@ -3682,6 +3816,14 @@ function renderPedigree() {
         });
     }
 
+    // Pedigree title at top center
+    if (familyData.title && familyData.title.trim()) {
+        const titleText = familyData.title.trim()
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const titleX = vbW / 2;
+        svgContent += `<text class="pedigree-title-text" x="${titleX}" y="38" text-anchor="middle" font-size="22" font-weight="600" font-family="Georgia, 'Times New Roman', serif" fill="#2c3e50">${titleText}</text>`;
+    }
+
     svg.innerHTML = svgContent;
 }
 
@@ -3697,14 +3839,27 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.export-dropdown')) closeExportMenu();
 });
 
+function shouldAskFilename() {
+    const cb = document.getElementById('askFilenameToggle');
+    return !!(cb && cb.checked);
+}
+
+function resolveExportFilename(ext) {
+    return shouldAskFilename() ? promptExportFilename(ext) : getExportFilename(ext);
+}
+
 function exportSVG() {
+    const filename = resolveExportFilename('svg');
+    if (!filename) return;
     const svg = document.getElementById('pedigree-svg');
     const svgData = new XMLSerializer().serializeToString(svg);
     const blob = new Blob([svgData], { type: 'image/svg+xml' });
-    downloadBlob(blob, 'pedigri.svg');
+    downloadBlob(blob, filename);
 }
 
 function exportPNG() {
+    const filename = resolveExportFilename('png');
+    if (!filename) return;
     const svg = document.getElementById('pedigree-svg');
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement('canvas');
@@ -3718,13 +3873,15 @@ function exportPNG() {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, img.width, img.height);
         ctx.drawImage(img, 0, 0);
-        canvas.toBlob(blob => downloadBlob(blob, 'pedigri.png'), 'image/png');
+        canvas.toBlob(blob => downloadBlob(blob, filename), 'image/png');
     };
 
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
 }
 
 function exportPDF() {
+    const filename = resolveExportFilename('pdf');
+    if (!filename) return;
     const svg = document.getElementById('pedigree-svg');
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement('canvas');
@@ -3761,9 +3918,10 @@ function exportPDF() {
         const y = (pageH - pdfH) / 2;
 
         pdf.setFontSize(12);
-        pdf.text('Pedigri Diyagramı', pageW / 2, 8, { align: 'center' });
+        const pdfTitle = (familyData.title && familyData.title.trim()) || 'Pedigri Diyagramı';
+        pdf.text(pdfTitle, pageW / 2, 8, { align: 'center' });
         pdf.addImage(imgData, 'PNG', x, y, pdfW, pdfH);
-        pdf.save('pedigri.pdf');
+        pdf.save(filename);
     };
 
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
@@ -3819,8 +3977,17 @@ function exportCSV() {
     // BOM for Excel UTF-8 compatibility
     const csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const ts = new Date().toISOString().slice(0, 10);
-    downloadBlob(blob, `pedigri-uyeler-${ts}.csv`);
+    // CSV uses smart naming with "_members" suffix to distinguish from pedigree image
+    const base = getExportBaseName().replace(/_pedigree$|_export$/, '');
+    const csvBase = (base || 'pedigree') + '_members';
+    let csvFilename = csvBase + '.csv';
+    if (shouldAskFilename()) {
+        const prompted = window.prompt(typeof t === 'function' ? t('export.filename.prompt') : 'Dosya adı:', csvFilename);
+        if (prompted == null) return;
+        csvFilename = prompted.trim() || csvFilename;
+        if (!csvFilename.toLowerCase().endsWith('.csv')) csvFilename += '.csv';
+    }
+    downloadBlob(blob, csvFilename);
 }
 
 // ======================== AUTO-LAYOUT ========================
@@ -3857,12 +4024,13 @@ function toRoman(num) {
 
 function clearAll() {
     if (!confirm('Tüm verileri silmek istediğinize emin misiniz?')) return;
-    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: familyData.mode || 'rare' };
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: familyData.mode || 'rare', title: '' };
     currentDiseases = [];
     editingMemberId = null;
     currentLoadedTemplate = null;
     updateResetTemplateButton();
     resetForm();
+    updateTitleBar();
     updateUI();
     renderPedigree();
 }
@@ -4145,7 +4313,7 @@ function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proba
 
 function clearAllSilent() {
     const prevMode = familyData.mode || 'rare';
-    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: prevMode };
+    familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: prevMode, title: '' };
     currentDiseases = [];
     currentCancers = [];
     editingMemberId = null;
@@ -4329,6 +4497,34 @@ function toggleGrid(btn) {
     showGrid = !showGrid;
     btn.classList.toggle('active', showGrid);
     renderPedigree();
+}
+
+function cycleLabelMode(btn) {
+    // off → on → proband → off
+    const next = labelMode === 'off' ? 'on' : labelMode === 'on' ? 'proband' : 'off';
+    setLabelMode(next, btn);
+}
+
+function setLabelMode(mode, btn) {
+    if (mode !== 'off' && mode !== 'on' && mode !== 'proband') mode = 'off';
+    labelMode = mode;
+    try { localStorage.setItem(LABEL_MODE_KEY, mode); } catch (e) {}
+    updateLabelToggleUI(btn || document.getElementById('labelToggleBtn'));
+    renderPedigree();
+}
+
+function updateLabelToggleUI(btn) {
+    if (!btn) btn = document.getElementById('labelToggleBtn');
+    if (!btn) return;
+    btn.classList.toggle('active', labelMode !== 'off');
+    const titleByMode = {
+        off: typeof t === 'function' ? t('tool.labels.off') : 'Etiketler: Kapalı (tıkla aç)',
+        on: typeof t === 'function' ? t('tool.labels.on') : 'Etiketler: Açık (tıkla yalnız proband)',
+        proband: typeof t === 'function' ? t('tool.labels.proband') : 'Etiketler: Yalnız Proband (tıkla kapat)'
+    };
+    btn.title = titleByMode[labelMode];
+    // Visual hint: small dot in corner reflecting the mode
+    btn.dataset.labelMode = labelMode;
 }
 function toggleConsanMode(btn) {
     consanMode = !consanMode;
@@ -4673,6 +4869,7 @@ function serializeFamilyData() {
         diseases: [...familyData.diseases],
         nextId: familyData.nextId,
         mode: familyData.mode || 'rare',
+        title: familyData.title || '',
         version: 2
     };
 }
@@ -4685,13 +4882,125 @@ function loadFamilyData(data) {
     familyData.diseases = new Set(data.diseases || []);
     familyData.nextId = data.nextId || (Math.max(0, ...familyData.members.map(m => m.id)) + 1);
     familyData.mode = data.mode || 'rare';
+    familyData.title = data.title || '';
     currentDiseases = [];
     currentCancers = [];
     editingMemberId = null;
     setMode(familyData.mode);
+    updateTitleBar();
     updateUI();
     renderPedigree();
     return true;
+}
+
+// ======================== PEDIGREE TITLE ========================
+function getProbandMember() {
+    return familyData.members.find(m => m.proband) || null;
+}
+
+function updateTitleBar() {
+    const input = document.getElementById('pedigreeTitleInput');
+    const btn = document.getElementById('useProbandNameBtn');
+    if (!input) return;
+    if (input.value !== (familyData.title || '')) {
+        input.value = familyData.title || '';
+    }
+    if (btn) {
+        const proband = getProbandMember();
+        const probandName = proband && proband.name ? proband.name.trim() : '';
+        btn.disabled = !probandName;
+        btn.title = probandName
+            ? (typeof t === 'function' ? t('title.useProband') : 'Proband adını başlık olarak kullan') + ': ' + probandName
+            : (typeof t === 'function' ? t('title.useProband.none') : 'Önce bir bireyi proband olarak işaretleyin');
+    }
+}
+
+function onTitleInputChange(val) {
+    familyData.title = val || '';
+    autosave();
+    renderPedigree();
+}
+
+function onTitleInputBlur() {
+    // Trim whitespace on blur
+    const input = document.getElementById('pedigreeTitleInput');
+    if (!input) return;
+    const trimmed = (input.value || '').trim();
+    if (trimmed !== input.value) {
+        input.value = trimmed;
+        familyData.title = trimmed;
+        autosave();
+        renderPedigree();
+    }
+}
+
+function useProbandNameAsTitle() {
+    const proband = getProbandMember();
+    const name = proband && proband.name ? proband.name.trim() : '';
+    if (!name) {
+        showToast(typeof t === 'function' ? t('title.useProband.none') : 'Önce bir bireyi proband olarak işaretleyin (adıyla birlikte).');
+        return;
+    }
+    familyData.title = name;
+    updateTitleBar();
+    autosave();
+    renderPedigree();
+}
+
+function clearPedigreeTitle() {
+    familyData.title = '';
+    updateTitleBar();
+    autosave();
+    renderPedigree();
+}
+
+// ======================== EXPORT FILENAME HELPERS ========================
+function sanitizeForFilename(s) {
+    if (!s) return '';
+    // Turkish and other diacritics → ASCII
+    const map = { 'ı':'i','İ':'i','ş':'s','Ş':'s','ğ':'g','Ğ':'g','ç':'c','Ç':'c','ö':'o','Ö':'o','ü':'u','Ü':'u' };
+    let out = String(s).toLowerCase().replace(/[ıİşŞğĞçÇöÖüÜ]/g, ch => map[ch] || ch);
+    // Strip remaining diacritics
+    out = out.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    // Replace any non-alphanumeric (except _) with _
+    out = out.replace(/[^a-z0-9_]+/g, '_');
+    // Collapse and trim underscores
+    out = out.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    return out;
+}
+
+function getExportBaseName() {
+    // Priority: explicit title → proband name → fallback
+    const title = (familyData.title || '').trim();
+    if (title) {
+        return sanitizeForFilename(title) + '_pedigree';
+    }
+    const proband = getProbandMember();
+    const probandName = proband && proband.name ? proband.name.trim() : '';
+    if (probandName) {
+        return sanitizeForFilename(probandName) + '_pedigree';
+    }
+    return 'pedigree_export';
+}
+
+function getExportFilename(ext) {
+    const base = getExportBaseName();
+    return base + '.' + ext;
+}
+
+function promptExportFilename(ext) {
+    const def = getExportFilename(ext);
+    const label = typeof t === 'function' ? t('export.filename.prompt') : 'Dosya adı:';
+    let name = window.prompt(label, def);
+    if (name == null) return null; // user cancelled
+    name = name.trim();
+    if (!name) name = def;
+    // Ensure extension
+    const expected = '.' + ext;
+    if (!name.toLowerCase().endsWith(expected.toLowerCase())) {
+        name += expected;
+    }
+    return name;
 }
 
 let autosaveTimer = null;
@@ -4719,8 +5028,15 @@ function tryLoadAutosave() {
 function saveToFile() {
     const data = serializeFamilyData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const ts = new Date().toISOString().slice(0, 10);
-    downloadBlob(blob, `pedigri-${ts}.json`);
+    const base = getExportBaseName().replace(/_pedigree$|_export$/, '') || 'pedigree';
+    let filename = base + '_pedigree.json';
+    if (shouldAskFilename()) {
+        const prompted = window.prompt(typeof t === 'function' ? t('export.filename.prompt') : 'Dosya adı:', filename);
+        if (prompted == null) return;
+        filename = prompted.trim() || filename;
+        if (!filename.toLowerCase().endsWith('.json')) filename += '.json';
+    }
+    downloadBlob(blob, filename);
 }
 
 function loadFromFile() {
@@ -5050,7 +5366,7 @@ function batchSetDeceased(value) {
     renderPedigree();
 }
 
-// Hook click on canvas: Shift+click = toggle selection
+// Hook click on canvas: Shift+click = toggle selection, plain click = select + open in panel
 canvasContainer.addEventListener('click', (e) => {
     if (toolMode) return; // don't interfere with active tools
     const pos = getSVGPos(e);
@@ -5061,12 +5377,19 @@ canvasContainer.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
         } else {
-            // Single click without shift: focus + clear multi-selection
+            // Plain click: clear multi-selection, set focus, AND open the
+            // editor in the left panel — single source of truth: editingMemberId
             if (selectedMemberIds.size > 0) clearMultiSelection();
+            hideMemberTooltip();
             setFocusedMember(m.id);
+            editMember(m.id);
         }
-    } else if (selectedMemberIds.size > 0) {
-        clearMultiSelection();
+    } else {
+        // Click on empty canvas: clear multi-selection AND focus/edit state
+        if (selectedMemberIds.size > 0) clearMultiSelection();
+        if (editingMemberId != null || focusedMemberId != null) {
+            cancelEdit();
+        }
     }
 });
 
@@ -5552,6 +5875,7 @@ console.log('%c💡 Tests available: %crunTemplateTests()%c %crunLayoutTests()%c
 );
 
 // Initialize
+updateLabelToggleUI();
 renderPedigree();
 </script>
 </body>
