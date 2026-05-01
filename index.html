@@ -3011,7 +3011,17 @@ function computeLayout() {
         // 2. Sequential default (new members or first render)
         genMembers.forEach((m, i) => {
             if (m.customX != null && m.customY != null) {
-                positions[m.id] = { x: m.customX, y: m.customY };
+                // If a stale customY belongs to a different row than this member's
+                // current generation row (because new generations were inserted
+                // above/between), snap back to the canonical genY for the row.
+                // Tolerance = half the vertical gap.
+                const drift = Math.abs(m.customY - genY);
+                if (drift > (NODE_H + V_GAP) / 2) {
+                    m.customY = genY;
+                    positions[m.id] = { x: m.customX, y: genY };
+                } else {
+                    positions[m.id] = { x: m.customX, y: m.customY };
+                }
             } else {
                 positions[m.id] = {
                     x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
@@ -4620,11 +4630,36 @@ function guessGenerationFromY(y) {
         bestGen = lastGen + 1;
         bestY = lastY + NODE_H + V_GAP;
     }
+    // If clearly above the first generation row (past the row's upper edge),
+    // create a new generation ABOVE. Threshold is smaller than the symmetric
+    // "below" case because canvas typically has less room above the top row.
+    // Caller (placeMember) normalizes by shifting all generations down if needed.
+    const firstGen = gk[0];
+    const firstY = genYMap[firstGen];
+    if (y < firstY - NODE_H) {
+        bestGen = firstGen - 1;
+        bestY = firstY - (NODE_H + V_GAP);
+    }
     return { gen: bestGen, snapY: bestY };
 }
 
+// If a target generation falls below 1 (e.g. user clicked above the topmost
+// existing generation while top is already 1), shift all existing members down
+// so the new one can sit at gen 1. Parent-child / partnership links stay valid
+// because they reference member IDs, not generation numbers.
+function normalizeGenerationsBelowOne(targetGen) {
+    if (targetGen >= 1) return targetGen;
+    const shift = 1 - targetGen; // amount to add to every existing member's gen
+    familyData.members.forEach(m => {
+        m.generation = (m.generation || 1) + shift;
+        // customY is invalidated by the shift; computeLayout will refresh it
+        m.customY = null;
+    });
+    return 1;
+}
+
 function placeMember(pos) {
-    const { gen, snapY } = guessGenerationFromY(pos.y);
+    let { gen, snapY } = guessGenerationFromY(pos.y);
     let sex = 'male', affected = false, carrier = false, abort = false;
     switch (placeMode) {
         case 'male': sex = 'male'; break;
@@ -4636,6 +4671,10 @@ function placeMember(pos) {
         case 'abort': sex = 'unknown'; abort = true; break;
     }
     saveState();
+    // Renormalize if the click implied a generation above 1
+    const wasShifted = gen < 1;
+    gen = normalizeGenerationsBelowOne(gen);
+    if (wasShifted) snapY = null; // let layout recompute Y for the freshly inserted top row
     addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, snapY);
     updateUI(); renderPedigree();
 }
@@ -4766,7 +4805,7 @@ canvasContainer.addEventListener('mousemove', (e) => {
             const { gen, snapY } = guessGenerationFromY(pos.y);
             m.customX = pos.x;
             m.customY = snapY;
-            m.generation = gen;
+            m.generation = Math.max(1, gen); // move tool clamps; use place/form to insert above
             renderPedigree();
         }
     }
@@ -4781,7 +4820,7 @@ canvasContainer.addEventListener('mouseup', (e) => {
         const m = familyData.members.find(x => x.id === movingMemberId);
         if (m) {
             const { gen, snapY } = guessGenerationFromY(m.customY != null ? m.customY : pos.y);
-            m.generation = gen;
+            m.generation = Math.max(1, gen); // move tool clamps; use place/form to insert above
             m.customY = snapY;
             renderPedigree();
         }
@@ -4834,7 +4873,7 @@ canvasContainer.addEventListener('touchmove', (e) => {
             const { gen, snapY } = guessGenerationFromY(pos.y);
             m.customX = pos.x;
             m.customY = snapY;
-            m.generation = gen;
+            m.generation = Math.max(1, gen); // move tool clamps; use place/form to insert above
             renderPedigree();
         }
     }
@@ -4849,7 +4888,7 @@ canvasContainer.addEventListener('touchend', (e) => {
         const m = familyData.members.find(x => x.id === movingMemberId);
         if (m) {
             const { gen, snapY } = guessGenerationFromY(m.customY != null ? m.customY : pos.y);
-            m.generation = gen;
+            m.generation = Math.max(1, gen); // move tool clamps; use place/form to insert above
             m.customY = snapY;
             renderPedigree();
         }
