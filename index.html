@@ -2794,6 +2794,8 @@ function computeLayout() {
 
     // ============ SECOND PASS: re-center single children after shift ============
     // If overlap resolution shifted things, single children need to be recentered
+    // Use the base center distance (not affected by per-generation density factor)
+    const secondPassMinCenterDist = NODE_W + 30; // 90px (same as base BASE_NODE_GAP)
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
@@ -2814,8 +2816,8 @@ function computeLayout() {
         const leftBound = sameGenSorted.filter(x => x < desiredX).pop();
         const rightBound = sameGenSorted.find(x => x > desiredX);
         let centerX = desiredX;
-        if (leftBound != null && centerX < leftBound + minCenterDist) centerX = leftBound + minCenterDist;
-        if (rightBound != null && centerX > rightBound - minCenterDist) centerX = rightBound - minCenterDist;
+        if (leftBound != null && centerX < leftBound + secondPassMinCenterDist) centerX = leftBound + secondPassMinCenterDist;
+        if (rightBound != null && centerX > rightBound - secondPassMinCenterDist) centerX = rightBound - secondPassMinCenterDist;
         childPos.x = centerX;
     });
 
