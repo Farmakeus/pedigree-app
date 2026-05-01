@@ -724,7 +724,7 @@
                 </div>
                 <div class="form-group" data-i18n-title="tip.generation" title="Nesil numarası">
                     <label data-i18n="label.generation">Nesil (Kuşak)</label>
-                    <select id="memberGeneration">
+                    <select id="memberGeneration" onchange="onGenerationDropdownChange(this.value)">
                         <!-- Populated dynamically by updateGenerationOptions() -->
                     </select>
                 </div>
@@ -1177,6 +1177,10 @@ let showGrid = false;
 let showConnectDots = false;
 // Label visibility under nodes: 'off' (default — clinical clean view), 'on' (all), 'proband' (proband only)
 let labelMode = 'off';
+// Generation explicitly chosen by the user (via dropdown or canvas row click).
+// When set, it overrides Y-based inference in the place tool. Cleared when
+// the user changes context (e.g., loads a new pedigree, clears all).
+let selectedGeneration = null;
 const LABEL_MODE_KEY = 'pedigreeApp_labelMode';
 try { const saved = localStorage.getItem(LABEL_MODE_KEY); if (saved === 'on' || saved === 'off' || saved === 'proband') labelMode = saved; } catch (e) {}
 let coupleMidpoints = []; // {x, y, partner1, partner2} — for connect mode
@@ -2209,6 +2213,7 @@ const I18N = {
         // Toast
         'toast.deleted': 'Birey silindi',
         'toast.shiftedDown': 'Tüm nesiller bir aşağı kaydırıldı (yukarıya yeni nesil eklendi)',
+        'toast.gen.selected': 'Hedef nesil: {gen} (yeni bireyler buraya eklenecek)',
         'place.hover.add': "{gen}'e ekle",
         'place.hover.shift': '↑ Yeni nesil eklenecek (mevcut nesiller kayacak)',
         'toast.batch.deleted': 'birey silindi',
@@ -2482,6 +2487,7 @@ const I18N = {
         'batch.cancel': '✕ Cancel',
         'toast.deleted': 'Member deleted',
         'toast.shiftedDown': 'All generations shifted down (new generation added above)',
+        'toast.gen.selected': 'Target generation: {gen} (new individuals will land here)',
         'place.hover.add': 'Add to {gen}',
         'place.hover.shift': '↑ New generation will be added (existing ones shift down)',
         'toast.batch.deleted': 'members deleted',
@@ -3243,13 +3249,25 @@ function renderPedigree() {
     const NODE_R = 25;
     const allDiseases = [...familyData.diseases];
 
-    // Draw generation labels
+    // Draw generation labels (clickable — selects the row as target generation)
     const generations = {};
     familyData.members.forEach(m => {
         if (!generations[m.generation]) generations[m.generation] = positions[m.id].y;
     });
     Object.entries(generations).forEach(([gen, y]) => {
-        svgContent += `<text x="30" y="${y + 5}" font-size="16" font-weight="bold" fill="#999">${toRoman(parseInt(gen))}</text>`;
+        const g = parseInt(gen);
+        const isActive = selectedGeneration === g;
+        // Selection band across the row (visual feedback)
+        if (isActive) {
+            const NODE_H_BAND = 60;
+            svgContent += `<rect class="gen-row-band" x="0" y="${y - NODE_H_BAND/2 - 6}" width="${width}" height="${NODE_H_BAND + 12}" fill="#3498db" opacity="0.07" pointer-events="none"/>`;
+        }
+        // Clickable label (click → selectGenerationRow)
+        const labelFill = isActive ? '#1a73e8' : '#999';
+        svgContent += `<g class="gen-row-label" data-gen="${g}" style="cursor:pointer">`;
+        svgContent += `<rect x="6" y="${y - 12}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.12 : 1}"/>`;
+        svgContent += `<text x="30" y="${y + 5}" text-anchor="middle" font-size="16" font-weight="bold" fill="${labelFill}">${toRoman(g)}</text>`;
+        svgContent += `</g>`;
     });
 
     // Helper: get edge anchor point of a member shape toward a target point
@@ -3826,11 +3844,19 @@ function renderPedigree() {
         const linesToShow = (toolMode === 'place')
             ? Array.from(new Set([...allGens, 1, 2, 3, 4, 5])).sort((a,b) => a-b)
             : allGens;
+        // Generations that already have members are labeled by the main "Draw
+        // generation labels" block above — skip them here to prevent duplicates.
+        const labeledGens = new Set(familyData.members.map(m => m.generation));
         linesToShow.forEach((gen, idx) => {
             const gy = 80 + (gen - 1) * (60 + 140) + 30;
             svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#a0c8e8" stroke-width="1" stroke-dasharray="8,4" opacity="0.6"/>`;
-            // Optional generation label
-            svgContent += `<text x="20" y="${gy - 6}" font-size="11" fill="#7a9bb8" font-weight="600" opacity="0.7">${toRoman(gen)}</text>`;
+            if (!labeledGens.has(gen)) {
+                const isActive = selectedGeneration === gen;
+                svgContent += `<g class="gen-row-label" data-gen="${gen}" style="cursor:pointer">`;
+                svgContent += `<rect x="8" y="${gy - 18}" width="28" height="20" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.18 : 1}"/>`;
+                svgContent += `<text x="20" y="${gy - 6}" font-size="11" fill="${isActive ? '#1a73e8' : '#7a9bb8'}" font-weight="600" opacity="${isActive ? 1 : 0.7}">${toRoman(gen)}</text>`;
+                svgContent += `</g>`;
+            }
         });
     }
 
@@ -4077,6 +4103,7 @@ function clearAll() {
     currentDiseases = [];
     editingMemberId = null;
     currentLoadedTemplate = null;
+    selectedGeneration = null;
     updateResetTemplateButton();
     resetForm();
     updateTitleBar();
@@ -4363,6 +4390,7 @@ function addMemberDirect(name, sex, gen, age, affected, carrier, deceased, proba
 function clearAllSilent() {
     const prevMode = familyData.mode || 'rare';
     familyData = { members: [], partnerships: [], parentChildLinks: [], diseases: new Set(), nextId: 1, mode: prevMode, title: '' };
+    selectedGeneration = null;
     currentDiseases = [];
     currentCancers = [];
     editingMemberId = null;
@@ -4745,7 +4773,60 @@ function clearPlacePreview() {
     if (overlay) overlay.innerHTML = '';
 }
 
+// Form dropdown change → mirror to selectedGeneration so place-tool clicks
+// land on the dropdown's choice. Editing an existing member also fires this,
+// but we only treat it as "user intent" when not in edit mode.
+function onGenerationDropdownChange(val) {
+    if (editingMemberId != null) return; // editing — don't hijack target gen
+    const g = parseInt(val, 10);
+    if (!isNaN(g) && g >= 1) {
+        selectedGeneration = g;
+        renderPedigree();
+    }
+}
+
+// User explicitly picks a generation by clicking a row label on the canvas.
+// Stored as selectedGeneration; place tool and the form's "Add" button honor it.
+function selectGenerationRow(gen) {
+    selectedGeneration = (selectedGeneration === gen) ? null : gen; // toggle
+    // Sync the form dropdown so the next "Add" via the form lands here too
+    const sel = document.getElementById('memberGeneration');
+    if (sel && selectedGeneration != null) {
+        // Make sure the option exists (dropdown is dynamic)
+        if (![...sel.options].some(o => parseInt(o.value, 10) === selectedGeneration)) {
+            updateGenerationOptions();
+        }
+        sel.value = String(selectedGeneration);
+    }
+    renderPedigree();
+    if (typeof showToast === 'function' && selectedGeneration != null) {
+        const msg = (t('toast.gen.selected') || 'Hedef nesil:').replace('{gen}', toRoman(selectedGeneration));
+        showToast(msg, { icon: '🎯' });
+    }
+}
+
 function placeMember(pos) {
+    // If the user explicitly selected a target generation via row click,
+    // honor it instead of inferring from Y. Snap Y to the canonical row.
+    if (selectedGeneration != null) {
+        const NODE_H = 60, V_GAP = 140;
+        const snapY = 80 + (selectedGeneration - 1) * (NODE_H + V_GAP) + NODE_H / 2;
+        const gen = selectedGeneration;
+        let sex = 'male', affected = false, carrier = false, abort = false;
+        switch (placeMode) {
+            case 'male': sex = 'male'; break;
+            case 'female': sex = 'female'; break;
+            case 'affected_male': sex = 'male'; affected = true; break;
+            case 'affected_female': sex = 'female'; affected = true; break;
+            case 'carrier_male': sex = 'male'; carrier = true; break;
+            case 'carrier_female': sex = 'female'; carrier = true; break;
+            case 'abort': sex = 'unknown'; abort = true; break;
+        }
+        saveState();
+        addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, snapY);
+        updateUI(); renderPedigree();
+        return;
+    }
     let { gen, snapY } = guessGenerationFromY(pos.y);
     let sex = 'male', affected = false, carrier = false, abort = false;
     switch (placeMode) {
@@ -5502,6 +5583,18 @@ function batchSetDeceased(value) {
 
 // Hook click on canvas: Shift+click = toggle selection, plain click = select + open in panel
 canvasContainer.addEventListener('click', (e) => {
+    // Generation row label click takes precedence — works even with a tool active
+    // so the user can pick "Add to gen II" without leaving place mode.
+    const genGroup = e.target && e.target.closest && e.target.closest('.gen-row-label');
+    if (genGroup) {
+        const g = parseInt(genGroup.getAttribute('data-gen'), 10);
+        if (!isNaN(g)) {
+            selectGenerationRow(g);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+    }
     if (toolMode) return; // don't interfere with active tools
     const pos = getSVGPos(e);
     const m = findMemberAtPos(pos);
