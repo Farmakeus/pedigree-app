@@ -725,11 +725,7 @@
                 <div class="form-group" data-i18n-title="tip.generation" title="Nesil numarası">
                     <label data-i18n="label.generation">Nesil (Kuşak)</label>
                     <select id="memberGeneration">
-                        <option value="1" data-i18n="opt.gen.1">I (Büyük ebeveynler)</option>
-                        <option value="2" selected data-i18n="opt.gen.2">II (Ebeveynler)</option>
-                        <option value="3" data-i18n="opt.gen.3">III (Çocuklar)</option>
-                        <option value="4" data-i18n="opt.gen.4">IV (Torunlar)</option>
-                        <option value="5" data-i18n="opt.gen.5">V</option>
+                        <!-- Populated dynamically by updateGenerationOptions() -->
                     </select>
                 </div>
             </div>
@@ -1256,6 +1252,9 @@ function editMember(id) {
     focusedMemberId = id;
     document.getElementById('memberName').value = m.name;
     document.getElementById('memberSex').value = m.sex;
+    // Make sure the dropdown has the option for this member's generation
+    // (could be higher than the current max if loaded from save/share).
+    updateGenerationOptions();
     document.getElementById('memberGeneration').value = m.generation;
     document.getElementById('memberAge').value = m.age || '';
     document.getElementById('memberAffected').checked = m.affected;
@@ -1595,6 +1594,40 @@ function updateUI() {
     updateValidationPanel();
     updateHistoryPanel();
     updateTitleBar();
+    updateGenerationOptions();
+}
+
+// Populate the generation <select> dynamically based on existing pedigree.
+// Always offers at least 5 generations (clinical default), and grows by one
+// extra row beyond the current max so users can always add a deeper level.
+// Preserves the user's current selection if it's still valid.
+function updateGenerationOptions() {
+    const sel = document.getElementById('memberGeneration');
+    if (!sel) return;
+    const existingMax = familyData.members.length
+        ? Math.max(...familyData.members.map(m => m.generation || 1))
+        : 0;
+    const maxOption = Math.max(5, existingMax + 1);
+    const prevValue = sel.value || '2';
+    // Preset clinical labels for common generations; bare Roman for the rest.
+    const labels = {
+        1: t('opt.gen.1') || 'I',
+        2: t('opt.gen.2') || 'II',
+        3: t('opt.gen.3') || 'III',
+        4: t('opt.gen.4') || 'IV',
+        5: t('opt.gen.5') || 'V'
+    };
+    let html = '';
+    for (let g = 1; g <= maxOption; g++) {
+        const label = labels[g] || `${toRoman(g)}`;
+        html += `<option value="${g}">${label}</option>`;
+    }
+    sel.innerHTML = html;
+    // Restore selection: prefer prev if still valid, else default to 2 (parents)
+    const restored = (parseInt(prevValue, 10) >= 1 && parseInt(prevValue, 10) <= maxOption)
+        ? prevValue
+        : '2';
+    sel.value = restored;
 }
 
 function setMemberFilter(filter, btn) {
@@ -2175,6 +2208,9 @@ const I18N = {
         'batch.cancel': '✕ Vazgeç',
         // Toast
         'toast.deleted': 'Birey silindi',
+        'toast.shiftedDown': 'Tüm nesiller bir aşağı kaydırıldı (yukarıya yeni nesil eklendi)',
+        'place.hover.add': "{gen}'e ekle",
+        'place.hover.shift': '↑ Yeni nesil eklenecek (mevcut nesiller kayacak)',
         'toast.batch.deleted': 'birey silindi',
         'toast.partnership.removed': 'Eş ilişkisi kaldırıldı',
         'toast.parentchild.removed': 'Ebeveyn-çocuk bağlantısı kaldırıldı',
@@ -2445,6 +2481,9 @@ const I18N = {
         'batch.deceased': '⚫ Deceased',
         'batch.cancel': '✕ Cancel',
         'toast.deleted': 'Member deleted',
+        'toast.shiftedDown': 'All generations shifted down (new generation added above)',
+        'place.hover.add': 'Add to {gen}',
+        'place.hover.shift': '↑ New generation will be added (existing ones shift down)',
         'toast.batch.deleted': 'members deleted',
         'toast.partnership.removed': 'Partnership removed',
         'toast.parentchild.removed': 'Parent-child link removed',
@@ -4658,6 +4697,54 @@ function normalizeGenerationsBelowOne(targetGen) {
     return 1;
 }
 
+// Live preview overlay while place tool is active: faint band over the
+// target generation row + "Add to gen X" label near the cursor.
+// Renders into the connectPreview SVG (already overlaid on the canvas).
+function renderPlacePreview(pos) {
+    const overlay = document.getElementById('connectPreview');
+    const svg = document.getElementById('pedigree-svg');
+    if (!overlay || !svg) return;
+    if (toolMode !== 'place') { overlay.innerHTML = ''; return; }
+
+    const { gen, snapY } = guessGenerationFromY(pos.y);
+    const wasShifted = gen < 1;
+    const displayGen = wasShifted ? 1 : gen;
+    const vb = svg.getAttribute('viewBox') || '0 0 800 600';
+    const [, , vbWStr] = vb.split(' ');
+    const vbW = parseFloat(vbWStr) || 800;
+    overlay.setAttribute('width', svg.getAttribute('width'));
+    overlay.setAttribute('height', svg.getAttribute('height'));
+    overlay.setAttribute('viewBox', vb);
+
+    const NODE_H = 60;
+    const bandY = snapY - NODE_H / 2 - 6;
+    const bandH = NODE_H + 12;
+    const bandColor = wasShifted ? '#e67e22' : '#27ae60';
+    const addTpl = t('place.hover.add') || "{gen}'e ekle";
+    const labelText = wasShifted
+        ? (t('place.hover.shift') || `↑ Yeni nesil eklenecek (mevcut nesiller kayacak)`)
+        : addTpl.replace('{gen}', toRoman(displayGen));
+
+    let html = '';
+    // Highlight band across the row
+    html += `<rect x="0" y="${bandY}" width="${vbW}" height="${bandH}" fill="${bandColor}" opacity="0.08" pointer-events="none"/>`;
+    html += `<line x1="0" y1="${snapY}" x2="${vbW}" y2="${snapY}" stroke="${bandColor}" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6" pointer-events="none"/>`;
+    // Floating label near cursor
+    const labelX = Math.min(vbW - 140, pos.x + 18);
+    const labelY = Math.max(bandY + 18, pos.y - 18);
+    const safeLabel = labelText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const padX = 8, padY = 4;
+    const approxW = Math.max(70, safeLabel.length * 6.4);
+    html += `<rect x="${labelX - padX}" y="${labelY - 14}" width="${approxW + padX*2}" height="${20 + padY*2 - 6}" rx="5" fill="${bandColor}" opacity="0.92" pointer-events="none"/>`;
+    html += `<text x="${labelX}" y="${labelY}" font-size="12" font-weight="600" fill="white" pointer-events="none">${safeLabel}</text>`;
+    overlay.innerHTML = html;
+}
+
+function clearPlacePreview() {
+    const overlay = document.getElementById('connectPreview');
+    if (overlay) overlay.innerHTML = '';
+}
+
 function placeMember(pos) {
     let { gen, snapY } = guessGenerationFromY(pos.y);
     let sex = 'male', affected = false, carrier = false, abort = false;
@@ -4673,10 +4760,15 @@ function placeMember(pos) {
     saveState();
     // Renormalize if the click implied a generation above 1
     const wasShifted = gen < 1;
+    const shiftAmount = wasShifted ? (1 - gen) : 0;
     gen = normalizeGenerationsBelowOne(gen);
     if (wasShifted) snapY = null; // let layout recompute Y for the freshly inserted top row
     addMemberDirect('', sex, gen, null, affected, carrier, false, false, [], 'none', null, '', abort, pos.x, snapY);
     updateUI(); renderPedigree();
+    if (wasShifted && typeof showToast === 'function') {
+        const msg = t('toast.shiftedDown') || `Tüm nesiller ${shiftAmount} aşağı kaydırıldı`;
+        showToast(msg, { icon: '⬇️', undoCallback: () => undo() });
+    }
 }
 
 function handleConnect(endPos) {
@@ -4796,6 +4888,9 @@ canvasContainer.addEventListener('mousemove', (e) => {
             const color = connectStart.type === 'couple' ? '#27ae60' : '#3498db';
             connectPreview.innerHTML = `<line x1="${sp.x}" y1="${sp.y}" x2="${pos.x}" y2="${pos.y}" stroke="${color}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.7"/>`;
         }
+    }
+    if (toolMode === 'place') {
+        renderPlacePreview(pos);
     }
     if (toolMode === 'move' && movingMemberId != null) {
         const m = familyData.members.find(m => m.id === movingMemberId);
@@ -5255,7 +5350,7 @@ canvasContainer.addEventListener('mousemove', (e) => {
     if (m) showMemberTooltip(m, e.clientX, e.clientY);
     else hideMemberTooltip();
 });
-canvasContainer.addEventListener('mouseleave', hideMemberTooltip);
+canvasContainer.addEventListener('mouseleave', () => { hideMemberTooltip(); clearPlacePreview(); });
 
 // ======================== DOUBLE-CLICK TO EDIT ========================
 canvasContainer.addEventListener('dblclick', (e) => {
@@ -5915,6 +6010,7 @@ console.log('%c💡 Tests available: %crunTemplateTests()%c %crunLayoutTests()%c
 
 // Initialize
 updateLabelToggleUI();
+updateGenerationOptions();
 renderPedigree();
 </script>
 </body>
