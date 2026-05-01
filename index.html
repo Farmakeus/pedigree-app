@@ -1012,7 +1012,7 @@ const DISEASE_COLORS = [
 ];
 
 let lastLayout = null; // cached layout for hit-testing (move/connect tools)
-let layoutMemory = {}; // Map: memberId → {x, y} - stable layout positions for incremental updates
+// layoutMemory removed: was causing stale position issues with template loads
 
 // Cancer type list for autocomplete (Turkish, with English in parens for searchability)
 const CANCER_TYPES = [
@@ -2701,16 +2701,12 @@ function computeLayout() {
         const startX = MARGIN;
         const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
 
-        // Sequential placement with layout memory:
+        // Sequential placement (predictable, template-friendly)
         // 1. customX/Y if user manually placed (highest priority)
-        // 2. layoutMemory if previously stable position exists (stability)
-        // 3. Sequential default (new members or first render)
+        // 2. Sequential default (new members or first render)
         genMembers.forEach((m, i) => {
             if (m.customX != null && m.customY != null) {
                 positions[m.id] = { x: m.customX, y: m.customY };
-            } else if (layoutMemory[m.id] != null) {
-                // Use memorized position for stability — small edits don't shake the tree
-                positions[m.id] = { x: layoutMemory[m.id].x, y: genY };
             } else {
                 positions[m.id] = {
                     x: startX + i * (NODE_W + H_GAP) + NODE_W / 2,
@@ -2742,43 +2738,12 @@ function computeLayout() {
             return;
         }
         // Multiple children: distribute evenly around parent midpoint
-        // ===== EDGE CROSSING MINIMIZATION (D) =====
-        // Reorder children so that those with partners on a specific side go to that side.
-        // This reduces line crossings when partners come from outside the sibling group.
-        const childrenWithMeta = children.map(childId => {
-            const partners = familyData.partnerships.filter(pp =>
-                (pp.partner1 === childId || pp.partner2 === childId) &&
-                pp.partner1 !== p.partner1 && pp.partner1 !== p.partner2 &&
-                pp.partner2 !== p.partner1 && pp.partner2 !== p.partner2
-            );
-            // Average partner X (where the partner currently is in the layout)
-            let partnerAvgX = null;
-            if (partners.length > 0) {
-                const partnerXs = partners
-                    .map(pp => pp.partner1 === childId ? pp.partner2 : pp.partner1)
-                    .map(pid => positions[pid]?.x)
-                    .filter(x => x != null);
-                if (partnerXs.length > 0) {
-                    partnerAvgX = partnerXs.reduce((s, v) => s + v, 0) / partnerXs.length;
-                }
-            }
-            return { childId, partnerAvgX };
-        });
-        // Sort: those with partners further LEFT come first (left-most position)
-        // Those with partners further RIGHT come last
-        // Those without partners stay in middle (preserve original order)
-        childrenWithMeta.sort((a, b) => {
-            if (a.partnerAvgX == null && b.partnerAvgX == null) return 0;
-            if (a.partnerAvgX == null) return 0; // keep original (middle)
-            if (b.partnerAvgX == null) return 0;
-            return a.partnerAvgX - b.partnerAvgX;
-        });
-        const orderedChildren = childrenWithMeta.map(c => c.childId);
-
+        // (Use original child order — crossing minimization removed: was causing
+        // unstable templates due to imperfect sort comparator)
         const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
         const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
         const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
-        orderedChildren.forEach((childId, i) => {
+        children.forEach((childId, i) => {
             const child = familyData.members.find(m => m.id === childId);
             if (child && child.customX != null) return;
             positions[childId].x = childStartX + i * (NODE_W + childGap);
@@ -2879,16 +2844,6 @@ function computeLayout() {
         totalHeight = Math.max(totalHeight, pos.y + NODE_R + 60);
     });
 
-    // Save final positions to layout memory for next render (stability)
-    // Only members WITHOUT customX (auto-placed ones) are memorized,
-    // because custom-placed members already have stable positions.
-    Object.entries(positions).forEach(([memberId, pos]) => {
-        const m = familyData.members.find(mm => mm.id === parseInt(memberId));
-        if (m && m.customX == null) {
-            layoutMemory[memberId] = { x: pos.x, y: pos.y };
-        }
-    });
-
     return {
         positions,
         width: totalWidth,
@@ -2896,10 +2851,8 @@ function computeLayout() {
     };
 }
 
-// Clear layout memory (called when major structural change occurs, e.g. clearAll, load, autoLayout)
-function clearLayoutMemory() {
-    layoutMemory = {};
-}
+// No-op stub — layout memory removed (was causing stale position issues)
+function clearLayoutMemory() { /* removed */ }
 
 // ======================== PEDIGREE RENDERER ========================
 function renderPedigree() {
