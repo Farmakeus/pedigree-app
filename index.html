@@ -3226,9 +3226,38 @@ function renderPedigree() {
     lastLayout = layout; // Cache for hit-testing (move/connect tools)
 
     if (familyData.members.length === 0) {
-        svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="16">Pedigri çizmek için aile üyelerini ekleyin</text>';
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
+        // Even with no members, render clickable generation guides when the
+        // place tool is active or grid is on, so users can pre-select a target
+        // generation by clicking its row label before placing the first node.
+        const showGuidesEmpty = showGrid || (typeof toolMode !== 'undefined' && toolMode === 'place');
+        if (showGuidesEmpty) {
+            const NODE_H_E = 60, V_GAP_E = 140;
+            // Make the SVG tall enough for I-V to be visible
+            const w = Math.max(800, document.getElementById('canvasContainer').clientWidth);
+            const h = Math.max(600, 80 + 5 * (NODE_H_E + V_GAP_E));
+            svg.setAttribute('width', w);
+            svg.setAttribute('height', h);
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            let html = '';
+            html += `<text x="50%" y="40" text-anchor="middle" fill="#aaa" font-size="14">Pedigri çizmek için aile üyelerini ekleyin — bir nesil satırına tıklayarak hedef seçebilirsiniz</text>`;
+            for (let g = 1; g <= 5; g++) {
+                const gy = 80 + (g - 1) * (NODE_H_E + V_GAP_E) + 30;
+                const isActive = selectedGeneration === g;
+                html += `<line x1="0" y1="${gy}" x2="${w}" y2="${gy}" stroke="#a0c8e8" stroke-width="1" stroke-dasharray="8,4" opacity="0.6"/>`;
+                if (isActive) {
+                    html += `<rect x="0" y="${gy - NODE_H_E/2 - 6}" width="${w}" height="${NODE_H_E + 12}" fill="#3498db" opacity="0.07" pointer-events="none"/>`;
+                }
+                html += `<g class="gen-row-label" data-gen="${g}" style="cursor:pointer">`;
+                html += `<rect x="6" y="${gy - 18}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.18 : 1}"/>`;
+                html += `<text x="25" y="${gy - 1}" text-anchor="middle" font-size="14" fill="${isActive ? '#1a73e8' : '#7a9bb8'}" font-weight="600">${toRoman(g)}</text>`;
+                html += `</g>`;
+            }
+            svg.innerHTML = html;
+        } else {
+            svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="16">Pedigri çizmek için aile üyelerini ekleyin</text>';
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+        }
         lastLayout = null;
         return;
     }
@@ -4747,7 +4776,10 @@ function renderPlacePreview(pos) {
     const NODE_H = 60;
     const bandY = snapY - NODE_H / 2 - 6;
     const bandH = NODE_H + 12;
-    const bandColor = wasShifted ? '#e67e22' : '#27ae60';
+    // Subtle gray for the normal "add to existing row" preview; orange kept
+    // for the shift case so users notice the destructive-ish action.
+    const bandColor = wasShifted ? '#e67e22' : '#888';
+    const labelBg   = wasShifted ? '#e67e22' : '#666';
     const addTpl = t('place.hover.add') || "{gen}'e ekle";
     const labelText = wasShifted
         ? (t('place.hover.shift') || `↑ Yeni nesil eklenecek (mevcut nesiller kayacak)`)
@@ -4755,15 +4787,15 @@ function renderPlacePreview(pos) {
 
     let html = '';
     // Highlight band across the row
-    html += `<rect x="0" y="${bandY}" width="${vbW}" height="${bandH}" fill="${bandColor}" opacity="0.08" pointer-events="none"/>`;
-    html += `<line x1="0" y1="${snapY}" x2="${vbW}" y2="${snapY}" stroke="${bandColor}" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6" pointer-events="none"/>`;
+    html += `<rect x="0" y="${bandY}" width="${vbW}" height="${bandH}" fill="${bandColor}" opacity="0.10" pointer-events="none"/>`;
+    html += `<line x1="0" y1="${snapY}" x2="${vbW}" y2="${snapY}" stroke="${bandColor}" stroke-width="1.5" stroke-dasharray="6,4" opacity="${wasShifted ? 0.6 : 0.45}" pointer-events="none"/>`;
     // Floating label near cursor
     const labelX = Math.min(vbW - 140, pos.x + 18);
     const labelY = Math.max(bandY + 18, pos.y - 18);
     const safeLabel = labelText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const padX = 8, padY = 4;
     const approxW = Math.max(70, safeLabel.length * 6.4);
-    html += `<rect x="${labelX - padX}" y="${labelY - 14}" width="${approxW + padX*2}" height="${20 + padY*2 - 6}" rx="5" fill="${bandColor}" opacity="0.92" pointer-events="none"/>`;
+    html += `<rect x="${labelX - padX}" y="${labelY - 14}" width="${approxW + padX*2}" height="${20 + padY*2 - 6}" rx="5" fill="${labelBg}" opacity="0.92" pointer-events="none"/>`;
     html += `<text x="${labelX}" y="${labelY}" font-size="12" font-weight="600" fill="white" pointer-events="none">${safeLabel}</text>`;
     overlay.innerHTML = html;
 }
@@ -4918,6 +4950,9 @@ function handleConnect(endPos) {
 // ---- MOUSE events on canvasContainer ----
 canvasContainer.addEventListener('mousedown', (e) => {
     if (!toolMode) return;
+    // Generation row label takes precedence in any tool mode — let the click
+    // handler select the target generation instead of placing/erasing here.
+    if (e.target && e.target.closest && e.target.closest('.gen-row-label')) return;
     e.preventDefault(); e.stopPropagation();
     const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
@@ -5008,6 +5043,8 @@ canvasContainer.addEventListener('mouseup', (e) => {
 // ---- TOUCH events ----
 canvasContainer.addEventListener('touchstart', (e) => {
     if (!toolMode) return;
+    // Defer to gen-row click selection if user tapped a generation label
+    if (e.target && e.target.closest && e.target.closest('.gen-row-label')) return;
     e.preventDefault();
     const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
