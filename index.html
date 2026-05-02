@@ -3049,7 +3049,11 @@ function computeLayout() {
     genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
         const startX = MARGIN;
-        const genY = MARGIN + genIdx * (NODE_H + V_GAP) + NODE_H / 2;
+        // Y is derived from the literal generation number (not the row index)
+        // so a member explicitly placed in gen 2 renders at gen 2's canonical
+        // row even if gen 1 is empty — respecting user intent and matching
+        // the gen-row labels drawn by the guide block.
+        const genY = MARGIN + (gen - 1) * (NODE_H + V_GAP) + NODE_H / 2;
 
         // Sequential placement (predictable, template-friendly)
         // 1. customX/Y if user manually placed (highest priority)
