@@ -3186,11 +3186,51 @@ function computeLayout() {
         });
     });
 
+    // ============ FAMILY CLUSTERS (connected components) ============
+    // Two members belong to the same cluster if they're connected by a
+    // partnership or a parent-child link. Used to add extra padding between
+    // unrelated families in the same generation row, so independent pedigrees
+    // don't look like one big merged family.
+    const cluster = {}; // memberId → cluster index
+    (function computeFamilyClusters() {
+        const adj = {};
+        members.forEach(m => { adj[m.id] = new Set(); });
+        familyData.partnerships.forEach(p => {
+            if (adj[p.partner1] && adj[p.partner2]) {
+                adj[p.partner1].add(p.partner2);
+                adj[p.partner2].add(p.partner1);
+            }
+        });
+        familyData.parentChildLinks.forEach(l => {
+            [[l.parent1, l.childId], [l.parent2, l.childId]].forEach(([a, b]) => {
+                if (adj[a] && adj[b]) {
+                    adj[a].add(b);
+                    adj[b].add(a);
+                }
+            });
+        });
+        let nextCluster = 0;
+        members.forEach(m => {
+            if (cluster[m.id] != null) return;
+            const cid = nextCluster++;
+            const stack = [m.id];
+            while (stack.length) {
+                const id = stack.pop();
+                if (cluster[id] != null) continue;
+                cluster[id] = cid;
+                adj[id].forEach(n => { if (cluster[n] == null) stack.push(n); });
+            }
+        });
+    })();
+
     // ============ DENSITY-AWARE OVERLAP RESOLUTION (per generation) ============
     // Adaptive spacing: count nodes per X bin, increase spacing in dense regions.
     // Sparse regions stay compact, crowded regions expand more.
     const BASE_NODE_GAP = 30;
     const baseCenterDist = NODE_W + BASE_NODE_GAP; // 90px default
+    // Extra buffer between members of two different family clusters in the
+    // same generation row — visually separates unrelated pedigrees.
+    const INTER_CLUSTER_PAD = NODE_W + 60; // ~120px extra beyond baseCenterDist
 
     function getDensityFactor(gen) {
         // If a generation has many members AND many partnerships, density is higher
@@ -3216,7 +3256,15 @@ function computeLayout() {
             .sort((a, b) => a.x - b.x);
 
         for (let i = 1; i < sorted.length; i++) {
-            const needed = sorted[i - 1].x + minCenterDist;
+            // If both adjacent nodes have explicit user-set X (customX),
+            // respect the user's spacing intent — only enforce the basic
+            // overlap floor, not the wider inter-cluster padding.
+            const bothLocked = sorted[i - 1].isLocked && sorted[i].isLocked;
+            const sameCluster = cluster[sorted[i - 1].id] === cluster[sorted[i].id];
+            const dist = (!sameCluster && !bothLocked)
+                ? (minCenterDist + INTER_CLUSTER_PAD)
+                : minCenterDist;
+            const needed = sorted[i - 1].x + dist;
             if (sorted[i].x < needed) {
                 const shift = needed - sorted[i].x;
                 for (let j = i; j < sorted.length; j++) {
