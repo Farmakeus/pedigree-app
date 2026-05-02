@@ -47,16 +47,17 @@
         .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
         .tab-content.active { display: block; }
 
-        .form-group { margin-bottom: 12px; }
+        .form-group { margin-bottom: 12px; min-width: 0; }
         .form-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .form-group input, .form-group select {
             width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
             font-size: 13px; transition: border-color 0.2s;
+            box-sizing: border-box;
         }
         .form-group input:focus, .form-group select:focus { border-color: #3498db; outline: none; }
 
         .form-row { display: flex; gap: 10px; }
-        .form-row .form-group { flex: 1; }
+        .form-row .form-group { flex: 1 1 0; min-width: 0; }
 
         .checkbox-group {
             display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
@@ -702,7 +703,7 @@
 <div class="app-container">
     <div class="left-panel">
         <div class="panel-tabs">
-            <div class="panel-tab active" onclick="switchTab('add')" data-i18n="tab.add">Üye Ekle</div>
+            <div class="panel-tab active" onclick="switchTab('add')" data-i18n="tab.add">Ekle / Düzenle</div>
             <div class="panel-tab" onclick="switchTab('list')" data-i18n="tab.list">Aile Listesi</div>
             <div class="panel-tab" onclick="switchTab('relations')" data-i18n="tab.relations">İlişkiler</div>
         </div>
@@ -711,7 +712,7 @@
         <div id="tab-add" class="tab-content active">
             <div class="form-group">
                 <label data-i18n="label.name">Ad Soyad</label>
-                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name">
+                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name" oninput="onMemberNameInput(this.value)">
             </div>
             <div class="form-row">
                 <div class="form-group" data-i18n-title="tip.sex" title="Cinsiyet sembolü">
@@ -1244,6 +1245,21 @@ function addOrUpdateMember() {
 
     resetForm();
     updateUI();
+    renderPedigree();
+}
+
+// Live sync: typing in the panel's name field updates the corresponding
+// node's label on the canvas immediately. Only applies when an existing
+// member is being edited; for new-member entry, the canvas has nothing to
+// label yet (the node is created on Add).
+function onMemberNameInput(value) {
+    if (editingMemberId == null) return;
+    const m = familyData.members.find(x => x.id === editingMemberId);
+    if (!m) return;
+    m.name = (value || '').trim();
+    autosave();
+    // Only re-render the SVG; avoid full updateUI to keep the focused input
+    // and selection state stable while typing.
     renderPedigree();
 }
 
@@ -2051,7 +2067,7 @@ const I18N = {
         'btn.help': 'Yardım & Kısayollar',
         'btn.theme': 'Tema değiştir',
         // Tabs
-        'tab.add': 'Üye Ekle',
+        'tab.add': 'Ekle / Düzenle',
         'tab.list': 'Aile Listesi',
         'tab.relations': 'İlişkiler',
         // Form labels
@@ -2121,7 +2137,7 @@ const I18N = {
         'filter.proband': '▶ Proband',
         // Empty
         'empty.list': 'Henüz aile üyesi eklenmedi.',
-        'empty.list2': 'Üye eklemek için "Üye Ekle" sekmesine gidin.',
+        'empty.list2': 'Üye eklemek için "Ekle / Düzenle" sekmesine gidin.',
         // Stats
         'stats.title': '📊 İstatistikler',
         'stats.total': 'Toplam Birey',
@@ -2337,7 +2353,7 @@ const I18N = {
         'btn.clear': '🗑️ Clear',
         'btn.help': 'Help & Shortcuts',
         'btn.theme': 'Toggle theme',
-        'tab.add': 'Add Member',
+        'tab.add': 'Add / Edit Member',
         'tab.list': 'Family List',
         'tab.relations': 'Relationships',
         'label.name': 'NAME',
@@ -2403,7 +2419,7 @@ const I18N = {
         'filter.deceased': '⚫ Deceased',
         'filter.proband': '▶ Proband',
         'empty.list': 'No family members added yet.',
-        'empty.list2': 'Go to "Add Member" tab to add members.',
+        'empty.list2': 'Go to "Add / Edit Member" tab to add members.',
         'stats.title': '📊 Statistics',
         'stats.total': 'Total Members',
         'stats.gens': 'Generations',
@@ -3791,26 +3807,18 @@ function renderPedigree() {
         }
 
         // Name label — clinical pedigrees stay clean.
-        // CRITICAL: never render auto-generated "Birey N" / "Individual N" placeholders.
-        // Only render the user-supplied m.name. Internal m.id stays in the data layer only.
+        // Rule: a label appears under a node IF AND ONLY IF the user has
+        // explicitly entered a name in the panel. No name → no label.
+        // Selection / focus alone never produces a label (matches spec).
+        // Auto-generated "Birey N" / "Individual N" placeholders are never rendered.
         const userName = (m.name || '').trim();
-        const isFocusTarget = (focusedMemberId === m.id) || (editingMemberId === m.id);
-        const showThisLabel = !!userName && (
-            labelMode === 'on' ||
-            (labelMode === 'proband' && m.proband) ||
-            isFocusTarget
-        );
-        if (showThisLabel) {
-            const safeName = userName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            // Focus label gets a subtle pill background so it reads as temporary
-            if (isFocusTarget && labelMode === 'off') {
-                const padX = 6, padY = 3;
-                const approxW = Math.max(40, safeName.length * 6.2);
-                svgContent += `<rect x="${pos.x - approxW/2 - padX}" y="${pos.y + NODE_R + 6}" width="${approxW + padX*2}" height="${16 + padY*2}" rx="4" fill="#fff8e1" stroke="#e67e22" stroke-width="1" opacity="0.95"/>`;
-                svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 22}" text-anchor="middle" font-size="11" font-weight="600" fill="#b9651a">${safeName}</text>`;
-            } else {
-                svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
-            }
+        if (userName) {
+            // Truncate very long names to keep alignment under the node.
+            // 18 chars + ellipsis is roughly 110px at 11px font, comparable to NODE_R*2 + padding.
+            const MAX_LEN = 18;
+            const display = userName.length > MAX_LEN ? userName.slice(0, MAX_LEN) + '…' : userName;
+            const safeName = display.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
         }
 
         // Age label
