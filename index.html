@@ -783,7 +783,7 @@
                 <div class="form-group" data-i18n-title="tip.disease" title="Hastalık bilgi">
                     <label data-i18n="label.disease">Hastalık / Fenotip</label>
                     <div style="display:flex;gap:6px;">
-                        <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis" data-i18n-placeholder="placeholder.disease">
+                        <input type="text" id="diseaseInput" placeholder="Ör: Kistik Fibrozis" data-i18n-placeholder="placeholder.disease" oninput="onDiseaseInputLivePreview(this.value)">
                         <button class="btn btn-sm btn-primary" onclick="addDiseaseToMember()">+</button>
                     </div>
                 </div>
@@ -826,7 +826,7 @@
 
             <div class="form-group" data-i18n-title="tip.variant" title="Varyant bilgi">
                 <label data-i18n="label.gene">Gen / Varyant</label>
-                <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508" data-i18n-placeholder="placeholder.gene">
+                <input type="text" id="memberVariant" placeholder="Ör: BRCA1+, CFTR ΔF508" data-i18n-placeholder="placeholder.gene" oninput="onMemberVariantInput(this.value)">
             </div>
 
             <div class="form-group" data-i18n-title="tip.note" title="Not bilgi">
@@ -1248,6 +1248,20 @@ function addOrUpdateMember() {
     renderPedigree();
 }
 
+// Fault-tolerant render. The left panel is the primary source of truth —
+// if a render bug throws, the user must STILL be able to keep typing,
+// editing, and saving from the panel. Errors are logged but swallowed.
+function safeRender() {
+    try { renderPedigree(); }
+    catch (e) {
+        console.error('[render] swallowed to keep panel editable:', e);
+        // Best-effort: surface a non-blocking toast so the user knows the
+        // canvas may be stale, but do not block input.
+        try { if (typeof showToast === 'function') showToast('Görsel güncellenemedi (panelden çalışmaya devam edebilirsiniz)', { icon: '⚠️' }); }
+        catch (_) {}
+    }
+}
+
 // Live sync: typing in the panel's name field updates the corresponding
 // node's label on the canvas immediately. Only applies when an existing
 // member is being edited; for new-member entry, the canvas has nothing to
@@ -1257,10 +1271,29 @@ function onMemberNameInput(value) {
     const m = familyData.members.find(x => x.id === editingMemberId);
     if (!m) return;
     m.name = (value || '').trim();
-    autosave();
-    // Only re-render the SVG; avoid full updateUI to keep the focused input
-    // and selection state stable while typing.
-    renderPedigree();
+    try { autosave(); } catch (e) { console.error('[autosave] error:', e); }
+    safeRender();
+}
+
+// Live sync for variant text — written through to m.variant on every keystroke.
+// Display layer always appends " +" so users see the annotation indicator.
+function onMemberVariantInput(value) {
+    if (editingMemberId == null) return;
+    const m = familyData.members.find(x => x.id === editingMemberId);
+    if (!m) return;
+    m.variant = (value || '').trim();
+    try { autosave(); } catch (e) { console.error('[autosave] error:', e); }
+    safeRender();
+}
+
+// Live preview for the disease text field BEFORE the user clicks "+".
+// We don't mutate m.diseases until the add-button commits, but we render
+// the in-progress text as a faint preview so the user sees instant feedback.
+let diseasePreviewText = '';
+function onDiseaseInputLivePreview(value) {
+    diseasePreviewText = (value || '').trim();
+    if (editingMemberId == null) { diseasePreviewText = ''; return; }
+    safeRender();
 }
 
 function editMember(id) {
@@ -1332,10 +1365,11 @@ function deleteMember(id) {
 function cancelEdit() {
     editingMemberId = null;
     focusedMemberId = null;
+    diseasePreviewText = '';
     document.getElementById('addMemberBtn').textContent = t('btn.add');
     document.getElementById('cancelEditBtn').style.display = 'none';
     resetForm();
-    renderPedigree();
+    safeRender();
 }
 
 function resetForm() {
@@ -1367,13 +1401,34 @@ function addDiseaseToMember() {
     if (disease && !currentDiseases.includes(disease)) {
         currentDiseases.push(disease);
         updateDiseaseListUI();
+        // Live write-through when editing an existing member, so the canvas
+        // reflects the new disease immediately without waiting for "Update".
+        if (editingMemberId != null) {
+            const m = familyData.members.find(x => x.id === editingMemberId);
+            if (m) {
+                m.diseases = [...currentDiseases];
+                familyData.diseases.add(disease);
+                try { autosave(); } catch (e) { console.error('[autosave] error:', e); }
+            }
+        }
     }
     input.value = '';
+    diseasePreviewText = '';
+    safeRender();
 }
 
 function removeDiseaseFromMember(idx) {
     currentDiseases.splice(idx, 1);
     updateDiseaseListUI();
+    // Live write-through on removal too
+    if (editingMemberId != null) {
+        const m = familyData.members.find(x => x.id === editingMemberId);
+        if (m) {
+            m.diseases = [...currentDiseases];
+            try { autosave(); } catch (e) { console.error('[autosave] error:', e); }
+        }
+    }
+    safeRender();
 }
 
 function updateDiseaseListUI() {
@@ -3821,16 +3876,46 @@ function renderPedigree() {
             svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
         }
 
-        // Age label
-        let labelY = pos.y + NODE_R + 30;
-        if (m.age) {
-            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#888">${m.age} yaş</text>`;
+        // Stacked annotations under the node:
+        //   Name → Disease/Phenotype → Variant (+) → Age → Cancers → Note
+        // Each line is a non-overlapping <text> at sequential Y offsets.
+        // labelY starts below the name slot (which itself uses pos.y + NODE_R + 18).
+        let labelY = pos.y + NODE_R + (userName ? 32 : 18);
+        const escapeXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const TEXT_MAX = 22;
+        const truncate = (s) => s.length > TEXT_MAX ? s.slice(0, TEXT_MAX - 1) + '…' : s;
+
+        // Disease / Phenotype label (real-time from m.diseases).
+        // Also render the in-progress disease input as a faint preview when
+        // this member is being edited — gives instant feedback before "+".
+        const diseaseList = (m.diseases || []).slice();
+        const isEditingThis = editingMemberId === m.id;
+        if (isEditingThis && diseasePreviewText && !diseaseList.includes(diseasePreviewText)) {
+            diseaseList.push(diseasePreviewText);
+        }
+        if (diseaseList.length > 0) {
+            const diseaseStr = truncate(diseaseList.join(', '));
+            // Make preview-only text dimmer so it reads as "not yet committed".
+            const onlyPreview = isEditingThis &&
+                                diseasePreviewText &&
+                                (m.diseases || []).length === 0;
+            const opacity = onlyPreview ? '0.55' : '1';
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#c0392b" font-weight="500" opacity="${opacity}">${escapeXml(diseaseStr)}</text>`;
             labelY += 12;
         }
 
-        // Variant / Gene label
-        if (m.variant) {
-            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600" font-family="monospace">${m.variant}</text>`;
+        // Variant / Gene label — STRICT RULE: always append " +" when any
+        // variant text is present (signals annotation is expandable).
+        if (m.variant && m.variant.trim()) {
+            const variantText = truncate(m.variant.trim()) + ' +';
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600" font-family="monospace">${escapeXml(variantText)}</text>`;
+            labelY += 12;
+        }
+
+        // Age label (kept after the genetic annotations for visual hierarchy:
+        // clinical genetic info first, demographic last)
+        if (m.age) {
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#888">${m.age} yaş</text>`;
             labelY += 12;
         }
 
