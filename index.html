@@ -4690,7 +4690,15 @@ function findTargetAtPos(pos) {
 
 function guessGenerationFromY(y) {
     const NODE_H = 60, V_GAP = 140, MARGIN = 80;
-    if (familyData.members.length === 0) return { gen: 1, snapY: MARGIN + NODE_H / 2 };
+    if (familyData.members.length === 0) {
+        // No members yet — infer gen from click Y using the canonical row layout.
+        // baseY = canonical Y for gen 1; each row is NODE_H + V_GAP tall.
+        const rowH = NODE_H + V_GAP;
+        const baseY = MARGIN + NODE_H / 2;
+        const gen = Math.max(1, Math.round((y - baseY) / rowH) + 1);
+        const snapY = baseY + (gen - 1) * rowH;
+        return { gen, snapY };
+    }
 
     // Use ACTUAL rendered Y positions from layout (not formula)
     // so manually-moved members are also taken into account
