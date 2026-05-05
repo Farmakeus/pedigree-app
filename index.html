@@ -924,6 +924,30 @@
                 <button class="btn btn-primary" onclick="addParentChild()" data-i18n="rel.btn.connect">Bağla</button>
             </div>
 
+            <div class="section-title" style="margin-top:24px;" data-i18n="rel.bulk.title">👨‍👩‍👧‍👦 Toplu Kardeş Ekle</div>
+            <div class="form-group">
+                <label data-i18n="rel.bulk.couple">Ebeveyn Çifti</label>
+                <select id="bulkSiblingsCouple"></select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="rel.bulk.count">Sayı</label>
+                    <input type="number" id="bulkSiblingsCount" min="1" max="20" value="3">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="rel.bulk.sex">Cinsiyet</label>
+                    <select id="bulkSiblingsSex">
+                        <option value="male" data-i18n="opt.male">Erkek</option>
+                        <option value="female" data-i18n="opt.female">Kadın</option>
+                        <option value="unknown" data-i18n="opt.unknown">Bilinmiyor</option>
+                        <option value="alternate" data-i18n="opt.alternate">Karışık (♂♀♂♀)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="bulkAddSiblings()" data-i18n="rel.btn.bulkadd">+ Kardeşleri Ekle</button>
+            </div>
+
             <div class="section-title" style="margin-top:24px;" data-i18n="rel.list.title">Mevcut İlişkiler</div>
             <div id="relationsList"></div>
         </div>
@@ -1804,16 +1828,75 @@ function updateRelationSelects() {
     });
 
     const coupleSelect = document.getElementById('parentCouple');
-    if (coupleSelect) {
-        const val = coupleSelect.value;
-        coupleSelect.innerHTML = `<option value="">${t('select.placeholder')}</option>` +
+    const bulkSelect = document.getElementById('bulkSiblingsCouple');
+    [coupleSelect, bulkSelect].forEach(sel => {
+        if (!sel) return;
+        const val = sel.value;
+        sel.innerHTML = `<option value="">${t('select.placeholder')}</option>` +
             familyData.partnerships.map(p => {
                 const m1 = familyData.members.find(m => m.id === p.partner1);
                 const m2 = familyData.members.find(m => m.id === p.partner2);
                 if (!m1 || !m2) return '';
-                return `<option value="${p.partner1}-${p.partner2}">${m1.name} & ${m2.name}</option>`;
+                const n1 = m1.name || `Birey ${m1.id}`;
+                const n2 = m2.name || `Birey ${m2.id}`;
+                return `<option value="${p.partner1}-${p.partner2}">${n1} & ${n2}</option>`;
             }).join('');
-        coupleSelect.value = val;
+        sel.value = val;
+    });
+}
+
+// Bulk-add siblings: create N children of the selected couple in one go,
+// placed in the next-generation row, evenly spaced under the parents.
+function bulkAddSiblings() {
+    const coupleVal = document.getElementById('bulkSiblingsCouple').value;
+    const count = parseInt(document.getElementById('bulkSiblingsCount').value, 10);
+    const sexMode = document.getElementById('bulkSiblingsSex').value;
+    if (!coupleVal) { alert(t('alert.bulk.couple') || 'Önce ebeveyn çifti seçin.'); return; }
+    if (!count || count < 1) { alert(t('alert.bulk.count') || 'En az 1 kardeş ekleyin.'); return; }
+    if (count > 20) { alert(t('alert.bulk.max') || 'En fazla 20 kardeş ekleyebilirsiniz.'); return; }
+
+    const [p1Id, p2Id] = coupleVal.split('-').map(Number);
+    const p1 = familyData.members.find(m => m.id === p1Id);
+    const p2 = familyData.members.find(m => m.id === p2Id);
+    if (!p1 || !p2) { alert('Ebeveynler bulunamadı.'); return; }
+
+    // Children land in the generation right below the deeper parent
+    const childGen = Math.max(p1.generation, p2.generation) + 1;
+
+    saveState();
+
+    const pickSex = (i) => {
+        if (sexMode === 'alternate') return (i % 2 === 0) ? 'male' : 'female';
+        return sexMode;
+    };
+
+    const newIds = [];
+    for (let i = 0; i < count; i++) {
+        const sex = pickSex(i);
+        const id = addMemberDirect(
+            '',                  // name
+            sex,
+            childGen,
+            null,                // age
+            false, false, false, false,
+            [], 'none', null, '',
+            false                // abort
+            // customX/customY left null → layout will center them under parents
+        );
+        familyData.parentChildLinks.push({ parent1: p1Id, parent2: p2Id, childId: id });
+        newIds.push(id);
+    }
+
+    updateUI();
+    safeRender();
+    if (typeof showToast === 'function') {
+        const msg = (t('toast.bulk.added') || `{n} kardeş eklendi`).replace('{n}', count);
+        showToast(msg, { icon: '👨‍👩‍👧‍👦', undoCallback: () => undo() });
+    }
+    // Auto fit-zoom if many siblings: shrink to fit
+    if (count >= 6 && typeof zoomLevel !== 'undefined') {
+        zoomLevel = Math.max(0.6, Math.min(zoomLevel, 1 - (count - 5) * 0.05));
+        safeRender();
     }
 }
 
@@ -2231,6 +2314,16 @@ const I18N = {
         'rel.parent.couple': 'Ebeveyn Çifti',
         'rel.parent.child': 'Çocuk',
         'rel.btn.connect': 'Bağla',
+        'rel.bulk.title': '👨‍👩‍👧‍👦 Toplu Kardeş Ekle',
+        'rel.bulk.couple': 'Ebeveyn Çifti',
+        'rel.bulk.count': 'Sayı',
+        'rel.bulk.sex': 'Cinsiyet',
+        'rel.btn.bulkadd': '+ Kardeşleri Ekle',
+        'opt.alternate': 'Karışık (♂♀♂♀)',
+        'toast.bulk.added': '{n} kardeş eklendi',
+        'alert.bulk.couple': 'Önce ebeveyn çifti seçin.',
+        'alert.bulk.count': 'En az 1 kardeş ekleyin.',
+        'alert.bulk.max': 'En fazla 20 kardeş ekleyebilirsiniz.',
         'rel.list.title': 'Mevcut İlişkiler',
         'rel.empty': 'Henüz ilişki tanımlanmadı.',
         'select.placeholder': 'Seçin...',
@@ -2509,6 +2602,16 @@ const I18N = {
         'rel.parent.couple': 'Parent Couple',
         'rel.parent.child': 'Child',
         'rel.btn.connect': 'Connect',
+        'rel.bulk.title': '👨‍👩‍👧‍👦 Bulk Add Siblings',
+        'rel.bulk.couple': 'Parent Couple',
+        'rel.bulk.count': 'Count',
+        'rel.bulk.sex': 'Sex',
+        'rel.btn.bulkadd': '+ Add Siblings',
+        'opt.alternate': 'Mixed (♂♀♂♀)',
+        'toast.bulk.added': '{n} siblings added',
+        'alert.bulk.couple': 'Pick a parent couple first.',
+        'alert.bulk.count': 'Add at least 1 sibling.',
+        'alert.bulk.max': 'Maximum 20 siblings at once.',
         'rel.list.title': 'Existing Relationships',
         'rel.empty': 'No relationships defined yet.',
         'select.placeholder': 'Select...',
@@ -3175,7 +3278,9 @@ function computeLayout() {
         // Multiple children: distribute evenly around parent midpoint
         // (Use original child order — crossing minimization removed: was causing
         // unstable templates due to imperfect sort comparator)
-        const childGap = children.length <= 2 ? 80 : children.length <= 4 ? 50 : 30;
+        // Spacing tightens as count grows but stays readable up to 9+ siblings.
+        const n = children.length;
+        const childGap = n <= 2 ? 80 : n <= 4 ? 60 : n <= 6 ? 45 : n <= 8 ? 35 : 30;
         const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
         const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
         children.forEach((childId, i) => {
@@ -3680,6 +3785,35 @@ function renderPedigree() {
             svgContent += `<line x1="${midX}" y1="${lineY + consanGap}" x2="${midX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
         }
 
+        // Identify twin pairs whose BOTH partners are children of this couple.
+        // Twins share a single junction off the sibship line and split as a V
+        // (with a monozygotic bar between them when applicable). Non-twin
+        // siblings get the standard vertical drop.
+        const childIdSet = new Set(children);
+        const twinPartnerOf = {};
+        children.forEach(cid => {
+            const cm = familyData.members.find(x => x.id === cid);
+            if (cm && cm.twinType && cm.twinType !== 'none' &&
+                cm.twinPartnerId && childIdSet.has(cm.twinPartnerId)) {
+                twinPartnerOf[cid] = cm.twinPartnerId;
+            }
+        });
+        // Build groups: each twin pair becomes one drawing unit; singles are their own unit.
+        const drawnTwin = new Set();
+        const childGroups = [];
+        children.forEach(cid => {
+            if (drawnTwin.has(cid)) return;
+            const partner = twinPartnerOf[cid];
+            if (partner && childIdSet.has(partner) && !drawnTwin.has(partner)) {
+                drawnTwin.add(cid);
+                drawnTwin.add(partner);
+                childGroups.push({ type: 'twin', ids: [cid, partner],
+                                   twinType: familyData.members.find(m => m.id === cid).twinType });
+            } else {
+                childGroups.push({ type: 'single', id: cid });
+            }
+        });
+
         if (children.length === 1) {
             const childPos = positions[children[0]];
             // If child is directly below midX, just one vertical line
@@ -3698,49 +3832,65 @@ function renderPedigree() {
             const lineMaxX = Math.max(maxChildX, midX);
             svgContent += `<line x1="${lineMinX}" y1="${sibshipY}" x2="${lineMaxX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
 
-            // Vertical lines down to each child
-            children.forEach(childId => {
-                const childPos = positions[childId];
-                svgContent += `<line x1="${childPos.x}" y1="${sibshipY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+            // Render each child group: regular drop OR twin V-junction
+            childGroups.forEach(grp => {
+                if (grp.type === 'single') {
+                    const childPos = positions[grp.id];
+                    svgContent += `<line x1="${childPos.x}" y1="${sibshipY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
+                } else {
+                    // Twin pair: shared vertical from sibship to junction, then V-split
+                    const p1 = positions[grp.ids[0]];
+                    const p2 = positions[grp.ids[1]];
+                    const junctionX = (p1.x + p2.x) / 2;
+                    // Junction sits ~30% of the way down from sibship to child top
+                    const childTopY = Math.min(p1.y, p2.y) - NODE_R;
+                    const junctionY = sibshipY + (childTopY - sibshipY) * 0.35;
+                    // Single shared trunk from sibship line down to junction
+                    svgContent += `<line x1="${junctionX}" y1="${sibshipY}" x2="${junctionX}" y2="${junctionY}" stroke="#333" stroke-width="1.5" />`;
+                    // V-split to each twin top
+                    svgContent += `<line x1="${junctionX}" y1="${junctionY}" x2="${p1.x}" y2="${childTopY}" stroke="#333" stroke-width="1.5" />`;
+                    svgContent += `<line x1="${junctionX}" y1="${junctionY}" x2="${p2.x}" y2="${childTopY}" stroke="#333" stroke-width="1.5" />`;
+                    // Monozygotic horizontal bar between the V arms (mid-way)
+                    if (grp.twinType === 'monozygotic') {
+                        const barY = junctionY + (childTopY - junctionY) * 0.55;
+                        const t = (barY - junctionY) / (childTopY - junctionY); // 0..1
+                        const barLeftX  = junctionX + t * (Math.min(p1.x, p2.x) - junctionX);
+                        const barRightX = junctionX + t * (Math.max(p1.x, p2.x) - junctionX);
+                        svgContent += `<line x1="${barLeftX}" y1="${barY}" x2="${barRightX}" y2="${barY}" stroke="#333" stroke-width="1.5"/>`;
+                    }
+                }
             });
         }
     });
 
-    // Draw twin connectors
+    // Fallback: twins not handled above (e.g., no parent-child link recorded
+    // OR twin partners belong to different couples). Draw a simple connecting
+    // bar between them so the twin relationship is still visible.
+    const twinHandled = new Set();
     familyData.members.forEach(m => {
-        if (m.twinType !== 'none' && m.twinPartnerId && m.id < m.twinPartnerId) {
-            const pos = positions[m.id];
-            const twinPos = positions[m.twinPartnerId];
-            if (!pos || !twinPos) return;
-
-            // Find the sibship drop point
-            const parentLink = familyData.parentChildLinks.find(l => l.childId === m.id);
-            if (parentLink) {
-                const p = familyData.partnerships.find(pp =>
-                    pp.partner1 === parentLink.parent1 && pp.partner2 === parentLink.parent2
-                );
-                if (p) {
-                    const pPos1 = positions[p.partner1];
-                    const pPos2 = positions[p.partner2];
-                    if (pPos1 && pPos2) {
-                        const dropY = (pPos1.y + pPos2.y) / 2 + 70;
-                        const meetX = (pos.x + twinPos.x) / 2;
-                        const meetY = dropY + 10;
-
-                        // V-shaped twin lines
-                        svgContent += `<line x1="${pos.x}" y1="${pos.y - NODE_R}" x2="${meetX}" y2="${meetY}" stroke="#333" stroke-width="1.5" />`;
-                        svgContent += `<line x1="${twinPos.x}" y1="${twinPos.y - NODE_R}" x2="${meetX}" y2="${meetY}" stroke="#333" stroke-width="1.5" />`;
-
-                        if (m.twinType === 'monozygotic') {
-                            // Horizontal bar for monozygotic
-                            const barHalf = (twinPos.x - pos.x) / 4;
-                            const barY = (meetY + pos.y - NODE_R) / 2;
-                            svgContent += `<line x1="${meetX - barHalf}" y1="${barY}" x2="${meetX + barHalf}" y2="${barY}" stroke="#333" stroke-width="1.5" />`;
-                        }
-                    }
-                }
-            }
+        if (m.twinType === 'none' || !m.twinPartnerId) return;
+        if (m.id >= m.twinPartnerId) return; // dedupe
+        if (twinHandled.has(m.id)) return;
+        const pos = positions[m.id];
+        const tpos = positions[m.twinPartnerId];
+        if (!pos || !tpos) return;
+        // Skip if BOTH twins are children of the same couple — already handled
+        const link1 = familyData.parentChildLinks.find(l => l.childId === m.id);
+        const link2 = familyData.parentChildLinks.find(l => l.childId === m.twinPartnerId);
+        const sameCouple = link1 && link2 &&
+            link1.parent1 === link2.parent1 && link1.parent2 === link2.parent2;
+        if (sameCouple) return;
+        // Draw a thin connector at the top of the nodes
+        const yTop = Math.min(pos.y, tpos.y) - NODE_R - 10;
+        svgContent += `<line x1="${pos.x}" y1="${pos.y - NODE_R}" x2="${(pos.x+tpos.x)/2}" y2="${yTop}" stroke="#333" stroke-width="1.5" />`;
+        svgContent += `<line x1="${tpos.x}" y1="${tpos.y - NODE_R}" x2="${(pos.x+tpos.x)/2}" y2="${yTop}" stroke="#333" stroke-width="1.5" />`;
+        if (m.twinType === 'monozygotic') {
+            const barHalf = Math.abs(tpos.x - pos.x) / 4;
+            const midX = (pos.x + tpos.x) / 2;
+            const barY = yTop + 14;
+            svgContent += `<line x1="${midX - barHalf}" y1="${barY}" x2="${midX + barHalf}" y2="${barY}" stroke="#333" stroke-width="1.5"/>`;
         }
+        twinHandled.add(m.id);
     });
 
     // Draw member nodes
