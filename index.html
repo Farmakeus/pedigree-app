@@ -232,6 +232,7 @@
             font-size: 9px; color: #999; font-weight: 600; letter-spacing: 0.5px;
         }
         .canvas-container.tool-active { cursor: crosshair; }
+        .canvas-container.tool-consan { cursor: cell; } /* visual hint: pick two individuals */
         .canvas-container.tool-move { cursor: grab; }
         .canvas-container.tool-move.dragging { cursor: grabbing; }
         .canvas-container.tool-eraser { cursor: pointer; }
@@ -2355,6 +2356,8 @@ const I18N = {
         'rel.parent.child': 'Çocuk',
         'rel.btn.connect': 'Bağla',
         'panel.toggle': 'Sol paneli aç/kapat',
+        'toast.consan.hint': 'Akraba evliliği aktif: iki bireye tıklayın (otomatik çift çizgi)',
+        'toast.consan.upgraded': 'Mevcut bağ akraba evliliğine çevrildi (çift çizgi)',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Toplu Kardeş Ekle',
         'rel.bulk.couple': 'Ebeveyn Çifti',
         'rel.bulk.count': 'Sayı',
@@ -2644,6 +2647,8 @@ const I18N = {
         'rel.parent.child': 'Child',
         'rel.btn.connect': 'Connect',
         'panel.toggle': 'Toggle left panel',
+        'toast.consan.hint': 'Consanguinity active: click two individuals (auto double line)',
+        'toast.consan.upgraded': 'Existing partnership upgraded to consanguineous (double line)',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Bulk Add Siblings',
         'rel.bulk.couple': 'Parent Couple',
         'rel.bulk.count': 'Count',
@@ -4898,7 +4903,12 @@ const connectPreview = document.getElementById('connectPreview');
 function clearAllModes() {
     const wasPlace = (toolMode === 'place');
     placeMode = null; toolMode = null; connectStart = null; movingMemberId = null;
-    canvasContainer.classList.remove('tool-active', 'tool-move', 'dragging');
+    canvasContainer.classList.remove('tool-active', 'tool-move', 'tool-consan', 'dragging');
+    // Turn off consan flag and its button highlight when leaving any tool
+    if (consanMode) {
+        consanMode = false;
+        document.getElementById('consanBtn')?.classList.remove('active');
+    }
     connectPreview.innerHTML = '';
     // Hide connect dots
     if (showConnectDots) { showConnectDots = false; renderPedigree(); }
@@ -4972,6 +4982,28 @@ function updateLabelToggleUI(btn) {
 function toggleConsanMode(btn) {
     consanMode = !consanMode;
     btn.classList.toggle('active', consanMode);
+    if (consanMode) {
+        // Activate connect mode so the user can immediately link two individuals
+        // and have the partnership rendered as a consanguineous double line.
+        // Skip if connect was already on (consan flag layers on top of it).
+        if (toolMode !== 'connect') {
+            // Mirror setConnectMode but without recursion / button toggle
+            placeMode = null; movingMemberId = null; connectStart = null;
+            toolMode = 'connect';
+            canvasContainer.classList.add('tool-active');
+            canvasContainer.classList.add('tool-consan');
+            document.getElementById('connectBtn')?.classList.add('active');
+            showConnectDots = true;
+            renderPedigree();
+        } else {
+            canvasContainer.classList.add('tool-consan');
+        }
+        if (typeof showToast === 'function') {
+            showToast(t('toast.consan.hint') || 'Akraba evliliği: iki bireye sırayla tıklayın (çift çizgi)', { icon: '⚭⚭' });
+        }
+    } else {
+        canvasContainer.classList.remove('tool-consan');
+    }
 }
 function cancelPlaceMode() { clearAllModes(); }
 
@@ -5275,10 +5307,23 @@ function handleConnect(endPos) {
 
         saveState();
         if (startMember.generation === endMember.generation) {
-            const exists = familyData.partnerships.some(p =>
+            const existing = familyData.partnerships.find(p =>
                 (p.partner1 === startMember.id && p.partner2 === endMember.id) ||
                 (p.partner1 === endMember.id && p.partner2 === startMember.id));
-            if (!exists) familyData.partnerships.push({ partner1: startMember.id, partner2: endMember.id, consanguinity: consanMode });
+            if (!existing) {
+                familyData.partnerships.push({
+                    partner1: startMember.id,
+                    partner2: endMember.id,
+                    consanguinity: consanMode
+                });
+            } else if (consanMode && !existing.consanguinity) {
+                // Smart upgrade: convert an existing standard partnership into
+                // a consanguineous one when the consanguinity tool is active.
+                existing.consanguinity = true;
+                if (typeof showToast === 'function') {
+                    showToast(t('toast.consan.upgraded') || 'Mevcut bağ akraba evliliğine çevrildi', { icon: '⚭⚭' });
+                }
+            }
         } else {
             let parentId = startMember.generation < endMember.generation ? startMember.id : endMember.id;
             let childId = startMember.generation < endMember.generation ? endMember.id : startMember.id;
