@@ -300,6 +300,12 @@
             text-align: center; color: #888; font-size: 13px;
         }
         .sample-btn:hover { border-color: #3498db; color: #3498db; background: #f0f7ff; }
+        .sample-btn-primary {
+            border-color: #3498db; color: #1a5f9c; background: #e8f3fc;
+            font-weight: 600;
+        }
+        .sample-btn-primary:hover { background: #d4e8fa; border-color: #2980b9; color: #1a73e8; }
+        body.dark-theme .sample-btn-primary { background: #2a3540; border-color: #5dade2; color: #5dade2; }
 
         /* ===== Hover Tooltip ===== */
         .pedigree-tooltip {
@@ -1526,6 +1532,7 @@ function updateLoadedTemplatesList() {
     if (!tmplContainer) return;
     if (familyData.mode === 'cancer') {
         tmplContainer.innerHTML = `
+            <button class="sample-btn sample-btn-primary" onclick="loadTemplateCancerAD()">${t('tmpl.cancerAD')}</button>
             <button class="sample-btn" onclick="loadTemplateBRCA()">${t('tmpl.brca')}</button>
             <button class="sample-btn" onclick="loadTemplateLynch()">${t('tmpl.lynch')}</button>
             <button class="sample-btn" onclick="loadTemplateLiFraumeni()">${t('tmpl.lifr')}</button>
@@ -2305,6 +2312,7 @@ const I18N = {
         'tmpl.section': '📋 Hazır Şablonlar',
         'tmpl.denovo': 'De Novo Varyant Ailesi',
         'tmpl.consang': 'Akraba Evliliği - Taşıyıcı Ebeveynler',
+        'tmpl.cancerAD': '⭐ Otozomal Dominant Kanser (Sade — sadece proband doldurulur)',
         'tmpl.brca': 'BRCA1/2 Ailesi (Meme/Yumurtalık)',
         'tmpl.lynch': 'Lynch Sendromu (Kolon/Endometrium)',
         'tmpl.lifr': 'Li-Fraumeni Sendromu',
@@ -2602,6 +2610,7 @@ const I18N = {
         'tmpl.section': '📋 Templates',
         'tmpl.denovo': 'De Novo Variant Family',
         'tmpl.consang': 'Consanguineous Marriage - Carrier Parents',
+        'tmpl.cancerAD': '⭐ Autosomal Dominant Cancer (Minimal — only proband filled)',
         'tmpl.brca': 'BRCA1/2 Family (Breast/Ovarian)',
         'tmpl.lynch': 'Lynch Syndrome (Colon/Endometrial)',
         'tmpl.lifr': 'Li-Fraumeni Syndrome',
@@ -4615,6 +4624,78 @@ function addMemberWithCancers(sex, gen, name, age, deceased, proband, cancers, v
         customX: null, customY: null
     });
     return id;
+}
+
+// Minimal autosomal-dominant cancer pedigree: clean 3-gen vertical
+// transmission scaffold where ONLY the proband is fully annotated.
+// Other members exist as plain shapes — clinician fills clinical details
+// (cancer type, variant, age) themselves.
+function loadTemplateCancerAD() {
+    clearAllSilent();
+    setMode('cancer');
+
+    // Helper: structural-only member (no cancers, no variant, no notes).
+    // Affected status is set to show the AD vertical-transmission pattern,
+    // but no specific clinical data is auto-populated.
+    const empty = (sex, gen, affected) => addMemberWithCancers(
+        sex, gen,
+        '',          // name — user fills in
+        null,        // age — user fills in
+        false,       // deceased
+        false,       // proband
+        [],          // cancers — empty (do NOT auto-assign)
+        '',          // variant — empty
+        ''           // note
+    );
+
+    // Force affected flag without cancers (visual AD pattern only)
+    const affect = (id) => {
+        const m = familyData.members.find(x => x.id === id);
+        if (m) m.affected = true;
+    };
+
+    // Gen I — grandparents (1 affected to seed the AD pattern)
+    const gp1 = empty('male',   1, false);
+    const gp2 = empty('female', 1, false);
+    affect(gp1); // affected grandfather (carrier in this pedigree)
+
+    // Gen II — affected parent + healthy spouse + one healthy sibling/aunt
+    const par1 = empty('female', 2, false);  // affected parent (child of gp1+gp2)
+    const par2 = empty('male',   2, false);  // healthy spouse
+    affect(par1);
+    const aunt = empty('female', 2, false);  // healthy sibling of par1
+
+    // Gen III — proband (fully detailed) + one healthy sibling
+    const proband = addMemberWithCancers(
+        'female', 3,
+        '',          // name — left blank for user
+        null,        // age — user fills
+        false,       // deceased
+        true,        // proband ✓
+        [],          // no cancer types pre-filled
+        '',          // no variant pre-filled
+        ''
+    );
+    // Mark proband affected so the pattern is visually complete; user can
+    // edit type/age/variant in the panel.
+    affect(proband);
+    const sib = empty('male', 3, false);
+
+    familyData.partnerships.push(
+        { partner1: gp1,  partner2: gp2,  consanguinity: false },
+        { partner1: par1, partner2: par2, consanguinity: false }
+    );
+    familyData.parentChildLinks.push(
+        { parent1: gp1,  parent2: gp2,  childId: par1 },
+        { parent1: gp1,  parent2: gp2,  childId: aunt },
+        { parent1: par1, parent2: par2, childId: proband },
+        { parent1: par1, parent2: par2, childId: sib }
+    );
+
+    lockTemplatePositions();
+    currentLoadedTemplate = 'loadTemplateCancerAD';
+    updateUI(); renderPedigree();
+    updateResetTemplateButton();
 }
 
 function loadTemplateBRCA() {
