@@ -24,14 +24,54 @@
         }
         .header-actions button:hover { background: rgba(255,255,255,0.3); }
 
-        .app-container { display: flex; height: calc(100vh - 52px); }
+        .app-container { display: flex; height: calc(100vh - 52px); position: relative; }
 
         /* Sol Panel */
         .left-panel {
             width: 340px; min-width: 340px; background: white;
             border-right: 1px solid #ddd; display: flex; flex-direction: column;
             overflow: hidden;
+            transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
         }
+        .left-panel.collapsed {
+            width: 0; min-width: 0; opacity: 0;
+            border-right-width: 0;
+            pointer-events: none;
+        }
+        /* Collapse / Expand toggle button.
+           When the panel is open, sits at its right edge.
+           When collapsed, anchors to the screen's left edge so users can re-open it. */
+        .panel-toggle {
+            position: absolute;
+            top: 60px;
+            left: 340px;
+            transform: translateX(-50%);
+            width: 28px; height: 32px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            font-weight: 700; font-size: 12px;
+            color: #555;
+            box-shadow: 1px 0 4px rgba(0,0,0,0.06);
+            z-index: 50;
+            display: flex; align-items: center; justify-content: center;
+            transition: left 0.25s ease, transform 0.25s ease, background 0.15s, color 0.15s;
+            user-select: none;
+        }
+        .panel-toggle:hover { background: #f0f6fc; color: #1a73e8; }
+        .panel-toggle:focus { outline: 2px solid #5dade2; outline-offset: 2px; }
+        .left-panel.collapsed ~ .panel-toggle,
+        .app-container.panel-collapsed .panel-toggle {
+            left: 0;
+            transform: translateX(0);
+            border-radius: 0 6px 6px 0;
+        }
+        body.dark-theme .panel-toggle {
+            background: #2a2e36; border-color: #3a3f48; color: #ddd;
+            box-shadow: 1px 0 4px rgba(0,0,0,0.3);
+        }
+        body.dark-theme .panel-toggle:hover { background: #34394a; color: #5dade2; }
         .panel-tabs {
             display: flex; border-bottom: 2px solid #eee;
         }
@@ -700,8 +740,13 @@
     </div>
 </div>
 
-<div class="app-container">
-    <div class="left-panel">
+<div class="app-container" id="appContainer">
+    <button class="panel-toggle" id="panelToggleBtn" type="button"
+            onclick="toggleLeftPanel()"
+            aria-label="Sol paneli aç/kapat"
+            data-i18n-title="panel.toggle"
+            title="Sol paneli aç/kapat">&laquo;</button>
+    <div class="left-panel" id="leftPanel">
         <div class="panel-tabs">
             <div class="panel-tab active" onclick="switchTab('add')" data-i18n="tab.add">Ekle / Düzenle</div>
             <div class="panel-tab" onclick="switchTab('list')" data-i18n="tab.list">Aile Listesi</div>
@@ -2314,6 +2359,7 @@ const I18N = {
         'rel.parent.couple': 'Ebeveyn Çifti',
         'rel.parent.child': 'Çocuk',
         'rel.btn.connect': 'Bağla',
+        'panel.toggle': 'Sol paneli aç/kapat',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Toplu Kardeş Ekle',
         'rel.bulk.couple': 'Ebeveyn Çifti',
         'rel.bulk.count': 'Sayı',
@@ -2602,6 +2648,7 @@ const I18N = {
         'rel.parent.couple': 'Parent Couple',
         'rel.parent.child': 'Child',
         'rel.btn.connect': 'Connect',
+        'panel.toggle': 'Toggle left panel',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Bulk Add Siblings',
         'rel.bulk.couple': 'Parent Couple',
         'rel.bulk.count': 'Count',
@@ -6440,6 +6487,37 @@ console.log('%c💡 Tests available: %crunTemplateTests()%c %crunLayoutTests()%c
     'color:#888',
     'color:#27ae60;font-weight:bold;background:#e8f5e9;padding:2px 6px;border-radius:3px'
 );
+
+// ======================== LEFT PANEL TOGGLE ========================
+const PANEL_KEY = 'pedigreeApp_leftPanelCollapsed';
+
+function applyLeftPanelState(collapsed) {
+    const panel = document.getElementById('leftPanel');
+    const btn = document.getElementById('panelToggleBtn');
+    const container = document.getElementById('appContainer');
+    if (!panel || !btn) return;
+    panel.classList.toggle('collapsed', collapsed);
+    container && container.classList.toggle('panel-collapsed', collapsed);
+    btn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    try { localStorage.setItem(PANEL_KEY, collapsed ? '1' : '0'); } catch (e) {}
+    // Layout / connections never reference panel width — but trigger a render
+    // after the CSS transition so the canvas dimensions catch up.
+    setTimeout(() => { try { safeRender(); } catch (e) {} }, 280);
+}
+
+function toggleLeftPanel() {
+    const panel = document.getElementById('leftPanel');
+    if (!panel) return;
+    applyLeftPanelState(!panel.classList.contains('collapsed'));
+}
+
+// Restore previous state on load
+(function initLeftPanelState() {
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(PANEL_KEY) === '1'; } catch (e) {}
+    applyLeftPanelState(collapsed);
+})();
 
 // Initialize
 updateLabelToggleUI();
