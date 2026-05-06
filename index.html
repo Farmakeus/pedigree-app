@@ -1533,9 +1533,6 @@ function updateLoadedTemplatesList() {
     if (familyData.mode === 'cancer') {
         tmplContainer.innerHTML = `
             <button class="sample-btn sample-btn-primary" onclick="loadTemplateCancerAD()">${t('tmpl.cancerAD')}</button>
-            <button class="sample-btn" onclick="loadTemplateBRCA()">${t('tmpl.brca')}</button>
-            <button class="sample-btn" onclick="loadTemplateLynch()">${t('tmpl.lynch')}</button>
-            <button class="sample-btn" onclick="loadTemplateLiFraumeni()">${t('tmpl.lifr')}</button>
         `;
     } else {
         tmplContainer.innerHTML = `
