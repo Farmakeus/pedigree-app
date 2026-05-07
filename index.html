@@ -318,6 +318,87 @@
         .pedigree-tooltip strong { color: #5dade2; }
         .pedigree-tooltip .tip-row { margin: 2px 0; }
 
+        /* ===== Quick Edit Popup ===== */
+        .quick-edit-popup {
+            position: fixed; display: none; z-index: 1100;
+            background: white; border: 1px solid #d0d7de; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            padding: 0; min-width: 260px; max-width: 320px;
+            font-size: 13px; color: #333;
+            animation: qeFadeIn 0.15s ease-out;
+        }
+        @keyframes qeFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .quick-edit-popup.open { display: block; }
+        .qe-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; border-bottom: 1px solid #eee;
+            background: #f6f8fa; border-radius: 10px 10px 0 0;
+        }
+        .qe-title { font-weight: 600; color: #1a73e8; }
+        .qe-close {
+            background: none; border: none; cursor: pointer;
+            color: #888; font-size: 14px; padding: 2px 6px; border-radius: 4px;
+        }
+        .qe-close:hover { background: #eee; color: #333; }
+        .qe-body { padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 6px; }
+        .qe-body label {
+            font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase;
+            letter-spacing: 0.3px; margin: 4px 0 -2px;
+        }
+        .qe-body input {
+            border: 1px solid #d0d7de; border-radius: 6px; padding: 6px 8px;
+            font-size: 13px; outline: none; transition: border-color 0.15s;
+        }
+        .qe-body input:focus { border-color: #5dade2; box-shadow: 0 0 0 2px rgba(93,173,226,0.2); }
+        .qe-footer {
+            padding: 6px 12px 10px; display: flex; justify-content: flex-end; gap: 6px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .qe-advanced {
+            background: #f0f6fc; border: 1px solid #d0d7de; color: #1a5f9c;
+            padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .qe-advanced:hover { background: #d4e8fa; border-color: #2980b9; }
+        body.dark-theme .quick-edit-popup { background: #2a2e36; border-color: #3a3f48; color: #ddd; }
+        body.dark-theme .qe-header { background: #34394a; border-color: #3a3f48; }
+        body.dark-theme .qe-title { color: #5dade2; }
+        body.dark-theme .qe-close:hover { background: #3a3f48; color: #fff; }
+        body.dark-theme .qe-body input { background: #242830; border-color: #3a3f48; color: #ddd; }
+        body.dark-theme .qe-body input:focus { border-color: #5dade2; }
+        body.dark-theme .qe-advanced { background: #34394a; border-color: #3a3f48; color: #5dade2; }
+
+        /* ===== Right-click Status Context Menu ===== */
+        .status-context-menu {
+            position: fixed; display: none; z-index: 1100;
+            background: white; border: 1px solid #d0d7de; border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+            padding: 4px 0; min-width: 200px;
+            font-size: 13px; color: #333;
+            animation: qeFadeIn 0.12s ease-out;
+        }
+        .status-context-menu.open { display: block; }
+        .scm-item {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; padding: 6px 12px; background: none; border: none;
+            cursor: pointer; text-align: left; color: inherit;
+            font-size: 13px;
+        }
+        .scm-item:hover { background: #f0f6fc; color: #1a73e8; }
+        .scm-item.checked { background: #e8f3fc; color: #1a5f9c; font-weight: 600; }
+        .scm-item.checked .scm-check { color: #27ae60; }
+        .scm-check {
+            display: inline-block; width: 16px; text-align: center;
+            font-weight: 700; color: #aaa; font-size: 12px;
+        }
+        .scm-sep { height: 1px; background: #eee; margin: 4px 0; }
+        body.dark-theme .status-context-menu { background: #2a2e36; border-color: #3a3f48; color: #ddd; }
+        body.dark-theme .scm-item:hover { background: #34394a; color: #5dade2; }
+        body.dark-theme .scm-item.checked { background: #2a3540; color: #5dade2; }
+        body.dark-theme .scm-sep { background: #3a3f48; }
+
         /* ===== Help / Tutorial Modal ===== */
         .help-modal-overlay {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
@@ -1107,6 +1188,41 @@
 
 <!-- Hover tooltip (member info) -->
 <div class="pedigree-tooltip" id="pedigreeTooltip"></div>
+
+<!-- Quick-edit popup: 3 fields (name, disease, variant) for fast in-canvas editing. -->
+<div class="quick-edit-popup" id="quickEditPopup" role="dialog" aria-label="Hızlı düzenle">
+    <div class="qe-header">
+        <span class="qe-title" id="qeTitle">Hızlı Düzenle</span>
+        <button class="qe-close" onclick="closeQuickEditPopup()" title="Kapat">✕</button>
+    </div>
+    <div class="qe-body">
+        <label data-i18n="qe.name">Ad Soyad</label>
+        <input type="text" id="qeName" placeholder="Örn: Ahmet Yılmaz" oninput="onQuickEditField('name', this.value)">
+        <label data-i18n="qe.disease">Hastalık / Fenotip</label>
+        <input type="text" id="qeDisease" placeholder="Virgülle ayır: Diyabet, KOAH" oninput="onQuickEditField('disease', this.value)">
+        <label data-i18n="qe.variant">Gen / Varyant</label>
+        <input type="text" id="qeVariant" placeholder="BRCA1:c.1699A>G" oninput="onQuickEditField('variant', this.value)">
+    </div>
+    <div class="qe-footer">
+        <button class="qe-advanced" onclick="openAdvancedFromPopup()" data-i18n="qe.advanced">⚙ Detaylı Düzenle</button>
+    </div>
+</div>
+
+<!-- Right-click status context menu. -->
+<div class="status-context-menu" id="statusContextMenu" role="menu">
+    <button class="scm-item" data-flag="affected"  onclick="toggleStatusFlag('affected')"><span class="scm-check">○</span> <span data-i18n="scm.affected">Etkilenmiş</span></button>
+    <button class="scm-item" data-flag="carrier"   onclick="toggleStatusFlag('carrier')"><span class="scm-check">○</span> <span data-i18n="scm.carrier">Taşıyıcı</span></button>
+    <button class="scm-item" data-flag="deceased"  onclick="toggleStatusFlag('deceased')"><span class="scm-check">○</span> <span data-i18n="scm.deceased">Vefat</span></button>
+    <button class="scm-item" data-flag="proband"   onclick="toggleStatusFlag('proband')"><span class="scm-check">○</span> <span data-i18n="scm.proband">Proband</span></button>
+    <div class="scm-sep"></div>
+    <button class="scm-item" data-sex="male"    onclick="setQuickSex('male')"><span class="scm-check">▢</span> <span data-i18n="scm.sex.male">Erkek</span></button>
+    <button class="scm-item" data-sex="female"  onclick="setQuickSex('female')"><span class="scm-check">○</span> <span data-i18n="scm.sex.female">Kadın</span></button>
+    <button class="scm-item" data-sex="unknown" onclick="setQuickSex('unknown')"><span class="scm-check">◇</span> <span data-i18n="scm.sex.unknown">Bilinmiyor</span></button>
+    <div class="scm-sep"></div>
+    <button class="scm-item" data-preg="P"    onclick="setQuickPregnancy('P')"><span class="scm-check">P</span> <span data-i18n="scm.preg.p">Gebelik</span></button>
+    <button class="scm-item" data-preg="SAB"  onclick="setQuickPregnancy('SAB')"><span class="scm-check">▲</span> <span data-i18n="scm.preg.sab">Spontan abort</span></button>
+    <button class="scm-item" data-preg="none" onclick="setQuickPregnancy('none')"><span class="scm-check">⌫</span> <span data-i18n="scm.preg.clear">Hamilelik temizle</span></button>
+</div>
 
 <!-- Custom UI tooltip (for toolbar/buttons) -->
 <div class="ui-tooltip" id="uiTooltip"></div>
@@ -2361,6 +2477,21 @@ const I18N = {
         'rel.parent.child': 'Çocuk',
         'rel.btn.connect': 'Bağla',
         'panel.toggle': 'Sol paneli aç/kapat',
+        'qe.name': 'Ad Soyad',
+        'qe.disease': 'Hastalık / Fenotip',
+        'qe.variant': 'Gen / Varyant',
+        'qe.advanced': '⚙ Detaylı Düzenle',
+        'qe.title.default': 'Hızlı Düzenle',
+        'scm.affected': 'Etkilenmiş',
+        'scm.carrier': 'Taşıyıcı',
+        'scm.deceased': 'Vefat',
+        'scm.proband': 'Proband',
+        'scm.sex.male': 'Erkek',
+        'scm.sex.female': 'Kadın',
+        'scm.sex.unknown': 'Bilinmiyor',
+        'scm.preg.p': 'Gebelik',
+        'scm.preg.sab': 'Spontan abort',
+        'scm.preg.clear': 'Hamilelik temizle',
         'toast.consan.hint': 'Akraba evliliği aktif: iki bireye tıklayın (otomatik çift çizgi)',
         'toast.consan.upgraded': 'Mevcut bağ akraba evliliğine çevrildi (çift çizgi)',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Toplu Kardeş Ekle',
@@ -2653,6 +2784,21 @@ const I18N = {
         'rel.parent.child': 'Child',
         'rel.btn.connect': 'Connect',
         'panel.toggle': 'Toggle left panel',
+        'qe.name': 'Name',
+        'qe.disease': 'Disease / Phenotype',
+        'qe.variant': 'Gene / Variant',
+        'qe.advanced': '⚙ Advanced edit',
+        'qe.title.default': 'Quick Edit',
+        'scm.affected': 'Affected',
+        'scm.carrier': 'Carrier',
+        'scm.deceased': 'Deceased',
+        'scm.proband': 'Proband',
+        'scm.sex.male': 'Male',
+        'scm.sex.female': 'Female',
+        'scm.sex.unknown': 'Unknown',
+        'scm.preg.p': 'Pregnancy',
+        'scm.preg.sab': 'Spontaneous abortion',
+        'scm.preg.clear': 'Clear pregnancy',
         'toast.consan.hint': 'Consanguinity active: click two individuals (auto double line)',
         'toast.consan.upgraded': 'Existing partnership upgraded to consanguineous (double line)',
         'rel.bulk.title': '👨‍👩‍👧‍👦 Bulk Add Siblings',
@@ -5870,6 +6016,176 @@ renderPedigree = function() {
     if (typeof renderMinimap === 'function') renderMinimap();
 };
 
+// ======================== QUICK EDIT POPUP ========================
+// Fast in-canvas editing of name / disease / variant. Writes through to
+// familyData immediately, mirrors values into the advanced left panel
+// when it's open on the same member, and triggers safeRender for the
+// canvas. Right-click → status menu is handled separately.
+let quickEditMemberId = null;
+
+function openQuickEditPopup(memberId, clientX, clientY) {
+    const m = familyData.members.find(x => x.id === memberId);
+    if (!m) return;
+    quickEditMemberId = memberId;
+    const popup = document.getElementById('quickEditPopup');
+    const nameInput = document.getElementById('qeName');
+    const diseaseInput = document.getElementById('qeDisease');
+    const variantInput = document.getElementById('qeVariant');
+    const title = document.getElementById('qeTitle');
+    if (!popup || !nameInput) return;
+
+    // Populate fields from the canonical data source (single source of truth)
+    nameInput.value = m.name || '';
+    diseaseInput.value = (m.diseases || []).join(', ');
+    variantInput.value = m.variant || '';
+    if (title) title.textContent = (m.name && m.name.trim()) ? m.name : (t('qe.title.default') || 'Hızlı Düzenle');
+
+    // Mirror into the advanced left panel form so they stay synchronized.
+    // Calling editMember loads ALL fields, scrolls, and shows the focus ring.
+    try { editMember(memberId); } catch (e) { console.error('[editMember sync]', e); }
+
+    // Position near the cursor / node
+    popup.classList.add('open');
+    const rect = popup.getBoundingClientRect();
+    let left = clientX + 18;
+    let top = clientY + 8;
+    if (left + rect.width > window.innerWidth - 12) left = clientX - rect.width - 18;
+    if (top + rect.height > window.innerHeight - 12) top = clientY - rect.height - 8;
+    popup.style.left = Math.max(8, left) + 'px';
+    popup.style.top = Math.max(8, top) + 'px';
+
+    // Focus the name field for instant typing
+    setTimeout(() => nameInput.focus(), 60);
+}
+
+function closeQuickEditPopup() {
+    const popup = document.getElementById('quickEditPopup');
+    if (popup) popup.classList.remove('open');
+    quickEditMemberId = null;
+}
+
+function onQuickEditField(field, value) {
+    if (quickEditMemberId == null) return;
+    const m = familyData.members.find(x => x.id === quickEditMemberId);
+    if (!m) return;
+    const v = (value || '').trim();
+    if (field === 'name') {
+        m.name = v;
+        // Mirror into the advanced left-panel form if open on this member
+        const adv = document.getElementById('memberName');
+        if (adv && editingMemberId === m.id) adv.value = v;
+        const t = document.getElementById('qeTitle');
+        if (t) t.textContent = v || 'Hızlı Düzenle';
+    } else if (field === 'disease') {
+        const list = v ? v.split(',').map(s => s.trim()).filter(Boolean) : [];
+        m.diseases = list;
+        list.forEach(d => familyData.diseases.add(d));
+        // Sync currentDiseases array used by the advanced panel
+        if (editingMemberId === m.id) {
+            currentDiseases = [...list];
+            try { updateDiseaseListUI(); } catch (e) {}
+        }
+    } else if (field === 'variant') {
+        m.variant = v;
+        const adv = document.getElementById('memberVariant');
+        if (adv && editingMemberId === m.id) adv.value = v;
+    }
+    try { autosave(); } catch (e) {}
+    safeRender();
+}
+
+function openAdvancedFromPopup() {
+    if (quickEditMemberId == null) return closeQuickEditPopup();
+    // editMember already called when popup opened — just switch tab and close popup
+    try { switchTab('add'); } catch (e) {}
+    closeQuickEditPopup();
+}
+
+// ======================== STATUS CONTEXT MENU (right-click) ========================
+let contextMenuMemberId = null;
+
+function openStatusContextMenu(memberId, clientX, clientY) {
+    const m = familyData.members.find(x => x.id === memberId);
+    if (!m) return;
+    contextMenuMemberId = memberId;
+    const menu = document.getElementById('statusContextMenu');
+    if (!menu) return;
+    // Update checkmark state
+    menu.querySelectorAll('.scm-item').forEach(btn => {
+        const flag = btn.getAttribute('data-flag');
+        const sex  = btn.getAttribute('data-sex');
+        const preg = btn.getAttribute('data-preg');
+        const check = btn.querySelector('.scm-check');
+        let on = false;
+        if (flag) on = !!m[flag];
+        else if (sex) on = (m.sex === sex);
+        else if (preg) on = ((m.pregnancy || 'none') === preg);
+        btn.classList.toggle('checked', on);
+        if (check) check.textContent = on ? '✓' : (flag ? '○' : check.textContent);
+    });
+    menu.classList.add('open');
+    const rect = menu.getBoundingClientRect();
+    let left = clientX + 4;
+    let top = clientY + 4;
+    if (left + rect.width > window.innerWidth - 12) left = clientX - rect.width - 4;
+    if (top + rect.height > window.innerHeight - 12) top = clientY - rect.height - 4;
+    menu.style.left = Math.max(8, left) + 'px';
+    menu.style.top = Math.max(8, top) + 'px';
+}
+
+function closeStatusContextMenu() {
+    const menu = document.getElementById('statusContextMenu');
+    if (menu) menu.classList.remove('open');
+    contextMenuMemberId = null;
+}
+
+function _withContextMember(fn) {
+    if (contextMenuMemberId == null) return;
+    const m = familyData.members.find(x => x.id === contextMenuMemberId);
+    if (!m) return;
+    saveState();
+    fn(m);
+    // Sync advanced panel checkboxes if open on this member
+    if (editingMemberId === m.id) {
+        try {
+            ['memberAffected','memberCarrier','memberDeceased','memberProband'].forEach(idStr => {
+                const k = idStr.replace('member','').toLowerCase();
+                const el = document.getElementById(idStr);
+                if (el) el.checked = !!m[k];
+            });
+            const sexEl = document.getElementById('memberSex');
+            if (sexEl) sexEl.value = m.sex;
+            const pregEl = document.getElementById('memberPregnancy');
+            if (pregEl) pregEl.value = m.pregnancy || 'none';
+        } catch (e) {}
+    }
+    try { autosave(); } catch (e) {}
+    safeRender();
+    // Refresh menu state to reflect the toggle
+    const lastClient = _lastContextPoint || { x: 0, y: 0 };
+    openStatusContextMenu(m.id, lastClient.x, lastClient.y);
+}
+
+function toggleStatusFlag(flag) {
+    _withContextMember(m => {
+        m[flag] = !m[flag];
+        // Proband is exclusive: clear the flag on all other members
+        if (flag === 'proband' && m.proband) {
+            familyData.members.forEach(x => { if (x.id !== m.id) x.proband = false; });
+        }
+    });
+}
+
+function setQuickSex(sex) {
+    _withContextMember(m => { m.sex = sex; });
+}
+
+function setQuickPregnancy(p) {
+    _withContextMember(m => { m.pregnancy = p; });
+}
+
+let _lastContextPoint = null;
+
 // ======================== HOVER TOOLTIP ========================
 const tooltipEl = document.getElementById('pedigreeTooltip');
 let lastTooltipMember = null;
@@ -5937,6 +6253,41 @@ canvasContainer.addEventListener('mousemove', (e) => {
     else hideMemberTooltip();
 });
 canvasContainer.addEventListener('mouseleave', () => { hideMemberTooltip(); clearPlacePreview(); });
+
+// Right-click anywhere on canvas: if over a member node, open the status menu
+canvasContainer.addEventListener('contextmenu', (e) => {
+    const pos = getSVGPos(e);
+    const m = findMemberAtPos(pos);
+    if (m) {
+        e.preventDefault();
+        e.stopPropagation();
+        _lastContextPoint = { x: e.clientX, y: e.clientY };
+        closeQuickEditPopup();
+        hideMemberTooltip();
+        openStatusContextMenu(m.id, e.clientX, e.clientY);
+    }
+});
+
+// Close popup / menu on outside click or ESC
+document.addEventListener('mousedown', (e) => {
+    const popup = document.getElementById('quickEditPopup');
+    const menu = document.getElementById('statusContextMenu');
+    const insidePopup = popup && popup.contains(e.target);
+    const insideMenu = menu && menu.contains(e.target);
+    // Clicking inside the canvas / left panel is allowed (those handlers manage state)
+    // — only auto-close if the click is on something completely unrelated.
+    if (!insidePopup && !insideMenu && menu && menu.classList.contains('open')) {
+        // Right-click menu auto-closes on any outside mousedown
+        const onCanvasNode = e.target && e.target.closest && e.target.closest('#canvasContainer');
+        if (!onCanvasNode) closeStatusContextMenu();
+    }
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeQuickEditPopup();
+        closeStatusContextMenu();
+    }
+});
 
 // ======================== DOUBLE-CLICK TO EDIT ========================
 canvasContainer.addEventListener('dblclick', (e) => {
@@ -6109,16 +6460,23 @@ canvasContainer.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
         } else {
-            // Plain click: clear multi-selection, set focus, AND open the
-            // editor in the left panel — single source of truth: editingMemberId
+            // Plain click: clear multi-selection, set focus, and open the
+            // QUICK-EDIT popup near the node (fast path). Advanced editing
+            // remains available via the popup's "Detaylı Düzenle" button or
+            // the left panel directly. Single source of truth:
+            // editingMemberId === focusedMemberId.
             if (selectedMemberIds.size > 0) clearMultiSelection();
             hideMemberTooltip();
+            closeStatusContextMenu();
             setFocusedMember(m.id);
-            editMember(m.id);
+            editingMemberId = m.id;
+            openQuickEditPopup(m.id, e.clientX, e.clientY);
         }
     } else {
         // Click on empty canvas: clear multi-selection AND focus/edit state
         if (selectedMemberIds.size > 0) clearMultiSelection();
+        closeQuickEditPopup();
+        closeStatusContextMenu();
         if (editingMemberId != null || focusedMemberId != null) {
             cancelEdit();
         }
