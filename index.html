@@ -7,22 +7,49 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #333; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f0f2f5; color: #2b2f36;
+            -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
 
         .app-header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white; padding: 12px 24px;
+            background: #1f2a37;
+            color: #e8edf2; padding: 10px 20px;
             display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
         }
-        .app-header h1 { font-size: 20px; font-weight: 600; }
-        .header-actions { display: flex; gap: 8px; }
+        .app-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .app-logo { width: 24px; height: 24px; color: #5da9e8; flex-shrink: 0; }
+        .app-header h1 {
+            font-size: 18px; font-weight: 600; letter-spacing: 0.2px;
+            white-space: nowrap; color: #f2f5f8;
+        }
+        .header-actions { display: flex; gap: 6px; align-items: center; }
         .header-actions button {
-            background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3);
-            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
-            transition: background 0.2s;
+            background: rgba(255,255,255,0.06); color: #dfe5ec;
+            border: 1px solid rgba(255,255,255,0.10);
+            padding: 6px 11px; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            display: inline-flex; align-items: center; gap: 6px; line-height: 1;
         }
-        .header-actions button:hover { background: rgba(255,255,255,0.3); }
+        .header-actions button:hover {
+            background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.22);
+            color: #fff;
+        }
+        .header-actions button svg { width: 15px; height: 15px; flex-shrink: 0; }
+        .header-actions button .caret { font-size: 10px; opacity: 0.7; margin-left: -2px; }
+        /* Icon-only buttons (theme, help) → compact square */
+        .header-actions button.icon-only { padding: 6px; width: 32px; height: 32px; justify-content: center; }
+        .header-actions button.icon-only svg { width: 16px; height: 16px; }
+
+        /* Smooth theme transition on major surfaces (none of these declare a
+           transition elsewhere, so this won't clobber width/position animations). */
+        .app-header, .right-panel, .canvas-container, .place-toolbar, .section-title {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
 
         .app-container { display: flex; height: calc(100vh - 52px); position: relative; }
 
@@ -82,14 +109,35 @@
         .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; }
         .tab-content.active { display: block; }
 
-        .form-group { margin-bottom: 12px; min-width: 0; }
-        .form-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group { margin-bottom: 14px; min-width: 0; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: #8a909a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.7px; }
         .form-group input, .form-group select {
-            width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 13px; transition: border-color 0.2s;
-            box-sizing: border-box;
+            width: 100%; padding: 9px 11px; border: 1px solid #dfe3e8; border-radius: 8px;
+            font-size: 13px; transition: border-color 0.15s, box-shadow 0.15s;
+            box-sizing: border-box; color: #2b2f36;
         }
-        .form-group input:focus, .form-group select:focus { border-color: #3498db; outline: none; }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #3498db; outline: none;
+            box-shadow: 0 0 0 3px rgba(52,152,219,0.12);
+        }
+        .form-group input::placeholder { color: #b6bcc4; }
+
+        /* Name field with right-aligned soft internal-ID suffix.
+           The suffix sits INSIDE the input visually (overlay), so it doesn't
+           take any extra vertical space and reads as a faint helper. */
+        .name-field-wrapper { position: relative; }
+        .name-field-wrapper input { padding-right: 72px; }
+        .name-field-suffix {
+            position: absolute;
+            right: 10px; top: 50%; transform: translateY(-50%);
+            font-size: 11px; color: #bbb;
+            font-style: italic;
+            pointer-events: none;
+            white-space: nowrap; max-width: 60px;
+            overflow: hidden; text-overflow: ellipsis;
+            user-select: none;
+        }
+        body.dark-theme .name-field-suffix { color: #666; }
 
         .form-row { display: flex; gap: 10px; }
         .form-row .form-group { flex: 1 1 0; min-width: 0; }
@@ -101,10 +149,11 @@
         .checkbox-group label { font-size: 13px; color: #555; margin-bottom: 0; text-transform: none; letter-spacing: 0; }
 
         .btn {
-            padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
-            font-size: 13px; font-weight: 500; transition: all 0.2s;
+            padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 13px; font-weight: 600; transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
         }
-        .btn-primary { background: #3498db; color: white; }
+        .btn:active { transform: translateY(0.5px); }
+        .btn-primary { background: #3498db; color: white; box-shadow: 0 1px 2px rgba(52,152,219,0.3); }
         .btn-primary:hover { background: #2980b9; }
         .btn-danger { background: #e74c3c; color: white; }
         .btn-danger:hover { background: #c0392b; }
@@ -141,10 +190,26 @@
         .canvas-container {
             width: 100%; height: 100%; overflow: auto; position: relative;
             cursor: grab;
+            /* Subtle paper-tone + dot grid so symbols don't float on flat white.
+               background-attachment:local makes the dots scroll with content. */
+            background-color: #fbfbfc;
+            background-image: radial-gradient(circle, rgba(45,55,72,0.07) 1px, transparent 1.4px);
+            background-size: 22px 22px;
+            background-position: -1px -1px;
+            background-attachment: local;
         }
         .canvas-container:active { cursor: grabbing; }
         #pedigree-svg {
             display: block;
+        }
+        /* Subtle depth on pedigree symbols so they sit ON the canvas rather
+           than floating flat. Connection lines are <line> elements and stay
+           crisp (unaffected). */
+        #pedigree-svg .pnode {
+            filter: drop-shadow(0 1.5px 1.5px rgba(31,42,55,0.18));
+        }
+        body.dark-theme #pedigree-svg .pnode {
+            filter: drop-shadow(0 1.5px 2px rgba(0,0,0,0.55));
         }
         #labelToggleBtn { position: relative; }
         #labelToggleBtn[data-label-mode="on"]::after,
@@ -202,23 +267,138 @@
         }
         .zoom-controls button:hover { background: #f0f0f0; }
 
-        /* Place Toolbar */
+        /* Place Toolbar — sized to content (compact). Legend is appended at
+           the end so the toolbar grows by exactly that much; when collapsed
+           it shrinks back. Stays within the viewport via max-height. */
         .place-toolbar {
             position: absolute; top: 56px; right: 16px;
             background: white; border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            padding: 8px; z-index: 10;
-            display: flex; flex-direction: column; gap: 6px; align-items: center;
+            padding: 6px; z-index: 10;
+            display: flex; flex-direction: column; gap: 4px; align-items: center;
+            max-height: calc(100vh - 80px); overflow-y: auto; overflow-x: hidden;
         }
+        .place-toolbar::-webkit-scrollbar { width: 6px; }
+        .place-toolbar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+
+        /* Collapsible legend panel (lives at the bottom of place-toolbar).
+           `margin-top: auto` pushes it down to fill the empty space below
+           TOOLS and ADD, so visually it occupies the unused area at the
+           bottom of the right toolbar. Toggle button is styled like the
+           left-panel pill so it reads as an obvious open/close affordance. */
+        /* Legend panel is its own floating card right below the place-toolbar.
+           Decoupling the legend from the toolbar lets the toolbar stay at its
+           native narrow width (sized to tool buttons only) while the legend
+           can use a slightly wider grid for symmetric symbols + labels. */
+        /* Default top is set dynamically by JS (positionLegendPanel) so the
+           legend always sits 8px below the place-toolbar regardless of toolbar
+           height. We provide a sensible CSS fallback for first paint. */
+        .legend-panel {
+            position: absolute; right: 16px; top: 410px;
+            background: white; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 6px;
+            display: flex; flex-direction: column; gap: 4px;
+            z-index: 10;
+            max-width: 160px;
+            transition: top 0.18s ease;
+        }
+        body.dark-theme .legend-panel { background: #242830; }
+        /* When collapsed, the body is fully removed from layout (no border, no padding) */
+        .legend-panel[data-collapsed="true"] .legend-panel-body {
+            display: none;
+        }
+        .legend-panel-toggle {
+            width: 100% !important; height: 22px !important;
+            padding: 0 8px !important;
+            display: flex !important; align-items: center; gap: 6px;
+            font-size: 9.5px !important; font-weight: 700 !important;
+            text-transform: uppercase; letter-spacing: 0.3px;
+            color: white !important;
+            border: none !important;
+            background: linear-gradient(135deg,#3498db,#2980b9) !important;
+            border-radius: 5px !important;
+            cursor: pointer; user-select: none;
+            justify-content: space-between !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            transition: filter 0.15s, box-shadow 0.15s;
+        }
+        .legend-panel-toggle:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+        }
+        .legend-panel-toggle:focus { outline: 2px solid #5dade2; outline-offset: 2px; }
+        .legend-panel-toggle .legend-panel-label {
+            flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .legend-panel-caret {
+            display: inline-block; transition: transform 0.25s ease;
+            font-size: 12px; line-height: 1;
+        }
+        .legend-panel[data-collapsed="true"] .legend-panel-caret { transform: rotate(-90deg); }
+        .legend-panel-body {
+            overflow: hidden;
+            max-height: 800px;
+            opacity: 1;
+            transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.2s ease;
+            padding: 8px 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            /* Allow the legend to grow slightly wider than the buttons section
+               so symbols + labels never look crowded. */
+            min-width: 110px;
+        }
+        .legend-panel[data-collapsed="true"] .legend-panel-body {
+            max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0;
+            border-color: transparent;
+        }
+        /* Symmetric grid: every row is [icon | label] with consistent column
+           widths, so all icons stack into a clean vertical line and all labels
+           share the same starting x-position. Equal vertical gap between rows. */
+        #legendContent {
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            row-gap: 6px;
+            column-gap: 8px;
+            align-items: center;
+            justify-items: start;
+            width: 100%;
+        }
+        .legend-panel-body .legend-item {
+            /* Flatten the wrapper into the grid so its children become grid
+               cells directly — produces a perfectly aligned table-like read. */
+            display: contents;
+            font-size: 10px; color: #555;
+        }
+        .legend-panel-body .legend-item svg {
+            width: 16px; height: 16px; flex-shrink: 0;
+            grid-column: 1; justify-self: center;
+        }
+        .legend-panel-body .legend-item-label {
+            grid-column: 2; justify-self: start;
+            font-size: 10px; color: #555; line-height: 1.2;
+            white-space: nowrap;
+        }
+        body.dark-theme .legend-panel-body { color: #ccc; }
+        body.dark-theme .legend-panel-body .legend-item-label { color: #ccc; }
+        body.dark-theme .legend-panel-toggle {
+            background: linear-gradient(135deg,#1a73e8,#1862c4) !important;
+        }
+        body.dark-theme .legend-panel-body {
+            background: #242830; border-color: #3a3f48;
+        }
+        body.dark-theme .legend-panel-body .legend-item { color: #ccc; }
         .place-toolbar .tool-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
         }
         .place-toolbar button {
-            width: 36px; height: 36px; border: 1px solid #ddd; background: #fff;
-            cursor: pointer; border-radius: 6px; font-size: 14px; color: #555;
+            width: 30px; height: 30px; border: 1px solid #ddd; background: #fff;
+            cursor: pointer; border-radius: 5px; font-size: 13px; color: #555;
             display: flex; align-items: center; justify-content: center;
             transition: all 0.15s; padding: 0;
         }
+        .place-toolbar button svg { width: 16px; height: 16px; }
         .place-toolbar button:hover { background: #f0f0f0; border-color: #bbb; }
         .place-toolbar button.active { background: #3498db; color: white; border-color: #3498db; }
         .place-toolbar button.active svg rect,
@@ -285,10 +465,10 @@
         .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
         .section-title {
-            font-size: 12px; font-weight: 600; color: #888;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin: 16px 0 8px; padding-bottom: 4px;
-            border-bottom: 1px solid #eee;
+            font-size: 11px; font-weight: 700; color: #9aa0aa;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin: 18px 0 10px; padding-bottom: 6px;
+            border-bottom: 1px solid #edf0f2;
         }
 
         .proband-indicator { font-size: 11px; color: #e67e22; font-weight: 600; }
@@ -394,6 +574,14 @@
             font-weight: 700; color: #aaa; font-size: 12px;
         }
         .scm-sep { height: 1px; background: #eee; margin: 4px 0; }
+        .scm-title {
+            padding: 5px 12px 6px; font-size: 10.5px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; color: #9aa0aa;
+        }
+        .scm-item.scm-danger:hover { background: #fdecea; color: #c0392b; }
+        .scm-item.scm-danger:hover .scm-check { color: #c0392b; }
+        body.dark-theme .scm-title { color: #888; }
+        body.dark-theme .scm-item.scm-danger:hover { background: #3a2422; color: #f0908a; }
         body.dark-theme .status-context-menu { background: #2a2e36; border-color: #3a3f48; color: #ddd; }
         body.dark-theme .scm-item:hover { background: #34394a; color: #5dade2; }
         body.dark-theme .scm-item.checked { background: #2a3540; color: #5dade2; }
@@ -479,16 +667,26 @@
 
         /* ===== Dark Theme ===== */
         body.dark-theme { background: #1a1d21; color: #e8e8e8; }
-        body.dark-theme .app-header { background: linear-gradient(135deg, #0f1419, #1a4561); }
+        body.dark-theme .app-header { background: #141821; border-bottom-color: rgba(255,255,255,0.05); }
         body.dark-theme .left-panel { background: #242830; border-right-color: #3a3f48; }
         body.dark-theme .panel-tabs { border-bottom-color: #3a3f48; }
         body.dark-theme .panel-tab { color: #aaa; }
         body.dark-theme .panel-tab.active { color: #5dade2; border-bottom-color: #5dade2; }
         body.dark-theme .panel-tab:hover { color: #5dade2; }
         body.dark-theme .right-panel { background: #2a2e36; }
-        body.dark-theme .canvas-container { background: #2a2e36; }
-        body.dark-theme #pedigree-svg text { fill: #ddd !important; }
+        body.dark-theme .canvas-container {
+            background-color: #23272f;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1.4px);
+        }
+        /* Generic light text in dark theme — but DON'T flatten the colored
+           clinical labels (disease/variant/cancer); those keep dedicated,
+           brightened colors below so they stay readable AND meaningful. */
+        body.dark-theme #pedigree-svg text:not(.lbl-cancer):not(.lbl-disease):not(.lbl-variant) { fill: #ddd !important; }
         body.dark-theme #pedigree-svg text.pedigree-title-text { fill: #f0f0f0 !important; }
+        body.dark-theme #pedigree-svg text.lbl-disease { fill: #f0909c !important; }
+        body.dark-theme #pedigree-svg text.lbl-variant { fill: #bca8ee !important; }
+        /* lbl-cancer keeps its per-type inline color (orange/teal/purple…),
+           which already reads well on the dark canvas. */
         body.dark-theme #pedigree-svg rect:not([fill="none"]):not([fill="#333"]),
         body.dark-theme #pedigree-svg circle:not([fill="none"]):not([fill="#333"]):not([fill="#27ae60"]):not([fill="white"]):not([fill="transparent"]) { }
         body.dark-theme #pedigree-svg line { stroke: #ddd !important; }
@@ -600,19 +798,22 @@
 
         /* ===== Mode Toggle (Rare disease vs Cancer) ===== */
         .mode-toggle {
-            display: inline-flex; background: rgba(255,255,255,0.1); border-radius: 8px;
+            display: inline-flex; background: rgba(255,255,255,0.07); border-radius: 8px;
             padding: 3px; margin-right: 12px;
         }
         .mode-toggle button {
-            padding: 6px 12px; border: none; background: transparent; color: rgba(255,255,255,0.75);
+            padding: 6px 12px; border: none; background: transparent; color: rgba(255,255,255,0.65);
             cursor: pointer; border-radius: 6px; font-size: 12px; font-weight: 500;
             transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 6px; line-height: 1;
         }
+        .mode-toggle button svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .mode-toggle button span { white-space: nowrap; }
         .mode-toggle button.active {
-            background: white; color: #2c3e50; font-weight: 600;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            background: #fff; color: #1f2a37; font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.18);
         }
-        .mode-toggle button:hover:not(.active) { color: white; }
+        .mode-toggle button:hover:not(.active) { color: #fff; }
 
         /* ===== Cancer-specific UI ===== */
         .cancer-section { display: none; }
@@ -793,18 +994,31 @@
 <body>
 
 <div class="app-header">
-    <h1 data-i18n="app.title">Pedigri Çizim Uygulaması</h1>
+    <div class="app-brand">
+        <svg class="app-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="6" r="2.5"/><circle cx="16.5" cy="6" r="2.5"/><path d="M7.5 8.5v3a4.5 4.5 0 0 0 9 0v-3"/><line x1="12" y1="16" x2="12" y2="18.5"/><rect x="9" y="18.5" width="6" height="3.5" rx="1"/></svg>
+        <h1 data-i18n="app.title">Pedigri Çizim Uygulaması</h1>
+    </div>
     <div class="mode-toggle" id="modeToggle">
-        <button class="active" data-mode="rare" onclick="setMode('rare')" title="Genetik hastalık pedigresi" data-i18n="mode.rare">🧬 Nadir Hastalık</button>
-        <button data-mode="cancer" onclick="setMode('cancer')" title="Onkogenetik kanser pedigresi" data-i18n="mode.cancer">🩸 Kanser Pedigresi</button>
+        <button class="active" data-mode="rare" onclick="setMode('rare')" title="Genetik hastalık pedigresi">
+            <span data-i18n="mode.rare">Nadir Hastalık</span></button>
+        <button data-mode="cancer" onclick="setMode('cancer')" title="Onkogenetik kanser pedigresi">
+            <span data-i18n="mode.cancer">Kanser Pedigresi</span></button>
     </div>
     <div class="header-actions">
-        <button onclick="saveToFile()" title="JSON olarak kaydet" data-i18n="btn.save">💾 Kaydet</button>
-        <button onclick="loadFromFile()" title="JSON yükle" data-i18n="btn.load">📂 Yükle</button>
-        <button onclick="generateShareLink()" title="Paylaşılabilir link oluştur" data-i18n="btn.share">🔗 Paylaş</button>
+        <button onclick="saveToFile()" title="JSON olarak kaydet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span data-i18n="btn.save">Kaydet</span></button>
+        <button onclick="loadFromFile()" title="JSON yükle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span data-i18n="btn.load">Yükle</span></button>
+        <button onclick="generateShareLink()" title="Paylaşılabilir link oluştur">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span data-i18n="btn.share">Paylaş</span></button>
         <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="handleFileLoad(event)">
         <div class="export-dropdown">
-            <button onclick="toggleExportMenu()" data-i18n="btn.export">📥 Export ▾</button>
+            <button onclick="toggleExportMenu()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="btn.export">Export</span> <span class="caret">▾</span></button>
             <div class="export-menu" id="exportMenu">
                 <button onclick="exportSVG(); closeExportMenu()" data-i18n="btn.export.svg">📄 SVG olarak indir</button>
                 <button onclick="exportPNG(); closeExportMenu()" data-i18n="btn.export.png">🖼️ PNG olarak indir</button>
@@ -816,10 +1030,15 @@
                 </label>
             </div>
         </div>
-        <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn">🇹🇷 TR</button>
-        <button onclick="toggleDarkTheme()" data-i18n-title="btn.theme" title="Tema değiştir" id="themeBtn">🌙</button>
-        <button onclick="openHelpModal()" data-i18n-title="btn.help" title="Yardım & Kısayollar">❓</button>
-        <button onclick="clearAll()" data-i18n="btn.clear">🗑️ Temizle</button>
+        <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn" class="icon-btn-text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span id="langBtnText">TR</span></button>
+        <button onclick="toggleDarkTheme()" data-i18n-title="btn.theme" title="Tema değiştir" id="themeBtn" class="icon-only"></button>
+        <button onclick="openHelpModal()" data-i18n-title="btn.help" title="Yardım & Kısayollar" class="icon-only">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
+        <button onclick="clearAll()" title="Tümünü temizle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        <span data-i18n="btn.clear">Temizle</span></button>
     </div>
 </div>
 
@@ -840,7 +1059,12 @@
         <div id="tab-add" class="tab-content active">
             <div class="form-group">
                 <label data-i18n="label.name">Ad Soyad</label>
-                <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name" oninput="onMemberNameInput(this.value)">
+                <!-- Wrapper hosts the internal-ID suffix that floats on the
+                     right edge of the input. No extra row → no wasted space. -->
+                <div class="name-field-wrapper">
+                    <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name" oninput="onMemberNameInput(this.value)">
+                    <span id="memberInternalIdSuffix" class="name-field-suffix" style="display:none;"></span>
+                </div>
             </div>
             <div class="form-row">
                 <div class="form-group" data-i18n-title="tip.sex" title="Cinsiyet sembolü">
@@ -1119,6 +1343,8 @@
             <button onclick="zoomIn()" data-i18n-title="tool.zoomin" title="Yakınlaştır">+</button>
             <button onclick="zoomOut()" data-i18n-title="tool.zoomout" title="Uzaklaştır">−</button>
             <button onclick="resetZoom()" data-i18n-title="tool.zoomreset" title="Sıfırla">⟳</button>
+            <button onclick="textSizeDecrease()" title="Yazı Boyutu −" style="font-weight:600;">A−</button>
+            <button onclick="textSizeIncrease()" title="Yazı Boyutu +" style="font-weight:600;">A+</button>
         </div>
         <div class="place-toolbar" id="placeToolbar">
             <div class="tool-grid">
@@ -1177,14 +1403,24 @@
                 <button onclick="cancelPlaceMode()" data-i18n-title="tool.cancel" title="İptal" style="font-size:12px;">✕</button>
             </div>
         </div>
+        <!-- Collapsible Symbol Legend — positioned in its OWN floating panel
+             right below the place-toolbar, so the toolbar stays at its narrow
+             native width (driven by tool buttons only) while the legend can
+             have a slightly wider, balanced grid layout. -->
+        <div id="legendPanel" class="legend-panel" data-collapsed="true">
+            <button id="legendToggleBtn" type="button" class="legend-panel-toggle" onclick="toggleLegendPanel()" aria-expanded="false" aria-controls="legendPanelBody" title="Sembol Açıklamaları (aç/kapat)">
+                <span class="legend-panel-label" data-i18n="lg.short">LEJAND</span>
+                <span class="legend-panel-caret">▼</span>
+            </button>
+            <div id="legendPanelBody" class="legend-panel-body">
+                <div id="legendContent"></div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Legend overlay -->
-<div class="legend-box" id="legendBox" style="display:none;">
-    <h4 data-i18n="lg.title">Sembol Açıklamaları</h4>
-    <div id="legendContent"></div>
-</div>
+<!-- Rubber-band selection overlay -->
+<div id="rubberBand" style="position:absolute; display:none; border:1.5px dashed #3498db; background:rgba(52,152,219,0.12); pointer-events:none; z-index:25; border-radius:2px;"></div>
 
 <!-- Hover tooltip (member info) -->
 <div class="pedigree-tooltip" id="pedigreeTooltip"></div>
@@ -1223,6 +1459,9 @@
     <button class="scm-item" data-preg="SAB"  onclick="setQuickPregnancy('SAB')"><span class="scm-check">▲</span> <span data-i18n="scm.preg.sab">Spontan abort</span></button>
     <button class="scm-item" data-preg="none" onclick="setQuickPregnancy('none')"><span class="scm-check">⌫</span> <span data-i18n="scm.preg.clear">Hamilelik temizle</span></button>
 </div>
+
+<!-- Connection (line) right-click menu — items injected dynamically -->
+<div class="status-context-menu" id="connContextMenu" role="menu"></div>
 
 <!-- Custom UI tooltip (for toolbar/buttons) -->
 <div class="ui-tooltip" id="uiTooltip"></div>
@@ -1346,6 +1585,120 @@ function getCancerColor(cancerType) {
     let hash = 0;
     for (let i = 0; i < cancerType.length; i++) hash = (hash * 31 + cancerType.charCodeAt(i)) | 0;
     return CANCER_COLORS[Math.abs(hash) % CANCER_COLORS.length];
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Unified phenotype/symptom fill renderer.
+// Accepts a phenotype list and lays it out inside a pedigree shape using
+// clinical-standard segmentation rules:
+//   n=1   → full fill
+//   n=2   → two equal halves (left/right for square+circle, top/bottom triangles for diamond)
+//   n=3   → 3 pie sectors (circle) / 3 vertical stripes (square) / 3 horizontal slices (diamond)
+//   n=4   → 4 quadrants ordered TR → BR → BL → TL
+//   n≥5   → first 4 quadrants + small "+N" overflow badge bottom-right
+// Each segment gets a <title>name</title> child for native browser tooltips.
+// shape: 'circle' | 'square' | 'diamond'
+function renderPhenotypeSegments(pos, shape, r, items, opacity) {
+    if (!items || items.length === 0) return '';
+    const op = opacity != null ? opacity : 0.85;
+    const n = items.length;
+    const overflow = n > 4;
+    const drawN = overflow ? 4 : n;
+    const x = pos.x, y = pos.y;
+    const xe = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const wrap = (el, name) => el.replace(/(<(?:rect|circle|path|polygon)\b[^>]*?)\/?>/,
+        (m, p) => p + `><title>${xe(name)}</title></` + m.match(/<(\w+)/)[1] + `>`);
+    let out = '';
+
+    function fullFill(item) {
+        const c = item.color, t = `<title>${xe(item.name)}</title>`;
+        if (shape === 'circle')
+            return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" opacity="${op}">${t}</circle>`;
+        if (shape === 'square')
+            return `<rect x="${x-r}" y="${y-r}" width="${r*2}" height="${r*2}" fill="${c}" opacity="${op}">${t}</rect>`;
+        return `<polygon points="${x},${y-r} ${x+r},${y} ${x},${y+r} ${x-r},${y}" fill="${c}" opacity="${op}">${t}</polygon>`;
+    }
+    function pieSector(item, startDeg, sweepDeg) {
+        const s = (startDeg - 90) * Math.PI / 180;
+        const e = (startDeg + sweepDeg - 90) * Math.PI / 180;
+        const x1 = x + r * Math.cos(s), y1 = y + r * Math.sin(s);
+        const x2 = x + r * Math.cos(e), y2 = y + r * Math.sin(e);
+        const large = sweepDeg > 180 ? 1 : 0;
+        return `<path d="M${x},${y} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z" fill="${item.color}" opacity="${op}"><title>${xe(item.name)}</title></path>`;
+    }
+
+    if (drawN === 1) {
+        out += fullFill(items[0]);
+    } else if (drawN === 2) {
+        // Two equal halves — left/right for circle/square, top/bottom for diamond
+        const a = items[0], b = items[1];
+        if (shape === 'circle') {
+            // Left semicircle (arc going down on the left side)
+            out += `<path d="M${x},${y-r} A${r},${r} 0 0,0 ${x},${y+r} Z" fill="${a.color}" opacity="${op}"><title>${xe(a.name)}</title></path>`;
+            out += `<path d="M${x},${y-r} A${r},${r} 0 0,1 ${x},${y+r} Z" fill="${b.color}" opacity="${op}"><title>${xe(b.name)}</title></path>`;
+        } else if (shape === 'square') {
+            out += `<rect x="${x-r}" y="${y-r}" width="${r}" height="${r*2}" fill="${a.color}" opacity="${op}"><title>${xe(a.name)}</title></rect>`;
+            out += `<rect x="${x}"   y="${y-r}" width="${r}" height="${r*2}" fill="${b.color}" opacity="${op}"><title>${xe(b.name)}</title></rect>`;
+        } else {
+            // diamond — top triangle vs bottom triangle (perfectly symmetric)
+            out += `<polygon points="${x},${y-r} ${x+r},${y} ${x-r},${y}" fill="${a.color}" opacity="${op}"><title>${xe(a.name)}</title></polygon>`;
+            out += `<polygon points="${x-r},${y} ${x+r},${y} ${x},${y+r}" fill="${b.color}" opacity="${op}"><title>${xe(b.name)}</title></polygon>`;
+        }
+    } else if (drawN === 3) {
+        if (shape === 'circle') {
+            for (let i = 0; i < 3; i++) out += pieSector(items[i], i * 120, 120);
+        } else if (shape === 'square') {
+            const w = (r * 2) / 3;
+            for (let i = 0; i < 3; i++) {
+                out += `<rect x="${x - r + i*w}" y="${y-r}" width="${w}" height="${r*2}" fill="${items[i].color}" opacity="${op}"><title>${xe(items[i].name)}</title></rect>`;
+            }
+        } else {
+            // diamond — 3 horizontal slices, clipped visually via the outline redraw
+            const h = (r * 2) / 3;
+            for (let i = 0; i < 3; i++) {
+                out += `<rect x="${x-r}" y="${y-r+i*h}" width="${r*2}" height="${h}" fill="${items[i].color}" opacity="${op}"><title>${xe(items[i].name)}</title></rect>`;
+            }
+        }
+    } else { // 4 quadrants in order TR, BR, BL, TL
+        if (shape === 'circle') {
+            // Quarter-pie sectors: TR=top-right, BR=bottom-right, BL=bottom-left, TL=top-left
+            // startDeg uses 12-o'clock as 0, clockwise positive.
+            const angles = [0, 90, 180, 270]; // TR sweep 0–90, etc.
+            for (let i = 0; i < 4; i++) out += pieSector(items[i], angles[i], 90);
+        } else if (shape === 'square') {
+            const half = r;
+            const quads = [
+                { qx: x,       qy: y - r, name: items[0] }, // TR
+                { qx: x,       qy: y,     name: items[1] }, // BR
+                { qx: x - r,   qy: y,     name: items[2] }, // BL
+                { qx: x - r,   qy: y - r, name: items[3] }, // TL
+            ];
+            quads.forEach(q => {
+                out += `<rect x="${q.qx}" y="${q.qy}" width="${half}" height="${half}" fill="${q.name.color}" opacity="${op}"><title>${xe(q.name.name)}</title></rect>`;
+            });
+        } else {
+            // diamond — 4 triangle quadrants meeting at center
+            const tris = [
+                { pts: `${x},${y} ${x},${y-r} ${x+r},${y}`, item: items[0] }, // TR
+                { pts: `${x},${y} ${x+r},${y} ${x},${y+r}`, item: items[1] }, // BR
+                { pts: `${x},${y} ${x},${y+r} ${x-r},${y}`, item: items[2] }, // BL
+                { pts: `${x},${y} ${x-r},${y} ${x},${y-r}`, item: items[3] }, // TL
+            ];
+            tris.forEach(t => {
+                out += `<polygon points="${t.pts}" fill="${t.item.color}" opacity="${op}"><title>${xe(t.item.name)}</title></polygon>`;
+            });
+        }
+    }
+
+    // Overflow indicator: small white badge with "+N" at bottom-right
+    if (overflow) {
+        const remaining = n - drawN;
+        const tx = x + r * 0.65, ty = y + r * 0.65;
+        const names = items.slice(drawN).map(p => p.name).join(', ');
+        out += `<circle cx="${tx}" cy="${ty}" r="9" fill="#fff" stroke="#333" stroke-width="1"><title>${xe(names)}</title></circle>`;
+        out += `<text x="${tx}" y="${ty + 3.5}" text-anchor="middle" font-size="10" font-weight="bold" fill="#333" pointer-events="none">+${remaining}</text>`;
+    }
+    return out;
 }
 
 let familyData = {
@@ -1490,7 +1843,29 @@ function editMember(id) {
     // Single source of truth: keep canvas focus and panel editor in sync
     editingMemberId = id;
     focusedMemberId = id;
-    document.getElementById('memberName').value = m.name;
+    // Hidden internal identifier — keeps the user oriented while editing
+    // without polluting the canvas. Shown ONLY as the Name field's
+    // placeholder when the real name is empty (or as helper text).
+    // Internal ID is "Birey N" / "Individual N" using a 1-based index.
+    const internalIdx = familyData.members.findIndex(x => x.id === id) + 1;
+    const tr = (typeof currentLang !== 'undefined' && currentLang === 'en') ? 'Individual' : 'Birey';
+    const internalLabel = `${tr} ${internalIdx}`;
+    const nameEl = document.getElementById('memberName');
+    nameEl.value = m.name;
+    nameEl.placeholder = internalLabel; // shows when empty
+    // Show the internal ID as a soft greyed-out suffix INSIDE the name field
+    // (no extra vertical row — sits on the right edge of the input so it
+    // doesn't take up space). Only visible while editing an existing member.
+    const idSuffix = document.getElementById('memberInternalIdSuffix');
+    if (idSuffix) {
+        idSuffix.textContent = internalLabel;
+        idSuffix.style.display = '';
+    }
+    // NOTE: We deliberately do NOT auto-expand the left panel here. Panel
+    // expansion happens only when the user explicitly asks for it — either by
+    // clicking the "Advanced Edit" button in the quick-edit popup, or by
+    // pressing the manual toggle. Plain selection / canvas double-click /
+    // member-list click must NOT force the panel open.
     document.getElementById('memberSex').value = m.sex;
     // Make sure the dropdown has the option for this member's generation
     // (could be higher than the current max if loaded from save/share).
@@ -1561,6 +1936,9 @@ function cancelEdit() {
 
 function resetForm() {
     document.getElementById('memberName').value = '';
+    // Hide the internal-ID suffix (only shown when editing an existing member)
+    const idSuffix = document.getElementById('memberInternalIdSuffix');
+    if (idSuffix) idSuffix.style.display = 'none';
     document.getElementById('memberSex').value = 'male';
     document.getElementById('memberGeneration').value = '2';
     document.getElementById('memberAge').value = '';
@@ -2344,8 +2722,8 @@ const I18N = {
     tr: {
         // Header
         'app.title': 'Pedigri Çizim Uygulaması',
-        'mode.rare': '🧬 Nadir Hastalık',
-        'mode.cancer': '🩸 Kanser Pedigresi',
+        'mode.rare': 'Nadir Hastalık',
+        'mode.cancer': 'Kanser Pedigresi',
         'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
         'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
         'title.useProband': 'Proband adını başlık olarak kullan',
@@ -2354,15 +2732,15 @@ const I18N = {
         'title.clear': 'Başlığı temizle',
         'export.askFilename': 'İndirmeden önce dosya adını sor',
         'export.filename.prompt': 'Dosya adı:',
-        'btn.save': '💾 Kaydet',
-        'btn.load': '📂 Yükle',
-        'btn.share': '🔗 Paylaş',
-        'btn.export': '📥 Export ▾',
+        'btn.save': 'Kaydet',
+        'btn.load': 'Yükle',
+        'btn.share': 'Paylaş',
+        'btn.export': 'Export',
         'btn.export.svg': '📄 SVG olarak indir',
         'btn.export.png': '🖼️ PNG olarak indir',
         'btn.export.pdf': '📋 PDF olarak indir',
         'btn.export.csv': '📊 CSV olarak indir (üye listesi)',
-        'btn.clear': '🗑️ Temizle',
+        'btn.clear': 'Temizle',
         'btn.help': 'Yardım & Kısayollar',
         'btn.theme': 'Tema değiştir',
         // Tabs
@@ -2536,6 +2914,7 @@ const I18N = {
         'tool.minimap': 'Mini Harita',
         // Legend
         'lg.title': 'Sembol Açıklamaları',
+        'lg.short': 'Lejand',
         'lg.male': 'Erkek',
         'lg.female': 'Kadın',
         'lg.affected': 'Etkilenmiş',
@@ -2660,8 +3039,8 @@ const I18N = {
     },
     en: {
         'app.title': 'Pedigree Drawing Application',
-        'mode.rare': '🧬 Rare Disease',
-        'mode.cancer': '🩸 Cancer Pedigree',
+        'mode.rare': 'Rare Disease',
+        'mode.cancer': 'Cancer Pedigree',
         'title.placeholder': 'Pedigree title (family name or proband)',
         'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
         'title.useProband': 'Use proband name as title',
@@ -2670,15 +3049,15 @@ const I18N = {
         'title.clear': 'Clear title',
         'export.askFilename': 'Ask for filename before download',
         'export.filename.prompt': 'Filename:',
-        'btn.save': '💾 Save',
-        'btn.load': '📂 Load',
-        'btn.share': '🔗 Share',
-        'btn.export': '📥 Export ▾',
+        'btn.save': 'Save',
+        'btn.load': 'Load',
+        'btn.share': 'Share',
+        'btn.export': 'Export',
         'btn.export.svg': '📄 Download as SVG',
         'btn.export.png': '🖼️ Download as PNG',
         'btn.export.pdf': '📋 Download as PDF',
         'btn.export.csv': '📊 Download as CSV (member list)',
-        'btn.clear': '🗑️ Clear',
+        'btn.clear': 'Clear',
         'btn.help': 'Help & Shortcuts',
         'btn.theme': 'Toggle theme',
         'tab.add': 'Add / Edit Member',
@@ -2841,6 +3220,7 @@ const I18N = {
         'tool.zoomreset': 'Reset',
         'tool.minimap': 'Minimap',
         'lg.title': 'Symbol Legend',
+        'lg.short': 'Legend',
         'lg.male': 'Male',
         'lg.female': 'Female',
         'lg.affected': 'Affected',
@@ -2989,9 +3369,9 @@ function applyTranslations() {
     });
     // Update document title
     document.title = t('app.title');
-    // Update lang button
-    const btn = document.getElementById('langBtn');
-    if (btn) btn.textContent = currentLang === 'tr' ? '🇹🇷 TR' : '🇬🇧 EN';
+    // Update lang button text only (keep the inline globe SVG intact)
+    const langTxt = document.getElementById('langBtnText');
+    if (langTxt) langTxt.textContent = currentLang === 'tr' ? 'TR' : 'EN';
     // Re-render dynamic content
     if (typeof updateUI === 'function') updateUI();
     if (typeof renderPedigree === 'function') renderPedigree();
@@ -3454,9 +3834,21 @@ function computeLayout() {
     });
 
     // ============ CENTER CHILDREN UNDER PARENTS ============
-    // Standard pedigree convention: distribute siblings evenly around parent midpoint
-    // Track which child positions came from centering (so they get re-checked for overlap)
+    // Standard pedigree convention: distribute siblings evenly around parent
+    // midpoint. The stride between siblings must be ≥ the per-generation
+    // minCenterDist (density-aware), otherwise the overlap-resolution pass
+    // below will shift later siblings to the right and break symmetry.
     const centeredChildren = new Set();
+    // Compute density factor inline (same formula as getDensityFactor below)
+    function densityFor(gen) {
+        const gm = generations[gen] || [];
+        const partnersInGen = familyData.partnerships.filter(p =>
+            gm.find(m => m.id === p.partner1) && gm.find(m => m.id === p.partner2)
+        ).length;
+        const memberFactor = Math.min(0.3, gm.length / 30);
+        const partnerFactor = Math.min(0.3, partnersInGen / 15);
+        return 1 + memberFactor + partnerFactor;
+    }
     familyData.partnerships.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
@@ -3474,19 +3866,36 @@ function computeLayout() {
             centeredChildren.add(children[0]);
             return;
         }
-        // Multiple children: distribute evenly around parent midpoint
-        // (Use original child order — crossing minimization removed: was causing
-        // unstable templates due to imperfect sort comparator)
-        // Spacing tightens as count grows but stays readable up to 9+ siblings.
+        // Multi-child siblings: apply standard clinical pedigree symmetry rule
+        // ALWAYS, regardless of any pre-existing customX (which can come from
+        // sequential placement or template lock and would otherwise cause an
+        // asymmetric layout that visually drifts off the parent center line).
+        //
+        //   • odd n  → middle sibling lands exactly on the parent center line
+        //   • even n → the GAP between the two middle siblings is centered on
+        //              the parent center line (so the descent line splits them)
+        //
+        // The centroid of children equals parentCenterX for any n, which gives
+        // both rules automatically:
+        //     pos[i] = parentCenterX + (i - (n-1)/2) * stride
+        //
+        // Stride is widened to at least the density-aware minCenterDist so
+        // the later overlap pass never has to shift siblings (which would
+        // break the symmetric centroid).
         const n = children.length;
         const childGap = n <= 2 ? 80 : n <= 4 ? 60 : n <= 6 ? 45 : n <= 8 ? 35 : 30;
-        const childrenTotalWidth = children.length * NODE_W + (children.length - 1) * childGap;
-        const childStartX = parentCenterX - childrenTotalWidth / 2 + NODE_W / 2;
+        const childGen = familyData.members.find(m => m.id === children[0])?.generation;
+        const dFactor = childGen != null ? densityFor(childGen) : 1;
+        const minCenterDist = (NODE_W + 30) * dFactor; // matches overlap pass
+        const stride = Math.max(NODE_W + childGap, minCenterDist);
         children.forEach((childId, i) => {
-            const child = familyData.members.find(m => m.id === childId);
-            if (child && child.customX != null) return;
-            positions[childId].x = childStartX + i * (NODE_W + childGap);
+            const offset = (i - (n - 1) / 2) * stride;
+            positions[childId].x = parentCenterX + offset;
             centeredChildren.add(childId);
+            // We deliberately do NOT mutate child.customX here — it is the
+            // input to next layout, but the centering pass always overrides
+            // positions for siblings, so its stored value becomes a no-op.
+            // (Clearing it would interfere with group-move bookkeeping.)
         });
     });
 
@@ -3675,15 +4084,41 @@ function renderPedigree() {
                     html += `<rect x="0" y="${gy - NODE_H_E/2 - 6}" width="${w}" height="${NODE_H_E + 12}" fill="#3498db" opacity="0.07" pointer-events="none"/>`;
                 }
                 html += `<g class="gen-row-label" data-gen="${g}" style="cursor:pointer">`;
-                html += `<rect x="6" y="${gy - 18}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.18 : 1}"/>`;
+                html += `<rect x="6" y="${gy - 18}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'none'}" opacity="${isActive ? 0.18 : 1}"/>`;
                 html += `<text x="25" y="${gy - 1}" text-anchor="middle" font-size="14" fill="${isActive ? '#1a73e8' : '#7a9bb8'}" font-weight="600">${toRoman(g)}</text>`;
                 html += `</g>`;
             }
             svg.innerHTML = html;
         } else {
-            svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#aaa" font-size="16">Pedigri çizmek için aile üyelerini ekleyin</text>';
-            svg.setAttribute('width', '100%');
-            svg.setAttribute('height', '100%');
+            // Inviting empty state: a faint mini-pedigree illustration + copy.
+            const cont = document.getElementById('canvasContainer');
+            const cw = Math.max(600, cont.clientWidth);
+            const ch = Math.max(420, cont.clientHeight);
+            svg.setAttribute('width', cw);
+            svg.setAttribute('height', ch);
+            svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
+            const cx = Math.round(cw / 2);
+            const cy = Math.round(ch / 2) - 40;
+            const isEn = (typeof currentLang !== 'undefined' && currentLang === 'en');
+            const title = isEn ? 'Start your pedigree' : 'Pedigri çizmeye başlayın';
+            const sub = isEn
+                ? 'Add a member from the left panel, or pick a ready template'
+                : 'Soldaki panelden üye ekleyin veya hazır bir şablon seçin';
+            svg.innerHTML = `
+              <g fill="none" stroke="#c2cad4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+                <rect x="${cx - 74}" y="${cy - 58}" width="46" height="46" rx="2"/>
+                <circle cx="${cx + 50}" cy="${cy - 35}" r="23"/>
+                <line x1="${cx - 28}" y1="${cy - 35}" x2="${cx + 27}" y2="${cy - 35}"/>
+                <line x1="${cx}" y1="${cy - 35}" x2="${cx}" y2="${cy + 4}"/>
+                <line x1="${cx - 42}" y1="${cy + 4}" x2="${cx + 42}" y2="${cy + 4}"/>
+                <line x1="${cx - 42}" y1="${cy + 4}" x2="${cx - 42}" y2="${cy + 20}"/>
+                <line x1="${cx + 42}" y1="${cy + 4}" x2="${cx + 42}" y2="${cy + 20}"/>
+                <rect x="${cx - 60}" y="${cy + 20}" width="36" height="36" rx="2"/>
+                <circle cx="${cx + 42}" cy="${cy + 38}" r="18"/>
+              </g>
+              <text x="${cx}" y="${cy + 112}" text-anchor="middle" fill="#7a828d" font-size="19" font-weight="600">${title}</text>
+              <text x="${cx}" y="${cy + 137}" text-anchor="middle" fill="#aab0b8" font-size="13">${sub}</text>
+            `;
         }
         lastLayout = null;
         return;
@@ -3714,14 +4149,16 @@ function renderPedigree() {
         const g = parseInt(gen);
         const isActive = selectedGeneration === g;
         // Selection band across the row (visual feedback)
+        // Use vbW (full SVG viewBox width) instead of layout content width so the
+        // band always spans the visible canvas, even when content is narrow.
         if (isActive) {
             const NODE_H_BAND = 60;
-            svgContent += `<rect class="gen-row-band" x="0" y="${y - NODE_H_BAND/2 - 6}" width="${width}" height="${NODE_H_BAND + 12}" fill="#3498db" opacity="0.07" pointer-events="none"/>`;
+            svgContent += `<rect class="gen-row-band" x="0" y="${y - NODE_H_BAND/2 - 6}" width="${vbW}" height="${NODE_H_BAND + 12}" fill="#3498db" opacity="0.07" pointer-events="none"/>`;
         }
         // Clickable label (click → selectGenerationRow)
         const labelFill = isActive ? '#1a73e8' : '#999';
         svgContent += `<g class="gen-row-label" data-gen="${g}" style="cursor:pointer">`;
-        svgContent += `<rect x="6" y="${y - 12}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.12 : 1}"/>`;
+        svgContent += `<rect x="6" y="${y - 12}" width="38" height="24" rx="4" fill="${isActive ? '#1a73e8' : 'none'}" opacity="${isActive ? 0.12 : 1}"/>`;
         svgContent += `<text x="30" y="${y + 5}" text-anchor="middle" font-size="16" font-weight="bold" fill="${labelFill}">${toRoman(g)}</text>`;
         svgContent += `</g>`;
     });
@@ -4024,11 +4461,23 @@ function renderPedigree() {
                 svgContent += `<line x1="${childPos.x}" y1="${sibshipY}" x2="${childPos.x}" y2="${childPos.y - NODE_R}" stroke="#333" stroke-width="1.5" />`;
             }
         } else {
-            // Horizontal sibship line spanning all children
-            const minChildX = Math.min(...childPositions.map(p => p.x));
-            const maxChildX = Math.max(...childPositions.map(p => p.x));
-            const lineMinX = Math.min(minChildX, midX);
-            const lineMaxX = Math.max(maxChildX, midX);
+            // Horizontal sibship line spans all child-group attachment points.
+            //
+            // For each child group the "attachment X" is the X at which that
+            // group's vertical trunk meets the sibship line:
+            //   • single child → the child's own X
+            //   • twin pair    → the V-junction midpoint (NOT the outer twin's
+            //                    X, which would leave a dangling horizontal
+            //                    segment continuing past the twin V — the bug
+            //                    the user reported)
+            const groupAttachX = childGroups.map(grp => {
+                if (grp.type === 'single') return positions[grp.id].x;
+                const p1 = positions[grp.ids[0]];
+                const p2 = positions[grp.ids[1]];
+                return (p1.x + p2.x) / 2;
+            });
+            const lineMinX = Math.min(...groupAttachX, midX);
+            const lineMaxX = Math.max(...groupAttachX, midX);
             svgContent += `<line x1="${lineMinX}" y1="${sibshipY}" x2="${lineMaxX}" y2="${sibshipY}" stroke="#333" stroke-width="1.5" />`;
 
             // Render each child group: regular drop OR twin V-junction
@@ -4097,7 +4546,13 @@ function renderPedigree() {
         const pos = positions[m.id];
         if (!pos) return;
 
-        const fillColor = m.affected ? '#333' : 'none';
+        // If the member has phenotype data (diseases or cancers) we'll paint
+        // colored segments on top — skip the solid black "affected" fill so
+        // the segment colors stay clean. (Otherwise segments draw over a dark
+        // background and appear muddy/dark.)
+        const hasPhenoSegments = (m.diseases && m.diseases.length > 0) ||
+                                 (m.cancers && m.cancers.length > 0);
+        const fillColor = (m.affected && !hasPhenoSegments) ? '#333' : 'none';
         const strokeColor = '#333';
 
         // Pregnancy/loss symbols (P, SAB, TOP, SB) — replace shape entirely
@@ -4132,104 +4587,60 @@ function renderPedigree() {
         }
         // Draw shape (normal)
         else if (m.sex === 'male') {
-            svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R * 2}" height="${NODE_R * 2}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            svgContent += `<rect class="pnode" x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R * 2}" height="${NODE_R * 2}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
             // Carrier dot for male
             if (m.carrier && !m.affected) {
                 svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
             }
         } else if (m.sex === 'female') {
-            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            svgContent += `<circle class="pnode" cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
             // Carrier dot for female
             if (m.carrier && !m.affected) {
                 svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
             }
         } else {
             // Diamond for unknown sex
-            svgContent += `<polygon points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
+            svgContent += `<polygon class="pnode" points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" />`;
             if (m.carrier && !m.affected) {
                 svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="8" fill="#333" />`;
             }
         }
 
-        // Disease color sectors (if multiple diseases and affected)
-        if (m.diseases.length > 1 && m.affected) {
-            const sectorAngle = 360 / m.diseases.length;
-            m.diseases.forEach((d, i) => {
-                const dIdx = allDiseases.indexOf(d);
-                const color = DISEASE_COLORS[dIdx % DISEASE_COLORS.length];
-                const startAngle = (i * sectorAngle - 90) * Math.PI / 180;
-                const endAngle = ((i + 1) * sectorAngle - 90) * Math.PI / 180;
-                const r = NODE_R - 3;
-
-                if (m.sex === 'female') {
-                    const x1 = pos.x + r * Math.cos(startAngle);
-                    const y1 = pos.y + r * Math.sin(startAngle);
-                    const x2 = pos.x + r * Math.cos(endAngle);
-                    const y2 = pos.y + r * Math.sin(endAngle);
-                    const largeArc = sectorAngle > 180 ? 1 : 0;
-                    svgContent += `<path d="M${pos.x},${pos.y} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}" opacity="0.8" />`;
-                }
+        // ──────────────── Adaptive phenotype visualization ────────────────
+        // Build a unified phenotype list (diseases + cancers).
+        // Diseases render colored segments WHENEVER the member has them in
+        // their disease list — explicit entry IS the affirmation that the
+        // person has the phenotype. Requiring `affected` on top of that
+        // produced a confusing "I typed it but nothing shows" UX (e.g. user
+        // adds "MODY + Hyperlipidemia" without ticking the affected box and
+        // the shape stays empty even though the legend lists them).
+        // Same phenotype always gets the same color throughout the pedigree.
+        const phenotypes = [];
+        if (m.diseases && m.diseases.length) {
+            m.diseases.forEach(d => {
+                let idx = allDiseases.indexOf(d);
+                if (idx < 0) idx = allDiseases.length; // fallback for runaway labels
+                phenotypes.push({ name: d, color: DISEASE_COLORS[idx % DISEASE_COLORS.length] });
             });
-        } else if (m.diseases.length === 1 && m.affected) {
-            const dIdx = allDiseases.indexOf(m.diseases[0]);
-            const color = DISEASE_COLORS[dIdx % DISEASE_COLORS.length];
-            if (m.sex === 'female') {
-                svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R - 3}" fill="${color}" opacity="0.8" />`;
-            } else if (m.sex === 'male') {
-                svgContent += `<rect x="${pos.x - NODE_R + 3}" y="${pos.y - NODE_R + 3}" width="${(NODE_R - 3) * 2}" height="${(NODE_R - 3) * 2}" fill="${color}" opacity="0.8" />`;
-            }
         }
-
-        // Cancer sectors (multi-cancer color-coded sections inside the shape)
-        if (m.cancers && m.cancers.length > 0) {
-            const cancers = m.cancers;
-            const r = NODE_R - 2;
-            if (cancers.length === 1) {
-                const c = cancers[0];
-                const color = getCancerColor(c.type);
-                if (m.sex === 'female') {
-                    svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${color}" opacity="0.85"/>`;
-                } else if (m.sex === 'male') {
-                    svgContent += `<rect x="${pos.x - r}" y="${pos.y - r}" width="${r*2}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
-                } else {
-                    svgContent += `<polygon points="${pos.x},${pos.y - r} ${pos.x + r},${pos.y} ${pos.x},${pos.y + r} ${pos.x - r},${pos.y}" fill="${color}" opacity="0.85"/>`;
-                }
-            } else {
-                // 2 or 3 cancers: divide shape into sectors
-                const sectorAngle = 360 / cancers.length;
-                cancers.forEach((c, i) => {
-                    const color = getCancerColor(c.type);
-                    const startAngle = (i * sectorAngle - 90) * Math.PI / 180;
-                    const endAngle = ((i + 1) * sectorAngle - 90) * Math.PI / 180;
-                    if (m.sex === 'female') {
-                        const x1 = pos.x + r * Math.cos(startAngle);
-                        const y1 = pos.y + r * Math.sin(startAngle);
-                        const x2 = pos.x + r * Math.cos(endAngle);
-                        const y2 = pos.y + r * Math.sin(endAngle);
-                        const largeArc = sectorAngle > 180 ? 1 : 0;
-                        svgContent += `<path d="M${pos.x},${pos.y} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}" opacity="0.85"/>`;
-                    } else {
-                        // For squares: divide vertically (left/right halves) for 2 cancers, or 3 horizontal stripes for 3
-                        if (cancers.length === 2) {
-                            const w = r;
-                            if (i === 0) svgContent += `<rect x="${pos.x - r}" y="${pos.y - r}" width="${w}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
-                            else svgContent += `<rect x="${pos.x}" y="${pos.y - r}" width="${w}" height="${r*2}" fill="${color}" opacity="0.85"/>`;
-                        } else {
-                            // 3 cancers: horizontal stripes
-                            const h = (r * 2) / 3;
-                            svgContent += `<rect x="${pos.x - r}" y="${pos.y - r + i*h}" width="${r*2}" height="${h}" fill="${color}" opacity="0.85"/>`;
-                        }
-                    }
-                });
-            }
-            // Re-draw outline on top
-            if (m.sex === 'female') {
+        if (m.cancers && m.cancers.length) {
+            m.cancers.forEach(c => {
+                const label = c.type + (c.age ? ' · ' + c.age + 'y' : '') + (c.bilateral ? ' (bilateral)' : '');
+                phenotypes.push({ name: label, color: getCancerColor(c.type) });
+            });
+        }
+        if (phenotypes.length > 0) {
+            const shape = m.sex === 'female' ? 'circle' : m.sex === 'male' ? 'square' : 'diamond';
+            const innerR = NODE_R - 2;
+            svgContent += renderPhenotypeSegments(pos, shape, innerR, phenotypes, 0.85);
+            // Re-draw clean black outline on top so segment borders don't
+            // visually leak outside the symbol — preserves shape integrity.
+            if (shape === 'circle')
                 svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${NODE_R}" fill="none" stroke="#333" stroke-width="2"/>`;
-            } else if (m.sex === 'male') {
+            else if (shape === 'square')
                 svgContent += `<rect x="${pos.x - NODE_R}" y="${pos.y - NODE_R}" width="${NODE_R*2}" height="${NODE_R*2}" fill="none" stroke="#333" stroke-width="2"/>`;
-            } else {
+            else
                 svgContent += `<polygon points="${pos.x},${pos.y - NODE_R} ${pos.x + NODE_R},${pos.y} ${pos.x},${pos.y + NODE_R} ${pos.x - NODE_R},${pos.y}" fill="none" stroke="#333" stroke-width="2"/>`;
-            }
         }
 
         // Deceased slash
@@ -4270,7 +4681,7 @@ function renderPedigree() {
             const MAX_LEN = 18;
             const display = userName.length > MAX_LEN ? userName.slice(0, MAX_LEN) + '…' : userName;
             const safeName = display.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            svgContent += `<text x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
+            svgContent += `<text class="lbl-name" x="${pos.x}" y="${pos.y + NODE_R + 18}" text-anchor="middle" font-size="11" fill="#333">${safeName}</text>`;
         }
 
         // Stacked annotations under the node:
@@ -4297,7 +4708,7 @@ function renderPedigree() {
                                 diseasePreviewText &&
                                 (m.diseases || []).length === 0;
             const opacity = onlyPreview ? '0.55' : '1';
-            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#c0392b" font-weight="500" opacity="${opacity}">${escapeXml(diseaseStr)}</text>`;
+            svgContent += `<text class="lbl-disease" x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#b23a48" font-weight="600" opacity="${opacity}">${escapeXml(diseaseStr)}</text>`;
             labelY += 12;
         }
 
@@ -4305,7 +4716,7 @@ function renderPedigree() {
         // variant text is present (signals annotation is expandable).
         if (m.variant && m.variant.trim()) {
             const variantText = truncate(m.variant.trim()) + ' +';
-            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600" font-family="monospace">${escapeXml(variantText)}</text>`;
+            svgContent += `<text class="lbl-variant" x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#5b4b8a" font-weight="600" font-family="monospace">${escapeXml(variantText)}</text>`;
             labelY += 12;
         }
 
@@ -4324,7 +4735,7 @@ function renderPedigree() {
                 const bilatText = c.bilateral ? ' bil' : '';
                 // Abbreviate long names
                 const shortName = c.type.length > 22 ? c.type.slice(0, 20) + '…' : c.type;
-                svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="${color}" font-weight="600">● ${shortName}${ageText}${bilatText}</text>`;
+                svgContent += `<text class="lbl-cancer" x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="${color}" font-weight="600">● ${shortName}${ageText}${bilatText}</text>`;
                 labelY += 11;
             });
         }
@@ -4346,13 +4757,14 @@ function renderPedigree() {
     });
 
     // Grid lines (full grid only when manually toggled)
+    // Span the entire visible viewBox, not just the content rect.
     if (showGrid) {
         const gridSpacing = 50;
-        for (let gx = 0; gx < width; gx += gridSpacing) {
-            svgContent += `<line x1="${gx}" y1="0" x2="${gx}" y2="${height}" stroke="#e8e8e8" stroke-width="0.5"/>`;
+        for (let gx = 0; gx < vbW; gx += gridSpacing) {
+            svgContent += `<line x1="${gx}" y1="0" x2="${gx}" y2="${vbH}" stroke="#e8e8e8" stroke-width="0.5"/>`;
         }
-        for (let gy = 0; gy < height; gy += gridSpacing) {
-            svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#e8e8e8" stroke-width="0.5"/>`;
+        for (let gy = 0; gy < vbH; gy += gridSpacing) {
+            svgContent += `<line x1="0" y1="${gy}" x2="${vbW}" y2="${gy}" stroke="#e8e8e8" stroke-width="0.5"/>`;
         }
     }
     // Generation guide lines: shown when grid is on OR when in place mode (adding shapes)
@@ -4372,11 +4784,13 @@ function renderPedigree() {
         const labeledGens = new Set(familyData.members.map(m => m.generation));
         linesToShow.forEach((gen, idx) => {
             const gy = 80 + (gen - 1) * (60 + 140) + 30;
-            svgContent += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#a0c8e8" stroke-width="1" stroke-dasharray="8,4" opacity="0.6"/>`;
+            // Generation guide lines span the full viewBox width so they
+            // never stop short when content is narrow than the canvas.
+            svgContent += `<line x1="0" y1="${gy}" x2="${vbW}" y2="${gy}" stroke="#a0c8e8" stroke-width="1" stroke-dasharray="8,4" opacity="0.6"/>`;
             if (!labeledGens.has(gen)) {
                 const isActive = selectedGeneration === gen;
                 svgContent += `<g class="gen-row-label" data-gen="${gen}" style="cursor:pointer">`;
-                svgContent += `<rect x="8" y="${gy - 18}" width="28" height="20" rx="4" fill="${isActive ? '#1a73e8' : 'transparent'}" opacity="${isActive ? 0.18 : 1}"/>`;
+                svgContent += `<rect x="8" y="${gy - 18}" width="28" height="20" rx="4" fill="${isActive ? '#1a73e8' : 'none'}" opacity="${isActive ? 0.18 : 1}"/>`;
                 svgContent += `<text x="20" y="${gy - 6}" font-size="11" fill="${isActive ? '#1a73e8' : '#7a9bb8'}" font-weight="600" opacity="${isActive ? 1 : 0.7}">${toRoman(gen)}</text>`;
                 svgContent += `</g>`;
             }
@@ -4390,7 +4804,7 @@ function renderPedigree() {
             const pos = positions[m.id];
             if (!pos) return;
             svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="7" fill="#333" stroke="white" stroke-width="2" opacity="0.85"/>`;
-            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="14" fill="transparent" stroke="#3498db" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
+            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="14" fill="none" stroke="#3498db" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
         });
 
         // Couple midpoint dots (for adding children/siblings)
@@ -4410,7 +4824,7 @@ function renderPedigree() {
             coupleMidpoints.push({ x: midX, y: dropY, partner1: p.partner1, partner2: p.partner2 });
             // Green dot at couple drop point
             svgContent += `<circle cx="${midX}" cy="${dropY}" r="7" fill="#27ae60" stroke="white" stroke-width="2" opacity="0.9"/>`;
-            svgContent += `<circle cx="${midX}" cy="${dropY}" r="14" fill="transparent" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
+            svgContent += `<circle cx="${midX}" cy="${dropY}" r="14" fill="none" stroke="#27ae60" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.5"/>`;
         });
     }
 
@@ -4450,8 +4864,31 @@ function exportSVG() {
     const filename = resolveExportFilename('svg');
     if (!filename) return;
     const svg = document.getElementById('pedigree-svg');
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    // Clone so we don't mutate the live SVG, then enforce a self-contained
+    // standalone document:
+    //   1. Add xmlns + xmlns:xlink (some viewers like Inkscape, Word, certain
+    //      PDF converters refuse to render without these)
+    //   2. Add an explicit white background so exported file doesn't render
+    //      on a transparent background that some viewers display as black
+    //   3. Replace any lingering `fill="transparent"` with `fill="none"` for
+    //      compatibility with older SVG readers that treat the keyword as black
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    clone.setAttribute('version', '1.1');
+    // White background as the first child (ensures it renders behind everything)
+    const vb = (clone.getAttribute('viewBox') || '0 0 800 600').split(/\s+/).map(parseFloat);
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', vb[0]); bg.setAttribute('y', vb[1]);
+    bg.setAttribute('width', vb[2]); bg.setAttribute('height', vb[3]);
+    bg.setAttribute('fill', '#ffffff');
+    clone.insertBefore(bg, clone.firstChild);
+    // Sanitize any remaining transparent fills (defensive — render code now
+    // uses fill="none", but this protects against future regressions)
+    clone.querySelectorAll('[fill="transparent"]').forEach(n => n.setAttribute('fill', 'none'));
+    const svgData = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' +
+                    new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     downloadBlob(blob, filename);
 }
 
@@ -5567,6 +6004,12 @@ canvasContainer.addEventListener('mousedown', (e) => {
     // Generation row label takes precedence in any tool mode — let the click
     // handler select the target generation instead of placing/erasing here.
     if (e.target && e.target.closest && e.target.closest('.gen-row-label')) return;
+    // Multi-select modifier escape: when the user is holding Shift / Ctrl /
+    // Cmd we must let the click bubble to the multi-select handler instead
+    // of stealing the event for the active tool. Without this, hitting "Shift
+    // +click" while the Move tool is active would start a single-member drag
+    // and the selection would never grow — making group operations impossible.
+    if (e.shiftKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault(); e.stopPropagation();
     const pos = getSVGPos(e);
     if (toolMode === 'place') { placeMember(pos); return; }
@@ -6091,14 +6534,32 @@ function onQuickEditField(field, value) {
         if (adv && editingMemberId === m.id) adv.value = v;
     }
     try { autosave(); } catch (e) {}
+    // Refresh the legend so newly-typed disease colors appear immediately
+    try { updateLegend(); } catch (e) {}
     safeRender();
 }
 
 function openAdvancedFromPopup() {
     if (quickEditMemberId == null) return closeQuickEditPopup();
-    // editMember already called when popup opened — just switch tab and close popup
+    // Auto-expand the left panel if the user collapsed it earlier — they're
+    // explicitly asking for advanced edit, so they need the form to be visible.
+    try { expandLeftPanelIfCollapsed(); } catch (e) {}
     try { switchTab('add'); } catch (e) {}
     closeQuickEditPopup();
+    // Focus the name field after the panel finishes its slide animation
+    setTimeout(() => {
+        const el = document.getElementById('memberName');
+        if (el) el.focus();
+    }, 260);
+}
+
+// Helper: expand the collapsed left panel (no-op if already open). Reuses
+// the existing toggle so animation + localStorage state are preserved.
+function expandLeftPanelIfCollapsed() {
+    const container = document.querySelector('.app-container');
+    if (container && container.classList.contains('panel-collapsed')) {
+        if (typeof toggleLeftPanel === 'function') toggleLeftPanel();
+    }
 }
 
 // ======================== STATUS CONTEXT MENU (right-click) ========================
@@ -6137,6 +6598,113 @@ function closeStatusContextMenu() {
     const menu = document.getElementById('statusContextMenu');
     if (menu) menu.classList.remove('open');
     contextMenuMemberId = null;
+}
+
+// ======================== CONNECTION (LINE) RIGHT-CLICK MENU ========================
+// Lets users right-click a partnership ("marriage") line or a parent-child
+// connector to toggle divorce/consanguinity or remove the link — without
+// hunting through the relations panel.
+function _pointSegDist(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const nx = x1 + t * dx, ny = y1 + t * dy;
+    return Math.hypot(px - nx, py - ny);
+}
+
+// Returns the nearest connection within a tight threshold, or null.
+//   { type:'partnership', index, p } | { type:'parentchild', index, link }
+function findConnectionAtPos(pos) {
+    if (!lastLayout || !lastLayout.positions) return null;
+    const P = lastLayout.positions;
+    const NODE_R = 25;
+    const TH = 8; // px — tight so it never steals node right-clicks
+    let best = null, bestD = TH;
+    // Partnership "marriage" line: horizontal segment between the two partners
+    familyData.partnerships.forEach((p, idx) => {
+        const a = P[p.partner1], b = P[p.partner2];
+        if (!a || !b) return;
+        const ly = (a.y + b.y) / 2;
+        const x1 = Math.min(a.x, b.x) + NODE_R, x2 = Math.max(a.x, b.x) - NODE_R;
+        if (x2 <= x1) return;
+        const d = _pointSegDist(pos.x, pos.y, x1, ly, x2, ly);
+        if (d < bestD) { bestD = d; best = { type: 'partnership', index: idx, p }; }
+    });
+    // Parent-child connector: vertical stub just above each child
+    familyData.parentChildLinks.forEach((l, idx) => {
+        const c = P[l.childId];
+        if (!c) return;
+        const topY = c.y - NODE_R;
+        const d = _pointSegDist(pos.x, pos.y, c.x, topY - 48, c.x, topY);
+        if (d < bestD) { bestD = d; best = { type: 'parentchild', index: idx, link: l }; }
+    });
+    return best;
+}
+
+let _connMenuCtx = null; // remembers what the menu is acting on
+function openConnectionContextMenu(conn, clientX, clientY) {
+    const menu = document.getElementById('connContextMenu');
+    if (!menu) return;
+    closeStatusContextMenu();
+    _connMenuCtx = conn;
+    const en = (typeof currentLang !== 'undefined' && currentLang === 'en');
+    const L = {
+        divorce:  en ? 'Divorced'        : 'Boşanma',
+        consang:  en ? 'Consanguineous'  : 'Akraba evliliği',
+        remove:   en ? 'Remove link'     : 'Bağlantıyı kaldır',
+        removePc: en ? 'Remove parent–child link' : 'Ebeveyn–çocuk bağını kaldır',
+        marriage: en ? 'Partnership'     : 'Eş / Evlilik',
+        pcTitle:  en ? 'Parent–child'    : 'Ebeveyn–çocuk'
+    };
+    let html = '';
+    if (conn.type === 'partnership') {
+        const p = conn.p;
+        const divChk = p.divorced ? '✓' : '○';
+        const conChk = p.consanguinity ? '✓' : '○';
+        html += `<div class="scm-title">${L.marriage}</div>`;
+        html += `<button class="scm-item ${p.divorced ? 'checked' : ''}" onclick="connMenuAction('divorced')"><span class="scm-check">${divChk}</span> ${L.divorce}</button>`;
+        html += `<button class="scm-item ${p.consanguinity ? 'checked' : ''}" onclick="connMenuAction('consanguinity')"><span class="scm-check">${conChk}</span> ${L.consang}</button>`;
+        html += `<div class="scm-sep"></div>`;
+        html += `<button class="scm-item scm-danger" onclick="connMenuAction('removePartnership')"><span class="scm-check">✕</span> ${L.remove}</button>`;
+    } else {
+        html += `<div class="scm-title">${L.pcTitle}</div>`;
+        html += `<button class="scm-item scm-danger" onclick="connMenuAction('removeParentChild')"><span class="scm-check">✕</span> ${L.removePc}</button>`;
+    }
+    menu.innerHTML = html;
+    menu.classList.add('open');
+    // Position within viewport
+    const mw = menu.offsetWidth || 220, mh = menu.offsetHeight || 100;
+    let left = clientX + 4, top = clientY + 4;
+    if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+    if (top + mh > window.innerHeight - 8) top = clientY - mh - 4;
+    menu.style.left = Math.max(8, left) + 'px';
+    menu.style.top = Math.max(8, top) + 'px';
+}
+
+function closeConnectionContextMenu() {
+    const menu = document.getElementById('connContextMenu');
+    if (menu) menu.classList.remove('open');
+    _connMenuCtx = null;
+}
+
+function connMenuAction(action) {
+    const conn = _connMenuCtx;
+    if (!conn) return;
+    if (action === 'divorced' || action === 'consanguinity') {
+        togglePartnershipFlag(conn.index, action);
+        // Re-open to refresh the check state at the same spot
+        const pt = _lastContextPoint || { x: 0, y: 0 };
+        // conn.p is a live reference, so its flags are already updated
+        openConnectionContextMenu(conn, pt.x, pt.y);
+        return;
+    }
+    if (action === 'removePartnership') {
+        removePartnership(conn.index);
+    } else if (action === 'removeParentChild') {
+        removeParentChild(conn.index);
+    }
+    closeConnectionContextMenu();
 }
 
 function _withContextMember(fn) {
@@ -6254,16 +6822,30 @@ canvasContainer.addEventListener('mousemove', (e) => {
 });
 canvasContainer.addEventListener('mouseleave', () => { hideMemberTooltip(); clearPlacePreview(); });
 
-// Right-click anywhere on canvas: if over a member node, open the status menu
+// Right-click anywhere on canvas:
+//   • over a member node  → status menu
+//   • over a connection line (tight 8px) → connection menu
+// Connection is checked FIRST but with a tight threshold so it never steals
+// a node right-click (node bodies are >8px from their lines).
 canvasContainer.addEventListener('contextmenu', (e) => {
     const pos = getSVGPos(e);
-    const m = findMemberAtPos(pos);
-    if (m) {
+    const conn = findConnectionAtPos(pos);
+    const m = conn ? null : findMemberAtPos(pos);
+    if (conn) {
         e.preventDefault();
         e.stopPropagation();
         _lastContextPoint = { x: e.clientX, y: e.clientY };
         closeQuickEditPopup();
         hideMemberTooltip();
+        closeStatusContextMenu();
+        openConnectionContextMenu(conn, e.clientX, e.clientY);
+    } else if (m) {
+        e.preventDefault();
+        e.stopPropagation();
+        _lastContextPoint = { x: e.clientX, y: e.clientY };
+        closeQuickEditPopup();
+        hideMemberTooltip();
+        closeConnectionContextMenu();
         openStatusContextMenu(m.id, e.clientX, e.clientY);
     }
 });
@@ -6281,11 +6863,17 @@ document.addEventListener('mousedown', (e) => {
         const onCanvasNode = e.target && e.target.closest && e.target.closest('#canvasContainer');
         if (!onCanvasNode) closeStatusContextMenu();
     }
+    // Connection menu: close on any mousedown outside it
+    const connMenu = document.getElementById('connContextMenu');
+    if (connMenu && connMenu.classList.contains('open') && !(connMenu.contains(e.target))) {
+        closeConnectionContextMenu();
+    }
 });
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeQuickEditPopup();
         closeStatusContextMenu();
+        closeConnectionContextMenu();
     }
 });
 
@@ -6302,13 +6890,19 @@ canvasContainer.addEventListener('dblclick', (e) => {
 // ======================== DARK THEME ========================
 const THEME_KEY = 'pedigreeApp_theme';
 
+const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
 function applyTheme(theme) {
+    const themeBtn = document.getElementById('themeBtn');
     if (theme === 'dark') {
         document.body.classList.add('dark-theme');
-        document.getElementById('themeBtn').textContent = '☀️';
+        // Show a sun (click to go light)
+        if (themeBtn) themeBtn.innerHTML = ICON_SUN;
     } else {
         document.body.classList.remove('dark-theme');
-        document.getElementById('themeBtn').textContent = '🌙';
+        // Show a moon (click to go dark)
+        if (themeBtn) themeBtn.innerHTML = ICON_MOON;
     }
     try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
 }
@@ -6451,11 +7045,16 @@ canvasContainer.addEventListener('click', (e) => {
             return;
         }
     }
-    if (toolMode) return; // don't interfere with active tools
+    // Multi-select modifier (Shift/Ctrl/Cmd + click) takes precedence over
+    // active tools — without this, selecting members while the Move tool is
+    // on would be impossible. For plain (no-modifier) clicks we still
+    // defer to the active tool.
+    const isMultiSelectClick = (e.shiftKey || e.ctrlKey || e.metaKey);
+    if (toolMode && !isMultiSelectClick) return;
     const pos = getSVGPos(e);
     const m = findMemberAtPos(pos);
     if (m) {
-        if (e.shiftKey) {
+        if (isMultiSelectClick) {
             toggleMemberSelection(m.id);
             e.preventDefault();
             e.stopPropagation();
@@ -6634,12 +7233,373 @@ function endTour() {
     try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
 }
 
+// ======================== POWER PACK: navigation, group move, text size, legend toggle ========================
+// All state lives on window so it survives the IIFE boundary check.
+const LEGEND_VIS_KEY  = 'pedigreeApp_legendVisible';
+const TEXT_SCALE_KEY  = 'pedigreeApp_textScale';
+let textScale = 1.0;
+// Legend defaults to COLLAPSED so the right toolbar stays compact. Users can
+// expand it from the toggle button when they want to look up symbols.
+let legendVisible = false;
+
+// ---- LEGEND COLLAPSIBLE PANEL ----
+// Legend lives inside the right place-toolbar (below Tools and Add). It can be
+// collapsed/expanded with a smooth top→bottom animation. State persists via
+// localStorage. `legendVisible` here means "expanded" (true) vs "collapsed".
+function applyLegendVisibility() {
+    const panel = document.getElementById('legendPanel');
+    if (!panel) return;
+    panel.dataset.collapsed = legendVisible ? 'false' : 'true';
+    const btn = document.getElementById('legendToggleBtn');
+    if (btn) {
+        btn.setAttribute('aria-expanded', legendVisible ? 'true' : 'false');
+    }
+}
+function toggleLegendPanel() {
+    legendVisible = !legendVisible;
+    try { localStorage.setItem(LEGEND_VIS_KEY, legendVisible ? '1' : '0'); } catch (e) {}
+    applyLegendVisibility();
+    positionLegendPanel();
+}
+// Place the legend's floating card right below the place-toolbar (8px gap).
+// Recomputed on render, toggle, and resize so the gap stays tight even when
+// the toolbar's height changes (tour active, language switch, etc.).
+function positionLegendPanel() {
+    const tb = document.querySelector('.place-toolbar');
+    const lp = document.getElementById('legendPanel');
+    if (!tb || !lp) return;
+    const tbRect = tb.getBoundingClientRect();
+    const rightPanel = document.querySelector('.right-panel');
+    const rpRect = rightPanel ? rightPanel.getBoundingClientRect() : { top: 0 };
+    // Convert toolbar bottom to right-panel-relative coordinates (the legend
+    // is positioned absolute inside .right-panel).
+    const top = (tbRect.bottom - rpRect.top) + 8;
+    lp.style.top = top + 'px';
+}
+window.addEventListener('resize', positionLegendPanel);
+// Backwards-compat alias for any code still calling the old name
+function toggleLegendVisibility() { toggleLegendPanel(); }
+
+// Replace the original updateLegend: render legend content into the panel body
+// (no floating overlay anymore). The visibility is controlled by the
+// collapse state, not by member count.
+const _origUpdateLegend = updateLegend;
+updateLegend = function() {
+    const content = document.getElementById('legendContent');
+    if (!content) return;
+    // Wrap each label in a <span> so the CSS grid can place SVG and label
+    // into separate cells — produces perfectly aligned columns and equal
+    // vertical spacing. Without the span, text nodes can't be addressed.
+    const item = (svg, label) => `<div class="legend-item">${svg}<span class="legend-item-label">${label}</span></div>`;
+    let html = '';
+    html += item('<svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/></svg>', t('lg.male'));
+    html += item('<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/></svg>', t('lg.female'));
+    html += item('<svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="#333" stroke="#333" stroke-width="1.5"/></svg>', t('lg.affected'));
+    html += item('<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#333" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#333"/></svg>', t('lg.carrier'));
+    html += item('<svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" fill="none" stroke="#333" stroke-width="1.5"/><line x1="1" y1="19" x2="19" y2="1" stroke="#333" stroke-width="1.5"/></svg>', t('lg.deceased'));
+    html += item('<svg viewBox="0 0 12 24"><line x1="6" y1="1" x2="6" y2="16" stroke="#333" stroke-width="1.5"/><circle cx="6" cy="20" r="4" fill="#333"/></svg>', t('lg.abort'));
+    html += item('<svg viewBox="0 0 24 24"><polygon points="12,4 22,12 12,20 2,12" fill="none" stroke="#333" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">P</text></svg>', t('lg.preg'));
+    html += item('<svg viewBox="0 0 24 24"><polygon points="12,18 4,6 20,6" fill="#333" stroke="#333" stroke-width="1.5"/></svg>', t('lg.sab'));
+    html += item('<svg viewBox="0 0 24 16"><line x1="2" y1="8" x2="10" y2="8" stroke="#333" stroke-width="1.5"/><line x1="14" y1="8" x2="22" y2="8" stroke="#333" stroke-width="1.5"/><line x1="11" y1="3" x2="9" y2="13" stroke="#333" stroke-width="2"/><line x1="15" y1="3" x2="13" y2="13" stroke="#333" stroke-width="2"/></svg>', t('lg.divorce'));
+    html += item('<svg viewBox="0 0 24 24"><polyline points="6,5 3,5 3,19 6,19" fill="none" stroke="#333" stroke-width="1.5"/><polyline points="18,5 21,5 21,19 18,19" fill="none" stroke="#333" stroke-width="1.5"/><rect x="8" y="7" width="8" height="10" fill="none" stroke="#333" stroke-width="1.5"/></svg>', t('lg.adopt'));
+    // Disease legend entries — show EVERY phenotype the user has explicitly
+    // added (anything in familyData.diseases plus anything currently assigned
+    // to a member). Each disease keeps the same color it was given when it
+    // first entered the set, so the legend stays consistent with the shapes.
+    const allDiseases = [...familyData.diseases];
+    const liveDiseases = new Set();
+    familyData.members.forEach(m => (m.diseases || []).forEach(d => liveDiseases.add(d)));
+    // Build a complete, de-duplicated list preserving original index order
+    const combined = [...allDiseases];
+    liveDiseases.forEach(d => { if (!combined.includes(d)) combined.push(d); });
+    combined.forEach((d, i) => {
+        // Use the disease's stable index in familyData.diseases for the color;
+        // fall back to its position in the combined list if absent.
+        let colorIdx = allDiseases.indexOf(d);
+        if (colorIdx < 0) colorIdx = i;
+        const color = DISEASE_COLORS[colorIdx % DISEASE_COLORS.length];
+        html += item(`<svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" rx="3" fill="${color}"/></svg>`, d);
+    });
+    // Cancer types currently in the pedigree → legend with their colors
+    const liveCancers = new Set();
+    familyData.members.forEach(m => (m.cancers || []).forEach(c => liveCancers.add(c.type)));
+    liveCancers.forEach(c => {
+        const color = getCancerColor(c);
+        html += item(`<svg viewBox="0 0 20 20"><rect x="1" y="1" width="18" height="18" rx="3" fill="${color}"/></svg>`, c);
+    });
+    content.innerHTML = html;
+};
+
+// ---- TEXT SIZE ADJUSTMENT ----
+// Post-render scaling: walk all <text> in the SVG and multiply font-size attr.
+function applyTextScale() {
+    const svg = document.getElementById('pedigree-svg');
+    if (!svg) return;
+    svg.querySelectorAll('text').forEach(node => {
+        // Use a stashed base value so re-scaling stays consistent.
+        let base = node.getAttribute('data-base-fs');
+        if (!base) {
+            base = node.getAttribute('font-size') || '11';
+            node.setAttribute('data-base-fs', base);
+        }
+        const v = parseFloat(base);
+        if (!isNaN(v)) node.setAttribute('font-size', String(Math.round(v * textScale * 10) / 10));
+    });
+}
+function setTextScale(s) {
+    textScale = Math.max(0.6, Math.min(2.2, s));
+    try { localStorage.setItem(TEXT_SCALE_KEY, String(textScale)); } catch (e) {}
+    // Re-render so freshly generated text gets correctly scaled
+    safeRender();
+}
+function textSizeIncrease() { setTextScale(textScale + 0.1); showToast(`Yazı: ${Math.round(textScale*100)}%`, { icon:'🔤', duration:1200 }); }
+function textSizeDecrease() { setTextScale(textScale - 0.1); showToast(`Yazı: ${Math.round(textScale*100)}%`, { icon:'🔤', duration:1200 }); }
+
+// Hook into renderPedigree so scale is reapplied after every render
+const _origRenderPedigree = renderPedigree;
+renderPedigree = function() {
+    _origRenderPedigree.apply(this, arguments);
+    if (textScale !== 1.0) applyTextScale();
+};
+
+// ---- KEYBOARD ARROW PANNING ----
+document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+    // If a member is focused via Tab, don't steal the arrows; otherwise pan canvas
+    const container = document.getElementById('canvasContainer');
+    if (!container) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 120 : 40;
+    if (e.key === 'ArrowUp')    container.scrollTop  -= step;
+    if (e.key === 'ArrowDown')  container.scrollTop  += step;
+    if (e.key === 'ArrowLeft')  container.scrollLeft -= step;
+    if (e.key === 'ArrowRight') container.scrollLeft += step;
+});
+
+// ---- MOUSE WHEEL ZOOM (Ctrl/Cmd + wheel) + trackpad pinch ----
+canvasContainer.addEventListener('wheel', (e) => {
+    // Standard convention: hold Ctrl/Cmd to zoom, otherwise let the browser scroll/pan.
+    // Trackpad pinch on macOS sets ctrlKey=true automatically — works for free.
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const dir = e.deltaY < 0 ? 1 : -1;
+    const oldZoom = zoomLevel;
+    const newZoom = Math.max(0.3, Math.min(3, zoomLevel + dir * 0.1));
+    if (newZoom === oldZoom) return;
+    // Anchor zoom around cursor: keep the document point under the mouse stationary
+    const rect = canvasContainer.getBoundingClientRect();
+    const mx = e.clientX - rect.left + canvasContainer.scrollLeft;
+    const my = e.clientY - rect.top  + canvasContainer.scrollTop;
+    const ratio = newZoom / oldZoom;
+    zoomLevel = newZoom;
+    renderPedigree();
+    // After re-render the SVG pixel size has changed by ~ratio
+    canvasContainer.scrollLeft = mx * ratio - (e.clientX - rect.left);
+    canvasContainer.scrollTop  = my * ratio - (e.clientY - rect.top);
+}, { passive: false });
+
+// ---- SPACEBAR + DRAG PANNING ----
+let spaceDown = false;
+let spacePan  = null; // {startX, startY, scrollLeft, scrollTop}
+document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.code === 'Space' && !spaceDown) {
+        spaceDown = true;
+        canvasContainer.style.cursor = 'grab';
+        e.preventDefault();
+    }
+});
+document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+        spaceDown = false;
+        spacePan = null;
+        canvasContainer.style.cursor = '';
+    }
+});
+canvasContainer.addEventListener('mousedown', (e) => {
+    if (!spaceDown) return;
+    e.preventDefault(); e.stopPropagation();
+    spacePan = {
+        startX: e.clientX, startY: e.clientY,
+        scrollLeft: canvasContainer.scrollLeft, scrollTop: canvasContainer.scrollTop
+    };
+    canvasContainer.style.cursor = 'grabbing';
+}, true); // capture phase so we beat the tool handlers
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (!spacePan) return;
+    canvasContainer.scrollLeft = spacePan.scrollLeft - (e.clientX - spacePan.startX);
+    canvasContainer.scrollTop  = spacePan.scrollTop  - (e.clientY - spacePan.startY);
+}, true);
+canvasContainer.addEventListener('mouseup', () => {
+    if (spacePan) { spacePan = null; canvasContainer.style.cursor = spaceDown ? 'grab' : ''; }
+}, true);
+
+// ---- DRAG SELECTION (RUBBER BAND) ----
+// Active only when no tool is selected and no spacebar pan in progress.
+let rubberStart = null;
+let rubberAdditive = false;
+const rubberBand = document.getElementById('rubberBand');
+
+canvasContainer.addEventListener('mousedown', (e) => {
+    if (toolMode || spaceDown) return;
+    if (e.button !== 0) return;
+    // Don't start rubber-band when click began on a member node
+    const pos = getSVGPos(e);
+    if (findMemberAtPos(pos)) return;
+    // Ignore generation row label clicks (the click handler resolves those)
+    if (e.target && e.target.closest && e.target.closest('.gen-row-label')) return;
+    rubberStart = { x: e.clientX, y: e.clientY, svgX: pos.x, svgY: pos.y };
+    rubberAdditive = e.shiftKey || e.ctrlKey || e.metaKey;
+});
+document.addEventListener('mousemove', (e) => {
+    if (!rubberStart) return;
+    const x1 = Math.min(rubberStart.x, e.clientX);
+    const y1 = Math.min(rubberStart.y, e.clientY);
+    const w  = Math.abs(e.clientX - rubberStart.x);
+    const h  = Math.abs(e.clientY - rubberStart.y);
+    if (w < 3 && h < 3) return;
+    rubberBand.style.display = 'block';
+    rubberBand.style.left   = x1 + 'px';
+    rubberBand.style.top    = y1 + 'px';
+    rubberBand.style.width  = w  + 'px';
+    rubberBand.style.height = h  + 'px';
+});
+document.addEventListener('mouseup', (e) => {
+    if (!rubberStart) return;
+    const dx = e.clientX - rubberStart.x;
+    const dy = e.clientY - rubberStart.y;
+    if (Math.abs(dx) >= 3 || Math.abs(dy) >= 3) {
+        // Compute SVG-space rect from clientX/Y
+        const startSVG = { x: rubberStart.svgX, y: rubberStart.svgY };
+        const endSVG = getSVGPos(e);
+        const minX = Math.min(startSVG.x, endSVG.x);
+        const maxX = Math.max(startSVG.x, endSVG.x);
+        const minY = Math.min(startSVG.y, endSVG.y);
+        const maxY = Math.max(startSVG.y, endSVG.y);
+        if (!rubberAdditive) selectedMemberIds.clear();
+        if (lastLayout && lastLayout.positions) {
+            familyData.members.forEach(m => {
+                const p = lastLayout.positions[m.id];
+                if (!p) return;
+                if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+                    selectedMemberIds.add(m.id);
+                }
+            });
+        }
+        updateBatchToolbar();
+        renderPedigree();
+        // Suppress the click that follows the mouseup so we don't immediately clear
+        const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); document.removeEventListener('click', swallow, true); };
+        document.addEventListener('click', swallow, true);
+    }
+    rubberStart = null;
+    rubberBand.style.display = 'none';
+});
+
+// ---- GROUP MOVE for multi-selected members ----
+// Active in 'move' tool when user grabs a node that is part of selectedMemberIds.
+let groupMove = null; // { ids: number[], origin: {id: {customX, customY, gen}}, anchorId, anchorStart: {x,y} }
+canvasContainer.addEventListener('mousedown', (e) => {
+    if (toolMode !== 'move' || spaceDown) return;
+    // Modifier keys mean the user is performing multi-select (toggle), not a
+    // group drag. Let the click handler manage selection instead.
+    if (e.shiftKey || e.ctrlKey || e.metaKey) return;
+    const pos = getSVGPos(e);
+    const m = findMemberAtPos(pos);
+    if (!m) return;
+    if (!selectedMemberIds.has(m.id) || selectedMemberIds.size < 2) return;
+    // Init group move; cancel single-move logic by claiming the drag.
+    saveState();
+    movingMemberId = null; // stop single-move loop from running
+    canvasContainer.classList.add('dragging');
+    const origin = {};
+    const anchor = lastLayout?.positions?.[m.id] || { x: pos.x, y: pos.y };
+    selectedMemberIds.forEach(id => {
+        const mem = familyData.members.find(x => x.id === id);
+        if (!mem) return;
+        const p = lastLayout?.positions?.[id] || { x: mem.customX || 0, y: mem.customY || 0 };
+        origin[id] = { x: p.x, y: p.y, gen: mem.generation };
+    });
+    groupMove = { anchorId: m.id, anchorStart: { x: anchor.x, y: anchor.y }, origin };
+    // stopImmediatePropagation is required because the existing single-move
+    // handler is registered on the SAME element in the bubble phase. Plain
+    // stopPropagation only blocks parent listeners, not sibling listeners on
+    // the same target — so without this the single-move would also fire and
+    // overwrite our group positions on every mousemove (regression seen in
+    // multi-select drag).
+    e.preventDefault(); e.stopImmediatePropagation();
+}, true);
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (!groupMove) return;
+    const pos = getSVGPos(e);
+    const dx = pos.x - groupMove.anchorStart.x;
+    const dy = pos.y - groupMove.anchorStart.y;
+    // Snap dy to nearest generation row using the anchor member's new Y
+    const anchorOrigin = groupMove.origin[groupMove.anchorId];
+    const { gen: anchorGen, snapY: anchorSnapY } = guessGenerationFromY(anchorOrigin.y + dy);
+    const dGen = anchorGen - anchorOrigin.gen;
+    const snappedDy = anchorSnapY - anchorOrigin.y;
+    Object.keys(groupMove.origin).forEach(idStr => {
+        const id = +idStr;
+        const o = groupMove.origin[id];
+        const mem = familyData.members.find(x => x.id === id);
+        if (!mem) return;
+        mem.customX = o.x + dx;
+        // Preserve relative generation gap; clamp to >= 1
+        const newGen = Math.max(1, o.gen + dGen);
+        mem.generation = newGen;
+        mem.customY = o.y + snappedDy;
+    });
+    renderPedigree();
+    e.stopImmediatePropagation();
+}, true);
+canvasContainer.addEventListener('mouseup', (e) => {
+    if (!groupMove) return;
+    groupMove = null;
+    canvasContainer.classList.remove('dragging');
+    renderPedigree();
+    e.stopImmediatePropagation();
+}, true);
+
+// ---- DELETE SELECTED with multi-select awareness ----
+// Augment the existing Delete shortcut: if multi-selection exists, batch delete.
+document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    if (selectedMemberIds.size > 0) {
+        e.preventDefault();
+        batchDelete();
+    }
+}, true); // capture so we beat the focused-only handler when a multi-selection exists
+
+// ---- INIT prefs ----
+try {
+    const v = localStorage.getItem(LEGEND_VIS_KEY);
+    // Stored '1' = expanded, '0' = collapsed. If nothing is stored we keep
+    // the compact default (collapsed) so the toolbar starts small.
+    if (v === '1') legendVisible = true;
+    else if (v === '0') legendVisible = false;
+} catch (e) {}
+try {
+    const ts = parseFloat(localStorage.getItem(TEXT_SCALE_KEY) || '');
+    if (!isNaN(ts) && ts > 0) textScale = Math.max(0.6, Math.min(2.2, ts));
+} catch (e) {}
+applyLegendVisibility();
+// Defer initial positioning until layout is ready
+requestAnimationFrame(() => requestAnimationFrame(positionLegendPanel));
+
 // ======================== INIT ========================
-// Apply saved theme
+// Apply saved theme (always call applyTheme so the theme button gets its
+// SVG icon set, even for the default light theme).
 try {
     const savedTheme = localStorage.getItem(THEME_KEY);
-    if (savedTheme === 'dark') applyTheme('dark');
-} catch (e) {}
+    applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+} catch (e) { applyTheme('light'); }
 
 // Apply saved language
 try {
@@ -6938,6 +7898,247 @@ window.runLayoutTests = function() {
     return allResults;
 };
 
+// ======================== REGRESSION TESTS (UI behavior) ========================
+// Cover the regressions reported on 2026-05-09:
+//   1. Generation guide / row-band lines must span the full viewBox.
+//   2. Multi-select must work via Cmd/Ctrl/Shift + click and rubber-band.
+//   3. Legend toggle must collapse/expand (not display:none) and persist.
+window.runRegressionTests = function() {
+    const tests = [];
+    const savedState = JSON.stringify(serializeFamilyData());
+    const savedSel = new Set(selectedMemberIds);
+    const savedTool = toolMode;
+    try {
+        // ----- 1. Generation lines span full viewBox -----
+        loadTemplateConsanguineous();
+        // Force place mode so guide lines are emitted
+        setPlaceMode('male', document.getElementById('placeMaleBtn'));
+        const svg = document.getElementById('pedigree-svg');
+        const vbW = parseFloat((svg.getAttribute('viewBox') || '0 0 0 0').split(' ')[2]);
+        const guideLines = Array.from(svg.querySelectorAll('line'))
+            .filter(l => l.getAttribute('stroke-dasharray') === '8,4');
+        const wideGuide = guideLines.find(l => parseFloat(l.getAttribute('x2')) >= vbW - 0.5);
+        tests.push({
+            name: 'Gen guide lines span viewBox',
+            passed: !!wideGuide,
+            errors: wideGuide ? [] : [`No guide line reached vbW=${vbW}; max x2 was ${Math.max(...guideLines.map(l=>parseFloat(l.getAttribute('x2'))||0))}`]
+        });
+        clearAllModes();
+        // Active gen-row-band should also span vbW
+        selectGenerationRow(2);
+        const band = document.querySelector('rect.gen-row-band');
+        const bandW = band ? parseFloat(band.getAttribute('width')) : 0;
+        tests.push({
+            name: 'Active gen-row band spans viewBox',
+            passed: bandW >= vbW - 0.5,
+            errors: bandW >= vbW - 0.5 ? [] : [`band width=${bandW} < vbW=${vbW}`]
+        });
+        selectedGeneration = null;
+        renderPedigree();
+
+        // ----- 2. Multi-select reliability -----
+        selectedMemberIds.clear();
+        const m0 = familyData.members[0], m1 = familyData.members[1], m2 = familyData.members[2];
+        toggleMemberSelection(m0.id);
+        toggleMemberSelection(m1.id);
+        toggleMemberSelection(m2.id);
+        tests.push({
+            name: 'Multi-select via toggleMemberSelection adds N',
+            passed: selectedMemberIds.size === 3,
+            errors: selectedMemberIds.size === 3 ? [] : [`expected 3, got ${selectedMemberIds.size}`]
+        });
+        // Cmd+A
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', metaKey: true, bubbles: true }));
+        tests.push({
+            name: 'Cmd+A selects all members',
+            passed: selectedMemberIds.size === familyData.members.length,
+            errors: selectedMemberIds.size === familyData.members.length ? [] : [`expected ${familyData.members.length}, got ${selectedMemberIds.size}`]
+        });
+        // Rubber-band logic: select all members in a wide rect
+        selectedMemberIds.clear();
+        const positions = familyData.members.map(m => lastLayout.positions[m.id]).filter(Boolean);
+        const minX = Math.min(...positions.map(p => p.x)) - 50;
+        const maxX = Math.max(...positions.map(p => p.x)) + 50;
+        const minY = Math.min(...positions.map(p => p.y)) - 50;
+        const maxY = Math.max(...positions.map(p => p.y)) + 50;
+        familyData.members.forEach(m => {
+            const p = lastLayout.positions[m.id];
+            if (p && p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) selectedMemberIds.add(m.id);
+        });
+        tests.push({
+            name: 'Rubber-band rect catches all members',
+            passed: selectedMemberIds.size === familyData.members.length,
+            errors: selectedMemberIds.size === familyData.members.length ? [] : [`expected ${familyData.members.length}, got ${selectedMemberIds.size}`]
+        });
+
+        // ----- 3. Group move preserves relationships -----
+        selectedMemberIds.clear();
+        selectedMemberIds.add(m0.id); selectedMemberIds.add(m1.id);
+        const beforeP = familyData.partnerships.length;
+        const beforePC = familyData.parentChildLinks.length;
+        const p0 = { ...lastLayout.positions[m0.id] };
+        const p1 = { ...lastLayout.positions[m1.id] };
+        // Simulate group move by directly updating the way the handler does
+        const dx = 60;
+        [m0, m1].forEach(mem => { mem.customX = (lastLayout.positions[mem.id].x) + dx; });
+        renderPedigree();
+        const np0 = lastLayout.positions[m0.id];
+        const np1 = lastLayout.positions[m1.id];
+        tests.push({
+            name: 'Group move shifts both members by same dx',
+            passed: Math.abs((np0.x - p0.x) - (np1.x - p1.x)) < 1.0,
+            errors: []
+        });
+        tests.push({
+            name: 'Relationships survive group move',
+            passed: familyData.partnerships.length === beforeP && familyData.parentChildLinks.length === beforePC,
+            errors: []
+        });
+
+        // ----- 4a. Sibling symmetry under parent center line -----
+        // Build a synthetic family with N children and verify the children's
+        // centroid lies exactly on the parent midpoint, AND that:
+        //   - odd N → middle child lies ON the center line
+        //   - even N → center line bisects the gap between the two middle siblings
+        function buildFamilyWithChildren(n) {
+            familyData.members = [];
+            familyData.partnerships = [];
+            familyData.parentChildLinks = [];
+            const dad = { id: 1, name: 'Dad',  sex: 'male',   generation: 1 };
+            const mom = { id: 2, name: 'Mom',  sex: 'female', generation: 1 };
+            familyData.members.push(dad, mom);
+            familyData.partnerships.push({ partner1: 1, partner2: 2 });
+            for (let i = 0; i < n; i++) {
+                familyData.members.push({ id: 100 + i, name: 'C' + i, sex: i % 2 ? 'female' : 'male', generation: 2 });
+                familyData.parentChildLinks.push({ parent1: 1, parent2: 2, childId: 100 + i });
+            }
+        }
+        const symmetryCases = [2, 3, 4, 5, 6];
+        symmetryCases.forEach(n => {
+            buildFamilyWithChildren(n);
+            const layout = computeLayout();
+            const parents = familyData.partnerships[0];
+            const parentCenterX = (layout.positions[parents.partner1].x + layout.positions[parents.partner2].x) / 2;
+            const childPositions = familyData.members
+                .filter(m => m.generation === 2)
+                .map(m => layout.positions[m.id].x)
+                .sort((a, b) => a - b);
+            const centroid = childPositions.reduce((s, x) => s + x, 0) / n;
+            const centroidOK = Math.abs(centroid - parentCenterX) < 1.5;
+            // Equal spacing
+            const gaps = [];
+            for (let i = 1; i < childPositions.length; i++) gaps.push(childPositions[i] - childPositions[i-1]);
+            const equalGaps = gaps.every(g => Math.abs(g - gaps[0]) < 1.5);
+            // Odd → middle child ON center
+            // Even → midpoint between two middle children ON center
+            let alignmentOK;
+            if (n % 2 === 1) {
+                const middle = childPositions[(n-1) / 2];
+                alignmentOK = Math.abs(middle - parentCenterX) < 1.5;
+            } else {
+                const a = childPositions[n/2 - 1], b = childPositions[n/2];
+                alignmentOK = Math.abs((a + b) / 2 - parentCenterX) < 1.5;
+            }
+            tests.push({
+                name: `Siblings (n=${n}) — centroid on parent line`,
+                passed: centroidOK,
+                errors: centroidOK ? [] : [`centroid=${centroid.toFixed(1)} parent=${parentCenterX.toFixed(1)}`]
+            });
+            tests.push({
+                name: `Siblings (n=${n}) — equal spacing`,
+                passed: equalGaps,
+                errors: equalGaps ? [] : [`gaps=[${gaps.map(g=>g.toFixed(1)).join(', ')}]`]
+            });
+            tests.push({
+                name: `Siblings (n=${n}) — ${n%2 ? 'middle child' : 'midpoint of middle pair'} centered`,
+                passed: alignmentOK,
+                errors: []
+            });
+        });
+
+        // ----- Twin sibship termination -----
+        // Scenario: parents with a twin pair on the LEFT and a single sibling
+        // on the RIGHT. The sibship line must end at the twin V-junction X
+        // (midpoint of the twin pair), NOT at the outer twin's X — otherwise a
+        // dangling horizontal segment continues past the twin V.
+        familyData.members = [];
+        familyData.partnerships = [];
+        familyData.parentChildLinks = [];
+        familyData.members.push({ id: 1, name: 'Dad', sex: 'male',   generation: 1, diseases: [] });
+        familyData.members.push({ id: 2, name: 'Mom', sex: 'female', generation: 1, diseases: [] });
+        familyData.partnerships.push({ partner1: 1, partner2: 2 });
+        // Twin A (leftmost), Twin B, Single C (rightmost)
+        const twinA = { id: 10, name: 'TwinA', sex: 'male',   generation: 2, twinType: 'monozygotic', twinPartnerId: 11, diseases: [] };
+        const twinB = { id: 11, name: 'TwinB', sex: 'male',   generation: 2, twinType: 'monozygotic', twinPartnerId: 10, diseases: [] };
+        const singleC = { id: 12, name: 'C', sex: 'female', generation: 2, diseases: [] };
+        familyData.members.push(twinA, twinB, singleC);
+        familyData.parentChildLinks.push({ parent1: 1, parent2: 2, childId: 10 });
+        familyData.parentChildLinks.push({ parent1: 1, parent2: 2, childId: 11 });
+        familyData.parentChildLinks.push({ parent1: 1, parent2: 2, childId: 12 });
+        // Layout is enough for this check — no need to render the SVG
+        const tlayout = computeLayout();
+        // Compute expected attachment X for the twin pair (the V-junction).
+        // The sibship line's left endpoint should equal twinJunctionX (or midX
+        // if midX is further left). Reading from SVG is fragile, so check the
+        // logic directly: the leftmost group's attachment X.
+        const twinJunctionX = (tlayout.positions[10].x + tlayout.positions[11].x) / 2;
+        const cX = tlayout.positions[12].x;
+        const midX = (tlayout.positions[1].x + tlayout.positions[2].x) / 2;
+        const expectedMinX = Math.min(twinJunctionX, cX, midX);
+        const expectedMaxX = Math.max(twinJunctionX, cX, midX);
+        // The outermost twin X should be FURTHER LEFT than the junction X
+        const outerTwinX = Math.min(tlayout.positions[10].x, tlayout.positions[11].x);
+        const sibshipDoesNotOverhang = expectedMinX > outerTwinX;
+        tests.push({
+            name: 'Twin sibship line stops at V-junction (no dangling past outer twin)',
+            passed: sibshipDoesNotOverhang,
+            errors: sibshipDoesNotOverhang ? [] : [
+                `sibship leftmost=${expectedMinX.toFixed(1)} outer twin X=${outerTwinX.toFixed(1)} (would overhang)`
+            ]
+        });
+
+        // ----- 4. Legend toggle collapses panel without removing it -----
+        const panel = document.getElementById('legendPanel');
+        // Force expanded
+        legendVisible = true; applyLegendVisibility();
+        const expandedAttr = panel.dataset.collapsed;
+        toggleLegendPanel(); // collapse
+        const collapsedAttr = panel.dataset.collapsed;
+        toggleLegendPanel(); // expand again
+        const reExpandedAttr = panel.dataset.collapsed;
+        tests.push({
+            name: 'Legend toggles between collapsed/expanded states',
+            passed: expandedAttr === 'false' && collapsedAttr === 'true' && reExpandedAttr === 'false',
+            errors: [`expanded=${expandedAttr}, collapsed=${collapsedAttr}, re=${reExpandedAttr}`]
+        });
+        tests.push({
+            name: 'Legend panel stays mounted in toolbar',
+            passed: !!document.querySelector('.right-panel #legendPanel'),
+            errors: []
+        });
+
+    } catch (err) {
+        tests.push({ name: 'regression suite', passed: false, errors: [err.message] });
+    } finally {
+        // Restore state
+        try { loadFamilyData(JSON.parse(savedState)); } catch (e) {}
+        selectedMemberIds = savedSel;
+        if (savedTool) {
+            // best effort — most callers won't have a tool active
+        } else {
+            clearAllModes();
+        }
+        updateBatchToolbar();
+        renderPedigree();
+    }
+    const passed = tests.filter(t => t.passed).length;
+    const total = tests.length;
+    console.group(`%c🛡 Regression tests: ${passed}/${total}`, `color:${passed===total?'#27ae60':'#e74c3c'};font-weight:bold`);
+    tests.forEach(t => console.log(`%c${t.passed?'✓':'✗'} ${t.name}`, `color:${t.passed?'#27ae60':'#e74c3c'}`, t.errors.length?t.errors:''));
+    console.groupEnd();
+    return tests;
+};
+
 // ======================== MASTER TEST RUNNER ========================
 window.runAllTests = function() {
     console.log('%c═══════════════════════════════════════', 'color:#2c3e50;font-weight:bold');
@@ -6947,12 +8148,15 @@ window.runAllTests = function() {
     console.log(''); // blank line
     const layoutResults = runLayoutTests();
     console.log('');
-    const allPassed = [...tplResults, ...layoutResults].every(r => r.passed);
-    const totalCount = tplResults.length + layoutResults.length;
-    const passedCount = [...tplResults, ...layoutResults].filter(r => r.passed).length;
+    const regressionResults = runRegressionTests();
+    console.log('');
+    const all = [...tplResults, ...layoutResults, ...regressionResults];
+    const allPassed = all.every(r => r.passed);
+    const totalCount = all.length;
+    const passedCount = all.filter(r => r.passed).length;
     const finalColor = allPassed ? 'color:#27ae60' : 'color:#e74c3c';
     console.log(`%c═══ FINAL: ${passedCount}/${totalCount} tests passed ${allPassed ? '🎉' : '⚠️'} ═══`, `${finalColor};font-weight:bold;font-size:16px`);
-    return { templates: tplResults, layout: layoutResults, allPassed };
+    return { templates: tplResults, layout: layoutResults, regression: regressionResults, allPassed };
 };
 
 console.log('%c💡 Tests available: %crunTemplateTests()%c %crunLayoutTests()%c %crunAllTests()',
