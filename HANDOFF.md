@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · **38 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation motoru · **44 otomatik test**.
 
 ---
 
@@ -36,9 +36,17 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Hepsi commit'li (son: `6d4a0ff`).
+> Son commit: `d3f8a53`. `dc5cb0e`'ye kadar **canlıda**; `d3f8a53` (güvenlik) **henüz push edilmedi**.
 
-### 🆕 #2 Validation / Klinik Muhakeme Motoru (`6d4a0ff`)
+### 🔒 Güvenlik sertleştirme — cross-user XSS / API anahtar hırsızlığı kapatıldı (`d3f8a53`)
+- **Çok-ajanlı adversarial denetim** (6 yüzey × doğrulama; 18 teyit / 9 red) ile **gerçek, ulaşılabilir stored-XSS kümesi** bulundu: saldırganın hazırladığı pedigri (paylaşım linki `#data=` veya JSON dosyası) **başka bir klinisyende açılınca** onun origin'inde JS çalıştırıp **localStorage'daki Anthropic API anahtarını** çalabiliyordu. Güvenilmeyen isim/hastalık/not birçok panelde ham `innerHTML`'e gidiyordu; sayısal alanlar coerce edilmiyordu.
+- **İki katmanlı düzeltme:**
+  1. **Trust boundary — `loadFamilyData()` artık `sanitizeImportedFamily()` çağırıyor** (dosya · link · autosave hepsi buradan geçiyor). Üye/eş/bağ alanları **allowlist + tip coercion** ile yeniden kuruluyor: id/yaş/kuşak→sayı, customX/customY→sonlu sayı (±100000 clamp; SVG koordinat-attribute injection + viewBox DoS kapanır), string'ler uzunluk-capli, diziler boyut-capli (`Math.max(...ids)` RangeError DoS düzeldi), kopuk referanslar atılıyor, bilinmeyen/`__proto__` anahtarlar düşürülüyor (prototype pollution yok).
+  2. **Çıktı escaping (`fhEscapeHtml`)** kalan tüm sink'lere eklendi: üye listesi (isim/hastalık), `getMemberLabel` (`<select>`), eş `<option>`, ilişkiler listesi, değişiklik geçmişi, hastalık-tag editörü, metin-import toast'ları.
+- **CSV formül enjeksiyonu** nötralize edildi (baş `= + - @ / TAB / CR` → `'` öneki). **jsPDF CDN'i SRI (sha512) + crossorigin ile pinlendi** (CDN ele geçse bile keyfi JS çalışamaz).
+- Tarayıcıda **gerçek payload ile doğrulandı**: hiçbir script çalışmıyor, canlı handler elementi oluşmuyor, prototype kirlenmiyor, her şey inert escaped metin olarak render. Normal pedigriler / `&`'li isimler / PDF export bozulmadı. **+1 regresyon testi**, **44/44 geçiyor**.
+
+### 🆕 #2 Validation / Klinik Muhakeme Motoru (`6d4a0ff`, canlıda)
 - Eski **Türkçe-sabit** `validatePedigree()` → **yapısal, iki dilli `computeValidation()`** ile değiştirildi. Bulgular `{errors, warnings, observations}` olarak gruplanır; her bulguda dile bağımsız `code` (test için) + `currentLang`'a göre yerelleştirilmiş `text` var. Mevcut `#validationPanel` render eder.
 - **Obligat taşıyıcı tespiti** (klinik çıkarım): iki **sağlam biyolojik ebeveynin etkilenmiş çocuğu** → otozomal resesif varsayımıyla her iki ebeveyn obligat taşıyıcı. **Dikey geçiş (etkilenmiş ebeveyn) ve evlatlık (adopted='in') çocuk çıkarımı bastırır** (yanlış pozitif önleme). Mavi, **bloklamayan** gözlem olarak gösterilir + tek tık **"Taşıyıcı işaretle"** (`applyObligateCarriers`): tek undo adımı, **klinisyen başlatır — asla otomatik değiştirmez** (zaten taşıyıcı/etkilenmiş olanları atlar).
 - **Yeni tutarsızlık kontrolleri**: aynı bireyde `carrier`+`affected` çelişkisi · **izole/kopuk düğüm** (hiç eş/ebeveyn-çocuk yok). Mevcut kuşak-sırası, yaş, çoklu-proband, eksik-referans kontrolleri korundu ve artık **II-1/III-2 kodlu, TR/EN yerel**.
@@ -77,12 +85,16 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#2 Validation/Klinik Muhakeme Motoru TAMAMLANDI** (`6d4a0ff`), 43/43 test, preview'da doğrulandı. ⚠️ **HENÜZ PUSH EDİLMEDİ — canlı değil.** İlk iş: push + Pages doğrula (bkz. bölüm 6 git notu).
-- Önceki 3 büyük özellik (Özet · Metinden Oluştur · AI BYOK) canlıda (`f7d1c53`).
+- **Güvenlik sertleştirme TAMAMLANDI** (`d3f8a53`), 44/44 test, tarayıcıda payload ile doğrulandı. ⚠️ **HENÜZ PUSH EDİLMEDİ.** Canlı site şu an hâlâ açık sürümü (`dc5cb0e`) sunuyor → **fix'i push etmek öncelikli.**
+- **#2 Validation Motoru** (`6d4a0ff`) ve önceki 3 özellik (`dc5cb0e`'ye kadar) canlıda.
 
 ### 🎯 SIRADAKİ İŞ
-1. **`6d4a0ff`'i push et** ve `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages build'ini doğrula (canlıya almak için).
-2. Sonra kullanıcıya yeni özellik sor. #2 motoru genişletilebilir (opsiyonel, kullanıcı isterse): X'e bağlı resesif obligat taşıyıcı (etkilenmiş oğlu olan anne) · iki etkilenmiş ebeveynin sağlam çocuğu (AR'da beklenmez) · konsanguinite + tek-kuşak kümelenme vurgusu. `fhInheritancePattern()` (Özet'te) ile `computeValidation()` ayrı duruyor; istenirse pattern özetini panele de getirilebilir.
+1. **`d3f8a53`'i push et** (canlı sitedeki XSS/key-theft açığını kapatmak için öncelikli) + `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages doğrula.
+2. **Kullanıcının karar vermesi gereken 3 ürün kararı** (güvenlik denetiminde yüzeye çıktı, kod açığı değil — kullanıcıya soruldu):
+   - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
+   - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
+   - **CSP meta yok**: inline-script mimarisi `'unsafe-inline'` gerektirdiğinden tam CSP zor; ama `connect-src`/`img-src` kısıtı, sızıntı kanalını (key exfil) kapatan derinlemesine savunma olabilir — dikkatli denenmeli (export/AI'yi bozmadan).
+3. Opsiyonel #2 genişletme (kullanıcı isterse): X'e bağlı resesif obligat taşıyıcı · iki etkilenmiş ebeveynin sağlam çocuğu (AR'da beklenmez) · konsanguinite + tek-kuşak vurgusu. `fhInheritancePattern()` (Özet) ile `computeValidation()` ayrı duruyor.
 
 ### 🤔 İptal Edilen / İstenmeyenler
 - **#3 Genetik test detay alanı (ACMG)** — kullanıcı istemedi.
@@ -96,9 +108,10 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 1. **PDF export raster** (vector değil).
 2. **Help/Özet/Import modalları dark temada beyaz kalır** — metin koyu olduğu için OKUNUR ve kendi içinde tutarlı (3 review'da doğrulandı). İstenirse 3 modal birlikte dark yapılabilir (ayrı iş).
 3. Mobile/tablet optimize değil.
-4. **AI özelliği gizlilik**: serbest metin Anthropic API'ye gider (üçüncü taraf). Anonim toggle yalnızca ÇIKTIYI gizler, gönderilen metni DEĞİL — uyarı UI'da net. Hasta tanımlayıcı veri girilmemeli.
+4. **AI özelliği gizlilik**: serbest metin Anthropic API'ye gider (üçüncü taraf). Anonim toggle yalnızca ÇIKTIYI gizler, gönderilen metni DEĞİL — uyarı UI'da net. Hasta tanımlayıcı veri girilmemeli. (Bölüm 4'teki ürün kararı.)
 5. **AI halüsinasyon riski**: AI çıktısı düzenlenebilir textarea'da gösterilir (klinisyen onayı zorunlu adım), doğrudan pedigree'ye dönüşmez. Sistem prompt "faithful, do not invent" diyor.
-6. CSV export'ta `c.type` escape edilmez (dosya, innerHTML değil — XSS değil; CSV-injection ayrı/düşük konu).
+6. ~~CSV `c.type` escape~~ ve ~~stored-XSS / coordinate injection / proto pollution / DoS~~ → **`d3f8a53` ile KAPATILDI** (bkz. bölüm 3 güvenlik). Güvenilmeyen veri artık `sanitizeImportedFamily()` (loadFamilyData) + tüm sink'lerde `fhEscapeHtml` ile temizleniyor; CSV formül-enjeksiyonu nötr.
+7. **Kalan güvenlik ürün kararları**: API anahtarı localStorage'da · AI gönderdiği metni anonimleştirmiyor · CSP meta yok. (Detay: bölüm 4, madde 2.)
 7. Dosya boyutu ~9100 satır / ~440KB.
 
 ---
@@ -133,6 +146,10 @@ FH_AI_KEY_LS='pedigreeApp_anthropicKey', FH_AI_ACK_LS='pedigreeApp_aiPrivacyAck'
 
 # Güvenlik
 fhEscapeHtml(s)  ← global; SVG/tooltip/panel/toast'ta kullanıcı verisi basmadan önce ÇAĞIR
+sanitizeImportedFamily(data) → loadFamilyData içinde çağrılır; güvenilmeyen JSON'u
+                               allowlist + tip coercion ile yeniden kurar (XSS/DoS/proto pollution kalkanı)
+fhStr / fhNumOrNull / fhIntOrNull / fhSafeId / fhCoordOrNull → coercion yardımcıları
+csvEscape(val) → CSV alanını formül-enjeksiyonuna karşı da nötralize eder
 
 # Validation / Klinik muhakeme motoru (#2)
 computeValidation()       → {errors, warnings, observations}; her bulgu {code, text, action?}
@@ -166,7 +183,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit:** `6d4a0ff` (#2 validation motoru — **henüz push edilmedi**, bir sonraki iş push)
+- **Son commit:** `d3f8a53` (güvenlik sertleştirme — **henüz push edilmedi**, öncelikli push)
 
 ---
 
@@ -182,7 +199,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (43 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (44 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.
