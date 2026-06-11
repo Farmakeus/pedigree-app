@@ -1030,6 +1030,9 @@
                 </label>
             </div>
         </div>
+        <button onclick="openImportModal()" data-i18n-title="btn.import.tip" title="Metinden pedigri oluştur">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="2" y2="18"/><polyline points="5 15 2 18 5 21"/></svg>
+        <span data-i18n="btn.import">Metinden Oluştur</span></button>
         <button onclick="openSummaryModal()" data-i18n-title="btn.summary.tip" title="Aile öyküsü klinik özeti">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <span data-i18n="btn.summary">Özet</span></button>
@@ -1545,6 +1548,28 @@
             <button onclick="copySummary()" style="padding:9px 18px; border:1px solid #3498db; background:white; color:#3498db; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span data-i18n="summary.copy">Panoya Kopyala</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Build-from-text import modal -->
+<div class="help-modal-overlay" id="importModalOverlay" onclick="if(event.target===this)closeImportModal()">
+    <div class="help-modal" style="max-width:680px;">
+        <button class="close-btn" onclick="closeImportModal()" data-i18n="import.close">Kapat ✕</button>
+        <h2 style="display:flex; align-items:center; gap:10px;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="2" y2="18"/><polyline points="5 15 2 18 5 21"/></svg>
+            <span data-i18n="import.title">Metinden Aile Oluştur</span></h2>
+        <p style="font-size:12px; color:#888; margin:-8px 0 10px;" data-i18n="import.subtitle">İngilizce, satır başına bir kişi: ilişki, isim, yaş ve tanılar. Pedigri otomatik kurulur.</p>
+        <textarea id="importText" spellcheck="false" placeholder="Proband, Sarah Cohen, female, age 52, breast cancer age 48 bilateral, variant BRCA1+&#10;Mother, Rachel Cohen, age 78, breast cancer age 45, ovarian cancer age 50&#10;Maternal grandmother, Esther Cohen, deceased, breast cancer age 38&#10;Father, David Cohen, age 80&#10;Sister, Emma Cohen, age 50, carrier&#10;Son, Jacob Cohen, age 28" style="width:100%; min-height:300px; padding:14px; border:1px solid #dfe3e8; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.65; resize:vertical; color:#2c3e50; background:#fafbfc; box-sizing:border-box;"></textarea>
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+            <button onclick="loadImportExample()" style="font-size:12px; padding:5px 10px; border:1px solid #dfe3e8; background:#fff; color:#3498db; border-radius:6px; cursor:pointer;" data-i18n="import.example">Örnek doldur</button>
+            <span id="importStatus" style="font-size:12px; align-self:center; opacity:0; transition:opacity .2s;"></span>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; align-items:center;">
+            <button onclick="closeImportModal()" style="padding:9px 16px; border:1px solid #dfe3e8; background:white; color:#666; border-radius:8px; cursor:pointer; font-size:13px;" data-i18n="import.cancel">Vazgeç</button>
+            <button onclick="buildFamilyFromText()" style="padding:9px 18px; border:none; background:#3498db; color:white; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                <span data-i18n="import.build">Pedigri Oluştur</span></button>
         </div>
     </div>
 </div>
@@ -2752,6 +2777,14 @@ const I18N = {
         'summary.copy': 'Panoya Kopyala',
         'summary.copied': 'Panoya kopyalandı ✓',
         'summary.close': 'Kapat ✕',
+        'btn.import': 'Metinden Oluştur',
+        'btn.import.tip': 'Metinden otomatik pedigri oluştur',
+        'import.title': 'Metinden Aile Oluştur',
+        'import.subtitle': 'İngilizce, satır başına bir kişi: ilişki, isim, yaş ve tanılar. Pedigri otomatik kurulur.',
+        'import.example': 'Örnek doldur',
+        'import.cancel': 'Vazgeç',
+        'import.build': 'Pedigri Oluştur',
+        'import.close': 'Kapat ✕',
         'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
         'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
         'title.useProband': 'Proband adını başlık olarak kullan',
@@ -3076,6 +3109,14 @@ const I18N = {
         'summary.copy': 'Copy to Clipboard',
         'summary.copied': 'Copied to clipboard ✓',
         'summary.close': 'Close ✕',
+        'btn.import': 'Build from Text',
+        'btn.import.tip': 'Build a pedigree from text',
+        'import.title': 'Build Family from Text',
+        'import.subtitle': 'English, one person per line: relationship, name, age and diagnoses. The pedigree is built automatically.',
+        'import.example': 'Fill example',
+        'import.cancel': 'Cancel',
+        'import.build': 'Build Pedigree',
+        'import.close': 'Close ✕',
         'title.placeholder': 'Pedigree title (family name or proband)',
         'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
         'title.useProband': 'Use proband name as title',
@@ -7142,6 +7183,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeHelpModal();
         if (typeof closeSummaryModal === 'function') closeSummaryModal();
+        if (typeof closeImportModal === 'function') closeImportModal();
         if (typeof endTour === 'function') endTour();
         if (toolMode) clearAllModes();
         if (selectedMemberIds.size > 0) clearMultiSelection();
@@ -8528,6 +8570,344 @@ function copySummary() {
         navigator.clipboard.writeText(ta.value).then(done).catch(fallback);
     } else {
         fallback();
+    }
+}
+
+// ============================================================
+// Metinden Pedigri (Build from Text) — yarı-yapılandırılmış
+// İNGİLİZCE aile öyküsü metnini deterministik parse edip
+// familyData yapısı üretir. Proband-merkezli, slot tabanlı graf.
+// ============================================================
+const FH_CANCER_RE = /cancer|leukemi|lymphoma|melanoma|sarcoma|carcinoma|tumou?r|neoplasm|blastoma|glioma|myeloma/i;
+
+function fhResolveRelationship(raw) {
+    const r = String(raw).toLowerCase().replace(/\s+/g, ' ').trim();
+    const map = {
+        'proband': { role: 'proband' }, 'self': { role: 'proband' }, 'index': { role: 'proband' },
+        'propositus': { role: 'proband', sex: 'male' }, 'proposita': { role: 'proband', sex: 'female' },
+        'mother': { role: 'mother', sex: 'female' }, 'mom': { role: 'mother', sex: 'female' }, 'mum': { role: 'mother', sex: 'female' },
+        'father': { role: 'father', sex: 'male' }, 'dad': { role: 'father', sex: 'male' },
+        'sister': { role: 'sibling', sex: 'female' }, 'brother': { role: 'sibling', sex: 'male' },
+        'son': { role: 'child', sex: 'male' }, 'daughter': { role: 'child', sex: 'female' },
+        'spouse': { role: 'spouse' }, 'partner': { role: 'spouse' }, 'husband': { role: 'spouse', sex: 'male' }, 'wife': { role: 'spouse', sex: 'female' },
+        'maternal grandmother': { role: 'maternalGM', sex: 'female' }, 'maternal grandfather': { role: 'maternalGF', sex: 'male' },
+        'paternal grandmother': { role: 'paternalGM', sex: 'female' }, 'paternal grandfather': { role: 'paternalGF', sex: 'male' },
+        'maternal aunt': { role: 'maternalAuntUncle', sex: 'female' }, 'maternal uncle': { role: 'maternalAuntUncle', sex: 'male' },
+        'paternal aunt': { role: 'paternalAuntUncle', sex: 'female' }, 'paternal uncle': { role: 'paternalAuntUncle', sex: 'male' }
+    };
+    if (map[r]) return map[r];
+    // esnek geri-çekilme: önek sıfatlı veya tek-kelime varyantlar
+    if (/grandmother|grandma/.test(r)) return { role: r.indexOf('paternal') >= 0 ? 'paternalGM' : 'maternalGM', sex: 'female', ambiguous: r.indexOf('paternal') < 0 && r.indexOf('maternal') < 0 };
+    if (/grandfather|grandpa/.test(r)) return { role: r.indexOf('paternal') >= 0 ? 'paternalGF' : 'maternalGF', sex: 'male', ambiguous: r.indexOf('paternal') < 0 && r.indexOf('maternal') < 0 };
+    if (/\baunt\b/.test(r)) return { role: r.indexOf('paternal') >= 0 ? 'paternalAuntUncle' : 'maternalAuntUncle', sex: 'female', ambiguous: r.indexOf('paternal') < 0 && r.indexOf('maternal') < 0 };
+    if (/\buncle\b/.test(r)) return { role: r.indexOf('paternal') >= 0 ? 'paternalAuntUncle' : 'maternalAuntUncle', sex: 'male', ambiguous: r.indexOf('paternal') < 0 && r.indexOf('maternal') < 0 };
+    if (/\bsister\b/.test(r)) return { role: 'sibling', sex: 'female' };
+    if (/\bbrother\b/.test(r)) return { role: 'sibling', sex: 'male' };
+    if (/\bmother\b/.test(r)) return { role: 'mother', sex: 'female' };
+    if (/\bfather\b/.test(r)) return { role: 'father', sex: 'male' };
+    if (/\bdaughter\b/.test(r)) return { role: 'child', sex: 'female' };
+    if (/\bson\b/.test(r)) return { role: 'child', sex: 'male' };
+    return { role: 'orphan', unknown: true };
+}
+
+function fhIsAttributePart(p) {
+    const s = String(p).toLowerCase().trim();
+    return /^(age\s+)?\d+$/.test(s)
+        || /^(male|female|sex\s+(male|female))$/.test(s)
+        || /^(deceased|dead|died|proband|index|carrier|affected|unaffected|not affected|healthy)$/.test(s)
+        || /consanguin/.test(s) || /^variant\s/.test(s) || /^note\s/.test(s)
+        || FH_CANCER_RE.test(s);
+}
+
+function fhParseCancer(p) {
+    const bilateral = /bilateral/i.test(p);
+    let age = null;
+    const am = p.match(/age\s+(\d+)/i) || p.match(/\b(\d+)\b/);
+    if (am) { const n = parseInt(am[1], 10); if (!isNaN(n) && n >= 0 && n <= 120) age = n; }
+    let type = p.replace(/bilateral/ig, '').replace(/age\s+\d+/ig, '').replace(/\b\d+\b/g, '').replace(/\s+/g, ' ').trim();
+    if (!type) type = 'cancer';
+    return { type, age, bilateral };
+}
+
+function fhApplyAttribute(rec, partRaw) {
+    const p = partRaw.trim();
+    const s = p.toLowerCase();
+    if (/^age\s+\d+$/.test(s) || /^\d+$/.test(s)) { const n = parseInt(s.replace(/age\s+/, ''), 10); if (!isNaN(n) && n >= 0 && n <= 120) rec.age = n; return; }
+    if (/^sex\s+male$/.test(s) || s === 'male') { rec.sex = 'male'; return; }
+    if (/^sex\s+female$/.test(s) || s === 'female') { rec.sex = 'female'; return; }
+    if (/^(deceased|dead|died)$/.test(s)) { rec.deceased = true; return; }
+    if (/^(proband|index)$/.test(s)) { rec.proband = true; return; }
+    if (s === 'carrier') { rec.carrier = true; return; }
+    if (s === 'affected') { rec.affected = true; return; }
+    if (/^(unaffected|not affected|healthy)$/.test(s)) { rec.affected = false; rec.explicitUnaffected = true; return; }
+    if (/consanguin/.test(s)) { rec.consang = true; return; }
+    if (/^variant\s+/i.test(p)) { rec.variant = p.replace(/^variant\s+/i, '').trim(); return; }
+    if (/^note\s+/i.test(p)) { rec.note = p.replace(/^note\s+/i, '').trim(); return; }
+    if (FH_CANCER_RE.test(s)) { if (rec.cancers.length < 3) rec.cancers.push(fhParseCancer(p)); else rec.cancerOverflow = true; return; }
+    rec.diseases.push(p);
+}
+
+function fhParseImportLine(line) {
+    const rec = { role: null, relRaw: '', name: '', sex: null, age: null, affected: false, carrier: false, deceased: false, proband: false, consang: false, variant: '', diseases: [], cancers: [], note: '', ambiguous: false, unknown: false };
+    const parts = line.split(',').map(s => s.trim()).filter(s => s.length);
+    if (!parts.length) return rec;
+    const rel = fhResolveRelationship(parts[0]);
+    rec.role = rel.role; rec.relRaw = parts[0];
+    if (rel.sex) rec.sex = rel.sex;
+    if (rel.ambiguous) rec.ambiguous = true;
+    if (rel.unknown) rec.unknown = true;
+    let attrStart = 1;
+    if (parts.length >= 2 && !fhIsAttributePart(parts[1])) { rec.name = parts[1]; attrStart = 2; }
+    for (let i = attrStart; i < parts.length; i++) fhApplyAttribute(rec, parts[i]);
+    return rec;
+}
+
+function parseTextToFamily(text) {
+    const records = [];
+    String(text).split(/\r?\n/).forEach(raw => {
+        const line = raw.trim();
+        if (!line || line.charAt(0) === '#') return;
+        records.push(fhParseImportLine(line));
+    });
+    if (!records.length) throw new Error('No data lines found.');
+
+    const warnings = [];
+    records.forEach(r => {
+        if (r.unknown) warnings.push('Unknown relationship "' + r.relRaw + '" — added without links.');
+        else if (r.ambiguous) warnings.push('"' + r.relRaw + '" assumed maternal — write "maternal/paternal" to be explicit.');
+        if (r.cancerOverflow) warnings.push('"' + (r.name || r.relRaw) + '": only the first 3 cancers were imported.');
+    });
+
+    const mode = records.some(r => r.cancers.length) ? 'cancer' : 'rare';
+
+    // Proband seç: açık proband flag > role=proband > ilk affected > ilk satır
+    let probandRec = records.find(r => r.proband)
+        || records.find(r => r.role === 'proband')
+        || records.find(r => r.affected || r.diseases.length || r.cancers.length)
+        || records[0];
+
+    const members = [];
+    const partnerships = [];
+    const parentChildLinks = [];
+    const slots = {};
+    let nextId = 1;
+
+    function mkMember(rec, level, sexOverride) {
+        const m = {
+            id: nextId++, name: rec.name || '', sex: rec.sex || sexOverride || 'unknown',
+            generation: 1, _level: level, age: (typeof rec.age === 'number') ? rec.age : null,
+            affected: !!(rec.affected || rec.diseases.length || rec.cancers.length),
+            carrier: !!rec.carrier, deceased: !!rec.deceased, proband: false, abort: false,
+            pregnancy: 'none', adopted: 'none', variant: rec.variant || '',
+            diseases: rec.diseases.slice(), cancers: rec.cancers.slice(),
+            twinType: 'none', twinPartnerId: null, note: rec.note || '', customX: null, customY: null
+        };
+        // Fenotip-tabanlı cinsiyet çıkarımı: yalnızca cinsiyet bilinmiyorsa ve
+        // yalnızca cinsiyete-özgü kanserlerden (meme HARİÇ — erkekte de görülür, ör. BRCA2)
+        if (m.sex === 'unknown' && m.cancers.length) {
+            const t = m.cancers.map(c => (c.type || '').toLowerCase()).join(' ');
+            if (/ovari|uterine|uterus|endometr|cervi/.test(t)) m.sex = 'female';
+            else if (/prostat|testic/.test(t)) m.sex = 'male';
+        }
+        members.push(m); return m;
+    }
+    function mkPlaceholder(level, sex) {
+        const m = {
+            id: nextId++, name: '', sex: sex || 'unknown', generation: 1, _level: level, age: null,
+            affected: false, carrier: false, deceased: false, proband: false, abort: false,
+            pregnancy: 'none', adopted: 'none', variant: '', diseases: [], cancers: [],
+            twinType: 'none', twinPartnerId: null, note: '', customX: null, customY: null
+        };
+        members.push(m); return m;
+    }
+    const getMember = id => members.find(m => m.id === id);
+    function ensurePartnership(a, b, consang) {
+        if (a == null || b == null || a === b || !getMember(a) || !getMember(b)) return;
+        let p = partnerships.find(x => (x.partner1 === a && x.partner2 === b) || (x.partner1 === b && x.partner2 === a));
+        if (!p) { p = { partner1: a, partner2: b, consanguinity: !!consang, divorced: false }; partnerships.push(p); }
+        else if (consang) p.consanguinity = true;
+    }
+    function ensureParentChild(p1, p2, childId) {
+        if (childId == null || p1 == null || p2 == null) return;
+        if (!getMember(p1) || !getMember(p2) || !getMember(childId)) return;
+        if (!parentChildLinks.some(l => l.childId === childId)) parentChildLinks.push({ parent1: p1, parent2: p2, childId: childId });
+    }
+    // Bir slot'u rec ile doldur; placeholder varsa upgrade et.
+    // Aynı tekil rol ikinci kez gerçek veriyle gelirse: ilkini koru, uyar.
+    const filledSlots = {};
+    function fillSlot(key, rec, level, sex) {
+        if (slots[key] != null) {
+            if (filledSlots[key]) {
+                const kept = getMember(slots[key]);
+                warnings.push('Duplicate "' + (rec.relRaw || key) + '" ignored — kept "' + ((kept && kept.name) || '?') + '".');
+                return slots[key];
+            }
+            const m = getMember(slots[key]);
+            if (m) {
+                if (rec.name) m.name = rec.name;
+                if (typeof rec.age === 'number') m.age = rec.age;
+                if (rec.sex) m.sex = rec.sex; else if (sex) m.sex = sex;
+                m.affected = m.affected || !!(rec.affected || rec.diseases.length || rec.cancers.length);
+                m.carrier = m.carrier || !!rec.carrier;
+                m.deceased = m.deceased || !!rec.deceased;
+                if (rec.variant) m.variant = rec.variant;
+                if (rec.diseases.length) m.diseases = rec.diseases.slice();
+                if (rec.cancers.length) m.cancers = rec.cancers.slice();
+                if (rec.note) m.note = rec.note;
+                m._level = level;
+            }
+            filledSlots[key] = true;
+            return slots[key];
+        }
+        const m = mkMember(rec, level, sex);
+        slots[key] = m.id;
+        filledSlots[key] = true;
+        return m.id;
+    }
+    function ensureSlot(key, level, sex) {
+        if (slots[key] == null) slots[key] = mkPlaceholder(level, sex).id;
+        return slots[key];
+    }
+    // Proband'ın anne-baba çiftini ve proband bağını garanti et
+    function ensureProbandParents() {
+        ensureSlot('mother', 1, 'female');
+        ensureSlot('father', 1, 'male');
+        ensurePartnership(slots.mother, slots.father, false);
+        ensureParentChild(slots.mother, slots.father, probandId);
+    }
+
+    // Proband
+    probandRec.role = 'proband';
+    const probandM = mkMember(probandRec, 0);
+    const probandId = probandM.id;
+
+    records.forEach(rec => {
+        if (rec === probandRec) return;
+        switch (rec.role) {
+            case 'mother':
+                fillSlot('mother', rec, 1, 'female'); ensureSlot('father', 1, 'male');
+                ensurePartnership(slots.mother, slots.father, rec.consang);
+                ensureParentChild(slots.mother, slots.father, probandId); break;
+            case 'father':
+                fillSlot('father', rec, 1, 'male'); ensureSlot('mother', 1, 'female');
+                ensurePartnership(slots.mother, slots.father, rec.consang);
+                ensureParentChild(slots.mother, slots.father, probandId); break;
+            case 'sibling': {
+                ensureProbandParents();
+                const m = mkMember(rec, 0);
+                ensureParentChild(slots.mother, slots.father, m.id); break;
+            }
+            case 'spouse':
+                fillSlot('spouse', rec, 0); ensurePartnership(probandId, slots.spouse, rec.consang); break;
+            case 'child': {
+                ensureSlot('spouse', 0, 'unknown'); ensurePartnership(probandId, slots.spouse, false);
+                const m = mkMember(rec, -1);
+                ensureParentChild(probandId, slots.spouse, m.id); break;
+            }
+            case 'maternalGM':
+                fillSlot('maternalGM', rec, 2, 'female'); ensureSlot('mother', 1, 'female'); ensureSlot('maternalGF', 2, 'male');
+                ensurePartnership(slots.maternalGM, slots.maternalGF, rec.consang);
+                ensureParentChild(slots.maternalGM, slots.maternalGF, slots.mother); break;
+            case 'maternalGF':
+                fillSlot('maternalGF', rec, 2, 'male'); ensureSlot('mother', 1, 'female'); ensureSlot('maternalGM', 2, 'female');
+                ensurePartnership(slots.maternalGM, slots.maternalGF, rec.consang);
+                ensureParentChild(slots.maternalGM, slots.maternalGF, slots.mother); break;
+            case 'paternalGM':
+                fillSlot('paternalGM', rec, 2, 'female'); ensureSlot('father', 1, 'male'); ensureSlot('paternalGF', 2, 'male');
+                ensurePartnership(slots.paternalGM, slots.paternalGF, rec.consang);
+                ensureParentChild(slots.paternalGM, slots.paternalGF, slots.father); break;
+            case 'paternalGF':
+                fillSlot('paternalGF', rec, 2, 'male'); ensureSlot('father', 1, 'male'); ensureSlot('paternalGM', 2, 'female');
+                ensurePartnership(slots.paternalGM, slots.paternalGF, rec.consang);
+                ensureParentChild(slots.paternalGM, slots.paternalGF, slots.father); break;
+            case 'maternalAuntUncle': {
+                ensureSlot('mother', 1, 'female');
+                ensureSlot('maternalGM', 2, 'female'); ensureSlot('maternalGF', 2, 'male');
+                ensurePartnership(slots.maternalGM, slots.maternalGF, false);
+                ensureParentChild(slots.maternalGM, slots.maternalGF, slots.mother);
+                const m = mkMember(rec, 1);
+                ensureParentChild(slots.maternalGM, slots.maternalGF, m.id); break;
+            }
+            case 'paternalAuntUncle': {
+                ensureSlot('father', 1, 'male');
+                ensureSlot('paternalGM', 2, 'female'); ensureSlot('paternalGF', 2, 'male');
+                ensurePartnership(slots.paternalGM, slots.paternalGF, false);
+                ensureParentChild(slots.paternalGM, slots.paternalGF, slots.father);
+                const m = mkMember(rec, 1);
+                ensureParentChild(slots.paternalGM, slots.paternalGF, m.id); break;
+            }
+            default: // orphan / unknown
+                mkMember(rec, 0); break;
+        }
+    });
+
+    // Tek proband garantisi
+    members.forEach(m => { m.proband = (m.id === probandId); });
+
+    // level → generation (en üst kuşak = 1, hep pozitif)
+    let maxLevel = -Infinity;
+    members.forEach(m => { if (m._level > maxLevel) maxLevel = m._level; });
+    members.forEach(m => { m.generation = (maxLevel - m._level) + 1; delete m._level; });
+
+    // diseases listesi
+    const diseases = [];
+    members.forEach(m => {
+        m.diseases.forEach(d => { if (d && diseases.indexOf(d) < 0) diseases.push(d); });
+        m.cancers.forEach(c => { if (c.type && diseases.indexOf(c.type) < 0) diseases.push(c.type); });
+    });
+
+    return { members, partnerships, parentChildLinks, diseases, nextId, mode, title: '', _warnings: warnings };
+}
+
+function openImportModal() {
+    const st = document.getElementById('importStatus'); if (st) st.style.opacity = '0';
+    const ov = document.getElementById('importModalOverlay'); if (ov) ov.classList.add('open');
+    const ta = document.getElementById('importText'); if (ta) setTimeout(() => ta.focus(), 50);
+}
+
+function closeImportModal() {
+    const ov = document.getElementById('importModalOverlay'); if (ov) ov.classList.remove('open');
+}
+
+function importShowStatus(msg, kind) {
+    const st = document.getElementById('importStatus'); if (!st) return;
+    st.textContent = msg;
+    st.style.color = kind === 'error' ? '#e74c3c' : (kind === 'warn' ? '#e67e22' : '#27ae60');
+    st.style.opacity = '1';
+}
+
+function loadImportExample() {
+    const ta = document.getElementById('importText'); if (!ta) return;
+    ta.value = [
+        'Proband, Sarah Cohen, female, age 52, breast cancer age 48 bilateral, variant BRCA1+',
+        'Mother, Rachel Cohen, age 78, breast cancer age 45, ovarian cancer age 50',
+        'Maternal grandmother, Esther Cohen, deceased, breast cancer age 38',
+        'Maternal uncle, Joseph Cohen, age 70, prostate cancer age 62',
+        'Father, David Cohen, age 80',
+        'Sister, Emma Cohen, age 50, carrier',
+        'Son, Jacob Cohen, age 28',
+        'Daughter, Hannah Cohen, age 26'
+    ].join('\n');
+    const st = document.getElementById('importStatus'); if (st) st.style.opacity = '0';
+}
+
+function buildFamilyFromText() {
+    const ta = document.getElementById('importText');
+    if (!ta || !ta.value.trim()) { importShowStatus(currentLang === 'tr' ? 'Önce metin girin.' : 'Enter some text first.', 'error'); return; }
+    let parsed;
+    try { parsed = parseTextToFamily(ta.value); }
+    catch (err) { importShowStatus((currentLang === 'tr' ? 'Hata: ' : 'Error: ') + err.message, 'error'); return; }
+    if (!parsed.members.length) { importShowStatus(currentLang === 'tr' ? 'Geçerli birey bulunamadı.' : 'No valid individuals found.', 'error'); return; }
+    saveState('import_text', currentLang === 'tr' ? 'Metinden oluşturuldu' : 'Built from text');
+    loadFamilyData(parsed);
+    closeImportModal();
+    const warns = parsed._warnings || [];
+    if (warns.length && typeof showToast === 'function') {
+        warns.slice(0, 4).forEach(w => showToast(w, { icon: '⚠️' }));
+        if (warns.length > 4) showToast('+' + (warns.length - 4) + (currentLang === 'tr' ? ' uyarı daha' : ' more warnings'), { icon: '⚠️' });
+    }
+    if (typeof showToast === 'function') {
+        showToast((currentLang === 'tr' ? 'Pedigri oluşturuldu — ' : 'Pedigree built — ') + parsed.members.length + (currentLang === 'tr' ? ' birey' : ' individuals'), { icon: '✓' });
     }
 }
 
