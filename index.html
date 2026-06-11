@@ -1030,6 +1030,9 @@
                 </label>
             </div>
         </div>
+        <button onclick="openSummaryModal()" data-i18n-title="btn.summary.tip" title="Aile öyküsü klinik özeti">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span data-i18n="btn.summary">Özet</span></button>
         <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn" class="icon-btn-text">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         <span id="langBtnText">TR</span></button>
@@ -1525,6 +1528,24 @@
             <li><strong data-i18n="help.modes.rare">🧬 Nadir Hastalık:</strong> <span data-i18n="help.modes.rare.desc">Mendel kalıtım, tek hastalık/fenotip alanı</span></li>
             <li><strong data-i18n="help.modes.cancer">🩸 Kanser Pedigresi:</strong> <span data-i18n="help.modes.cancer.desc">Onkogenetik, çoklu kanser (max 3) + tanı yaşı + bilateral</span></li>
         </ul>
+    </div>
+</div>
+
+<!-- Family history summary modal -->
+<div class="help-modal-overlay" id="summaryModalOverlay" onclick="if(event.target===this)closeSummaryModal()">
+    <div class="help-modal" style="max-width:680px;">
+        <button class="close-btn" onclick="closeSummaryModal()" data-i18n="summary.close">Kapat ✕</button>
+        <h2 style="display:flex; align-items:center; gap:10px;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span data-i18n="summary.title">Aile Öyküsü Özeti</span></h2>
+        <p style="font-size:12px; color:#888; margin:-8px 0 14px;" data-i18n="summary.subtitle">Pedigri verisinden otomatik üretilen klinik anamnez metni</p>
+        <textarea id="summaryText" readonly style="width:100%; min-height:320px; padding:14px; border:1px solid #dfe3e8; border-radius:8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:13px; line-height:1.7; resize:vertical; color:#2c3e50; background:#fafbfc; -webkit-font-smoothing:antialiased; box-sizing:border-box;"></textarea>
+        <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; align-items:center;">
+            <span id="summaryCopyStatus" style="font-size:12px; color:#27ae60; margin-right:auto; opacity:0; transition:opacity .2s;" data-i18n="summary.copied">Kopyalandı ✓</span>
+            <button onclick="copySummary()" style="padding:9px 18px; border:1px solid #3498db; background:white; color:#3498db; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span data-i18n="summary.copy">Panoya Kopyala</span></button>
+        </div>
     </div>
 </div>
 
@@ -2724,6 +2745,13 @@ const I18N = {
         'app.title': 'Pedigri Çizim Uygulaması',
         'mode.rare': 'Nadir Hastalık',
         'mode.cancer': 'Kanser Pedigresi',
+        'btn.summary': 'Özet',
+        'btn.summary.tip': 'Aile öyküsü klinik özeti oluştur',
+        'summary.title': 'Aile Öyküsü Özeti',
+        'summary.subtitle': 'Pedigri verisinden otomatik üretilen klinik anamnez metni',
+        'summary.copy': 'Panoya Kopyala',
+        'summary.copied': 'Panoya kopyalandı ✓',
+        'summary.close': 'Kapat ✕',
         'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
         'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
         'title.useProband': 'Proband adını başlık olarak kullan',
@@ -3041,6 +3069,13 @@ const I18N = {
         'app.title': 'Pedigree Drawing Application',
         'mode.rare': 'Rare Disease',
         'mode.cancer': 'Cancer Pedigree',
+        'btn.summary': 'Summary',
+        'btn.summary.tip': 'Generate clinical family history summary',
+        'summary.title': 'Family History Summary',
+        'summary.subtitle': 'Clinical narrative auto-generated from pedigree data',
+        'summary.copy': 'Copy to Clipboard',
+        'summary.copied': 'Copied to clipboard ✓',
+        'summary.close': 'Close ✕',
         'title.placeholder': 'Pedigree title (family name or proband)',
         'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
         'title.useProband': 'Use proband name as title',
@@ -7100,6 +7135,7 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'Escape') {
         closeHelpModal();
+        if (typeof closeSummaryModal === 'function') closeSummaryModal();
         if (typeof endTour === 'function') endTour();
         if (toolMode) clearAllModes();
         if (selectedMemberIds.size > 0) clearMultiSelection();
@@ -8198,6 +8234,267 @@ function toggleLeftPanel() {
     try { collapsed = localStorage.getItem(PANEL_KEY) === '1'; } catch (e) {}
     applyLeftPanelState(collapsed);
 })();
+
+// ============================================================
+// Aile Öyküsü Özeti — otomatik klinik anamnez metni üretimi
+// (Tek source of truth: familyData. Sadece okur, mutasyon yok.)
+// ============================================================
+function fhRomanGen(n) {
+    const romans = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    n = Number(n) || 1;
+    return romans[n] || String(n);
+}
+
+// member.id -> "II-1" pedigri numarası (kuşak içinde soldan sağa)
+function fhBuildIdMap() {
+    const map = {};
+    const byGen = {};
+    (familyData.members || []).forEach(m => {
+        const g = m.generation || 1;
+        (byGen[g] = byGen[g] || []).push(m);
+    });
+    Object.keys(byGen).forEach(g => {
+        byGen[g].slice().sort((a, b) => {
+            const ax = (a.customX != null) ? a.customX : (a.id * 100000);
+            const bx = (b.customX != null) ? b.customX : (b.id * 100000);
+            return ax - bx;
+        }).forEach((m, i) => { map[m.id] = fhRomanGen(g) + '-' + (i + 1); });
+    });
+    return map;
+}
+
+function fhSexWord(sex, lang) {
+    if (lang === 'tr') return sex === 'male' ? 'erkek' : sex === 'female' ? 'kadın' : 'cinsiyeti belirsiz';
+    return sex === 'male' ? 'male' : sex === 'female' ? 'female' : 'unknown sex';
+}
+
+function fhIsAffected(m) {
+    return !!(m.affected || (m.diseases && m.diseases.length) || (m.cancers && m.cancers.length));
+}
+
+function fhPhenotypeText(m, lang) {
+    const parts = [];
+    (m.diseases || []).forEach(d => { if (d) parts.push(d); });
+    (m.cancers || []).forEach(c => {
+        let s = c.type || (lang === 'tr' ? 'kanser' : 'cancer');
+        const bits = [];
+        if (c.age != null && c.age !== '') bits.push(c.age + 'y');
+        if (c.bilateral) bits.push('bilateral');
+        if (bits.length) s += ' (' + bits.join(', ') + ')';
+        parts.push(s);
+    });
+    return parts.join(', ');
+}
+
+function fhLabel(m, idMap, lang) {
+    const pid = idMap[m.id] || '?';
+    const nm = (m.name && m.name.trim()) ? m.name.trim() : '';
+    return nm ? (pid + ' — ' + nm) : pid;
+}
+
+// Konservatif, tentatif kalıtım paterni gözlemi
+function fhInheritancePattern(lang) {
+    const T = (tr, en) => lang === 'tr' ? tr : en;
+    const members = familyData.members || [];
+    const affected = members.filter(fhIsAffected);
+    if (affected.length === 1) {
+        return T(
+            'Tek etkilenmiş birey bulunmaktadır; sporadik veya de novo olgu olabileceği gibi, düşük penetrans ya da sınırlı aile öyküsü de söz konusu olabilir. Mevcut veriyle kalıtım paterni tanımlanamamaktadır.',
+            'Only one affected individual is present; this may represent a sporadic or de novo case, or reflect reduced penetrance or limited family history. An inheritance pattern cannot be determined from the current data.'
+        );
+    }
+    const affectedIds = new Set(affected.map(m => m.id));
+    const affectedGens = new Set(affected.map(m => m.generation || 1));
+    let vertical = false, maleToMale = false;
+    (familyData.parentChildLinks || []).forEach(l => {
+        if (!affectedIds.has(l.childId)) return;
+        const child = members.find(m => m.id === l.childId);
+        [l.parent1, l.parent2].forEach(pid => {
+            if (!affectedIds.has(pid)) return;
+            vertical = true;
+            const par = members.find(m => m.id === pid);
+            if (par && par.sex === 'male' && child && child.sex === 'male') maleToMale = true;
+        });
+    });
+    const hasConsang = (familyData.partnerships || []).some(p => p.consanguinity);
+    const allMale = affected.every(m => m.sex === 'male');
+
+    if (vertical && affectedGens.size >= 2) {
+        let s = T(
+            'Birden fazla ardışık kuşakta etkilenme (dikey geçiş) gözlenmekte olup otozomal dominant kalıtımla uyumlu olabilir.',
+            'Affected individuals are seen across multiple consecutive generations (vertical transmission), which may be consistent with autosomal dominant inheritance.'
+        );
+        if (maleToMale) s += ' ' + T('Erkekten erkeğe geçişin bulunması X’e bağlı kalıtımı olası dışı kılar.', 'The presence of male-to-male transmission makes X-linked inheritance unlikely.');
+        return s;
+    }
+    if (affectedGens.size === 1) {
+        let s = T(
+            'Etkilenmenin tek kuşakta (kardeşlerde) toplanması ve ebeveyn kuşağında etkilenme bulunmaması otozomal resesif kalıtımı düşündürebilir.',
+            'Clustering of affected individuals within a single generation (siblings), with no affected parental generation, may suggest autosomal recessive inheritance.'
+        );
+        if (hasConsang) s += ' ' + T('Ailede bildirilen akraba evliliği bu olasılığı desteklemektedir.', 'The consanguinity reported in this family supports this possibility.');
+        if (allMale) s += ' ' + T('Etkilenen bireylerin yalnızca erkek olması X’e bağlı resesif kalıtımı da ayırıcı tanıda akla getirir.', 'As all affected individuals are male, X-linked recessive inheritance should also be considered in the differential.');
+        return s;
+    }
+    if (allMale) {
+        return T(
+            'Etkilenen bireylerin yalnızca erkeklerden oluşması X’e bağlı resesif kalıtım olasılığını akla getirir; doğrulama için ek bilgi gereklidir.',
+            'Affected individuals being exclusively male raises the possibility of X-linked recessive inheritance; further information is needed for confirmation.'
+        );
+    }
+    return T(
+        'Mevcut veriyle belirgin tek bir kalıtım paterni tanımlanamamıştır; ayrıntılı klinik değerlendirme önerilir.',
+        'A single clear inheritance pattern could not be determined from the current data; detailed clinical evaluation is recommended.'
+    );
+}
+
+function generateFamilyHistory(lang) {
+    lang = lang || currentLang || 'tr';
+    const T = (tr, en) => lang === 'tr' ? tr : en;
+    const idMap = fhBuildIdMap();
+    const members = familyData.members || [];
+    const L = [];
+
+    L.push(T('AİLE ÖYKÜSÜ ÖZETİ', 'FAMILY HISTORY SUMMARY'));
+    const meta = [];
+    if (familyData.title && familyData.title.trim()) meta.push(familyData.title.trim());
+    try { meta.push(new Date().toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-GB')); } catch (e) {}
+    if (meta.length) L.push(meta.join(' · '));
+    L.push(T('Mod: ', 'Mode: ') + (familyData.mode === 'cancer' ? T('Kanser pedigrisi', 'Cancer pedigree') : T('Nadir hastalık pedigrisi', 'Rare disease pedigree')));
+    L.push('');
+
+    if (members.length === 0) {
+        L.push(T('Pedigri henüz boş — önce birey ekleyin.', 'The pedigree is empty — please add individuals first.'));
+        return L.join('\n');
+    }
+
+    const genCount = new Set(members.map(m => m.generation || 1)).size;
+    const affected = members.filter(fhIsAffected);
+    L.push(T('GENEL', 'OVERVIEW'));
+    L.push(T(
+        `Soyağacında toplam ${members.length} birey ve ${genCount} kuşak yer almaktadır. ${affected.length} bireyde fenotip/hastalık kaydı bulunmaktadır.`,
+        `The pedigree contains ${members.length} individual(s) across ${genCount} generation(s). ${affected.length} individual(s) have a recorded phenotype/disease.`
+    ));
+    L.push('');
+
+    const proband = getProbandMember();
+    L.push(T('PROBAND', 'PROBAND'));
+    if (proband) {
+        const b = [fhLabel(proband, idMap, lang)];
+        if (proband.age != null && proband.age !== '') b.push(proband.age + 'y');
+        b.push(fhSexWord(proband.sex, lang));
+        let line = b.join(', ');
+        if (proband.deceased) line += T(' (ex.)', ' (deceased)');
+        const ph = fhPhenotypeText(proband, lang);
+        line += '. ' + (ph ? T(ph + ' tanılı.', 'Diagnosed with ' + ph + '.') : T('Belirtilmiş fenotip yok.', 'No phenotype recorded.'));
+        L.push(line);
+    } else {
+        L.push(T('Proband işaretlenmemiştir. (Bir indeks bireyi proband olarak işaretlemeniz önerilir.)', 'No proband marked. (Marking an index case as proband is recommended.)'));
+    }
+    L.push('');
+
+    if (affected.length) {
+        L.push(T('ETKİLENEN BİREYLER', 'AFFECTED INDIVIDUALS'));
+        Array.from(new Set(affected.map(m => m.generation || 1))).sort((a, b) => a - b).forEach(g => {
+            L.push(T('Kuşak ', 'Generation ') + fhRomanGen(g) + ':');
+            affected.filter(m => (m.generation || 1) === g)
+                .sort((a, b) => (idMap[a.id] || '').localeCompare(idMap[b.id] || '', undefined, { numeric: true }))
+                .forEach(m => {
+                    let s = '  • ' + fhLabel(m, idMap, lang);
+                    const sub = [];
+                    if (m.age != null && m.age !== '') sub.push(m.age + 'y');
+                    sub.push(fhSexWord(m.sex, lang));
+                    if (m.deceased) sub.push(T('ex.', 'deceased'));
+                    if (m.proband) sub.push('PROBAND');
+                    s += ', ' + sub.join(', ');
+                    const ph = fhPhenotypeText(m, lang);
+                    if (ph) s += ' — ' + ph;
+                    L.push(s);
+                });
+        });
+        L.push('');
+    }
+
+    const cons = (familyData.partnerships || []).filter(p => p.consanguinity);
+    L.push(T('AKRABALIK', 'CONSANGUINITY'));
+    if (cons.length) {
+        cons.forEach(p => {
+            const a = members.find(m => m.id === p.partner1), b = members.find(m => m.id === p.partner2);
+            if (a && b) L.push(T(
+                `${fhLabel(a, idMap, lang)} ile ${fhLabel(b, idMap, lang)} arasında akraba evliliği bildirilmiştir.`,
+                `Consanguineous union reported between ${fhLabel(a, idMap, lang)} and ${fhLabel(b, idMap, lang)}.`
+            ));
+        });
+    } else {
+        L.push(T('Bildirilen akraba evliliği bulunmamaktadır.', 'No consanguinity reported.'));
+    }
+    L.push('');
+
+    const repro = members.filter(m => (m.pregnancy && m.pregnancy !== 'none') || m.abort);
+    if (repro.length) {
+        L.push(T('ÜREME ÖYKÜSÜ', 'REPRODUCTIVE HISTORY'));
+        repro.forEach(m => {
+            const pg = m.pregnancy;
+            let w;
+            if (pg === 'P') w = T('devam eden gebelik', 'ongoing pregnancy');
+            else if (pg === 'SAB' || (m.abort && (!pg || pg === 'none'))) w = T('düşük (SAB)', 'miscarriage (SAB)');
+            else if (pg === 'TOP') w = T('tahliye (TOP)', 'termination (TOP)');
+            else if (pg === 'SB') w = T('ölü doğum (SB)', 'stillbirth (SB)');
+            else w = T('üreme öyküsü', 'reproductive event');
+            L.push('  • ' + fhLabel(m, idMap, lang) + ': ' + w + '.');
+        });
+        L.push('');
+    }
+
+    const variants = members.filter(m => m.variant && m.variant.trim());
+    if (variants.length) {
+        L.push(T('GENETİK BULGULAR', 'GENETIC FINDINGS'));
+        variants.forEach(m => L.push('  • ' + fhLabel(m, idMap, lang) + ': ' + m.variant.trim()));
+        L.push('');
+    }
+
+    L.push(T('KLİNİK GÖZLEM', 'CLINICAL OBSERVATION'));
+    if (affected.length === 0) {
+        L.push(T('Pedigride etkilenmiş birey işaretlenmemiştir; kalıtım paterni değerlendirilememektedir.', 'No affected individuals are marked in the pedigree; an inheritance pattern cannot be assessed.'));
+    } else {
+        L.push(fhInheritancePattern(lang));
+        L.push(T('Kesin değerlendirme ve risk danışmanlığı için klinik genetik konsültasyonu önerilir.', 'A clinical genetics consultation is recommended for definitive assessment and risk counseling.'));
+    }
+    L.push('');
+    L.push('—');
+    L.push(T('Bu özet pedigri verisinden otomatik üretilmiştir ve tanısal karar yerine geçmez.', 'This summary is auto-generated from the pedigree data and does not replace a diagnostic decision.'));
+
+    return L.join('\n');
+}
+
+function openSummaryModal() {
+    const ta = document.getElementById('summaryText');
+    if (ta) ta.value = generateFamilyHistory(currentLang);
+    const st = document.getElementById('summaryCopyStatus');
+    if (st) st.style.opacity = '0';
+    const ov = document.getElementById('summaryModalOverlay');
+    if (ov) ov.classList.add('open');
+}
+
+function closeSummaryModal() {
+    const ov = document.getElementById('summaryModalOverlay');
+    if (ov) ov.classList.remove('open');
+}
+
+function copySummary() {
+    const ta = document.getElementById('summaryText');
+    if (!ta) return;
+    const done = () => {
+        const st = document.getElementById('summaryCopyStatus');
+        if (st) { st.style.opacity = '1'; setTimeout(() => { st.style.opacity = '0'; }, 2200); }
+    };
+    const fallback = () => { try { ta.select(); document.execCommand('copy'); } catch (e) {} done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ta.value).then(done).catch(fallback);
+    } else {
+        fallback();
+    }
+}
 
 // Initialize
 updateLabelToggleUI();
