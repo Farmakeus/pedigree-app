@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pedigri Çizim Uygulaması</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -2083,7 +2083,7 @@ function updateDiseaseListUI() {
         let colorIdx = allDiseases.indexOf(d);
         if (colorIdx < 0) colorIdx = allDiseases.length + i;
         const color = DISEASE_COLORS[colorIdx % DISEASE_COLORS.length];
-        return `<span class="disease-tag" style="background:${color}">${d} <span style="cursor:pointer;margin-left:4px;" onclick="removeDiseaseFromMember(${i})">×</span></span>`;
+        return `<span class="disease-tag" style="background:${color}">${fhEscapeHtml(d)} <span style="cursor:pointer;margin-left:4px;" onclick="removeDiseaseFromMember(${i})">×</span></span>`;
     }).join('');
 }
 
@@ -2355,8 +2355,9 @@ function setMemberFilter(filter, btn) {
     updateMemberList();
 }
 
+// Returns an HTML-ESCAPED label (used inside innerHTML <option>/list markup).
 function getMemberLabel(m) {
-    return (m.name || `Birey ${m.id}`) + (m.age ? ` (${m.age})` : '');
+    return fhEscapeHtml((m.name || `Birey ${m.id}`) + (m.age ? ` (${m.age})` : ''));
 }
 
 function updateMemberList() {
@@ -2424,8 +2425,8 @@ function updateMemberList() {
                     <svg viewBox="0 0 24 24" width="24" height="24">${shape}${carrier}${deceased}</svg>
                 </div>
                 <div>
-                    <div class="member-name">${m.name || `Birey ${m.id}`} ${m.proband ? '<span class="proband-indicator">▶ Proband</span>' : ''}</div>
-                    <div class="member-gen">Nesil ${toRoman(m.generation)}${m.age ? ' · ' + m.age + ' yaş' : ''}${m.diseases.length ? ' · ' + m.diseases.join(', ') : ''}</div>
+                    <div class="member-name">${fhEscapeHtml(m.name || ('Birey ' + m.id))} ${m.proband ? '<span class="proband-indicator">▶ Proband</span>' : ''}</div>
+                    <div class="member-gen">Nesil ${toRoman(m.generation)}${m.age ? ' · ' + m.age + ' yaş' : ''}${m.diseases.length ? ' · ' + fhEscapeHtml(m.diseases.join(', ')) : ''}</div>
                 </div>
             </div>
             <div class="member-actions">
@@ -2456,8 +2457,8 @@ function updateRelationSelects() {
                 const m1 = familyData.members.find(m => m.id === p.partner1);
                 const m2 = familyData.members.find(m => m.id === p.partner2);
                 if (!m1 || !m2) return '';
-                const n1 = m1.name || `Birey ${m1.id}`;
-                const n2 = m2.name || `Birey ${m2.id}`;
+                const n1 = fhEscapeHtml(m1.name || `Birey ${m1.id}`);
+                const n2 = fhEscapeHtml(m2.name || `Birey ${m2.id}`);
                 return `<option value="${p.partner1}-${p.partner2}">${n1} & ${n2}</option>`;
             }).join('');
         sel.value = val;
@@ -2545,8 +2546,8 @@ function updateRelationsList() {
         const m1 = familyData.members.find(m => m.id === p.partner1);
         const m2 = familyData.members.find(m => m.id === p.partner2);
         if (!m1 || !m2) return;
-        const n1 = m1.name || 'Birey ' + m1.id;
-        const n2 = m2.name || 'Birey ' + m2.id;
+        const n1 = fhEscapeHtml(m1.name || 'Birey ' + m1.id);
+        const n2 = fhEscapeHtml(m2.name || 'Birey ' + m2.id);
         const isEditing = editingPartnershipIdx === i;
         html += `<div class="rel-item ${isEditing ? 'editing' : ''}" data-pidx="${i}">
             <div class="rel-info" onclick="loadPartnershipToForm(${i})" title="${t('rel.click.toedit') || 'Düzenlemek için tıkla'}">
@@ -2565,9 +2566,9 @@ function updateRelationsList() {
         const m2 = familyData.members.find(m => m.id === l.parent2);
         const child = familyData.members.find(m => m.id === l.childId);
         if (!m1 || !m2 || !child) return;
-        const n1 = m1.name || 'Birey ' + m1.id;
-        const n2 = m2.name || 'Birey ' + m2.id;
-        const cn = child.name || 'Birey ' + child.id;
+        const n1 = fhEscapeHtml(m1.name || 'Birey ' + m1.id);
+        const n2 = fhEscapeHtml(m2.name || 'Birey ' + m2.id);
+        const cn = fhEscapeHtml(child.name || 'Birey ' + child.id);
         html += `<div class="rel-item">
             <div class="rel-info" onclick="loadParentChildToForm(${i})" title="${t('rel.click.toedit') || 'Düzenlemek için tıkla'}">
                 <span class="rel-name">${n1} &amp; ${n2} → ${cn}</span>
@@ -3767,8 +3768,8 @@ function updateHistoryPanel() {
         return `<div class="history-item">
             <div class="history-icon">${icon}</div>
             <div class="history-content">
-                <div class="history-action">${h.action}</div>
-                ${h.detail ? `<div class="history-detail">${h.detail}</div>` : ''}
+                <div class="history-action">${fhEscapeHtml(h.action)}</div>
+                ${h.detail ? `<div class="history-detail">${fhEscapeHtml(h.detail)}</div>` : ''}
                 <div class="history-time">${formatRelativeTime(h.timestamp)}</div>
             </div>
         </div>`;
@@ -5212,7 +5213,11 @@ function downloadBlob(blob, filename) {
 // ======================== CSV EXPORT ========================
 function csvEscape(val) {
     if (val == null) return '';
-    const s = String(val);
+    let s = String(val);
+    // Neutralize spreadsheet formula injection: a cell beginning with = + - @
+    // (or a control char) is executed as a formula by Excel/Sheets. Prefix with
+    // a single quote so the value is treated as literal text.
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     if (/[,"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
     return s;
 }
@@ -6421,15 +6426,94 @@ function serializeFamilyData() {
     };
 }
 
+// ---- Untrusted-input hardening (trust boundary) ----
+// A pedigree can arrive from a shared link (#data=…), an opened JSON file, or
+// autosave — i.e. potentially from ANOTHER person. We rebuild it field-by-field
+// from an allowlist, coercing every value to its expected type, BEFORE it
+// touches any render path. This (a) stops markup smuggled into NUMERIC fields
+// (age, customX/Y, ids) and into the SVG coordinate attributes, (b) drops
+// unknown/__proto__ keys (no prototype pollution / no surprise fields), and
+// (c) caps sizes to avoid DoS (e.g. RangeError from spreading a huge id array).
+// String fields (name/note/variant/disease/cancer) keep their text and are
+// additionally HTML-escaped at every output sink (defense in depth).
+const FH_MAX_MEMBERS = 5000, FH_MAX_REL = 20000, FH_STR_MAX = 1000, FH_LIST_MAX = 100;
+function fhStr(v, max) { return v == null ? '' : String(v).slice(0, max || FH_STR_MAX); }
+function fhNumOrNull(v) { const n = Number(v); return (v != null && v !== '' && isFinite(n)) ? n : null; }
+// Canvas coordinate: finite number clamped to a sane range so a crafted file
+// cannot blow up the SVG viewBox (mild DoS) via an absurd customX/customY.
+function fhCoordOrNull(v) { const n = fhNumOrNull(v); return n == null ? null : Math.max(-100000, Math.min(100000, n)); }
+function fhIntOrNull(v) { if (v == null || v === '') return null; const n = parseInt(v, 10); return isFinite(n) ? n : null; }
+function fhSafeId(v) { const n = Number(v); return isFinite(n) ? Math.trunc(n) : null; }
+
+function sanitizeImportedFamily(data) {
+    if (!data || typeof data !== 'object' || !Array.isArray(data.members)) return null;
+    const members = data.members.slice(0, FH_MAX_MEMBERS).map(m => {
+        if (!m || typeof m !== 'object') return null;
+        const id = fhSafeId(m.id);
+        if (id == null) return null;
+        const gen = parseInt(m.generation, 10);
+        const cancers = Array.isArray(m.cancers) ? m.cancers.slice(0, FH_LIST_MAX).map(c => {
+            if (!c || typeof c !== 'object') return null;
+            return { type: fhStr(c.type, 200), age: fhIntOrNull(c.age), bilateral: !!c.bilateral };
+        }).filter(Boolean) : [];
+        const diseases = Array.isArray(m.diseases) ? m.diseases.slice(0, FH_LIST_MAX).map(d => fhStr(d, 200)).filter(s => s !== '') : [];
+        return {
+            id,
+            name: fhStr(m.name),
+            sex: fhStr(m.sex, 16),
+            generation: (isFinite(gen) && gen >= 1 && gen <= 200) ? gen : 1,
+            age: fhIntOrNull(m.age),
+            affected: !!m.affected, carrier: !!m.carrier, deceased: !!m.deceased,
+            proband: !!m.proband, abort: !!m.abort,
+            pregnancy: fhStr(m.pregnancy, 16),
+            adopted: fhStr(m.adopted, 16),
+            variant: fhStr(m.variant),
+            diseases, cancers,
+            twinType: fhStr(m.twinType, 16),
+            twinPartnerId: fhSafeId(m.twinPartnerId),
+            note: fhStr(m.note),
+            customX: fhCoordOrNull(m.customX),
+            customY: fhCoordOrNull(m.customY)
+        };
+    }).filter(Boolean);
+
+    const ids = new Set(members.map(m => m.id));
+    const partnerships = (Array.isArray(data.partnerships) ? data.partnerships : []).slice(0, FH_MAX_REL).map(p => {
+        if (!p || typeof p !== 'object') return null;
+        const a = fhSafeId(p.partner1), b = fhSafeId(p.partner2);
+        if (a == null || b == null || !ids.has(a) || !ids.has(b)) return null;
+        return { partner1: a, partner2: b, consanguinity: !!p.consanguinity, divorced: !!p.divorced };
+    }).filter(Boolean);
+
+    const parentChildLinks = (Array.isArray(data.parentChildLinks) ? data.parentChildLinks : []).slice(0, FH_MAX_REL).map(l => {
+        if (!l || typeof l !== 'object') return null;
+        const p1 = fhSafeId(l.parent1), p2 = fhSafeId(l.parent2), c = fhSafeId(l.childId);
+        if (p1 == null || p2 == null || c == null || !ids.has(p1) || !ids.has(p2) || !ids.has(c)) return null;
+        return { parent1: p1, parent2: p2, childId: c };
+    }).filter(Boolean);
+
+    const diseases = Array.isArray(data.diseases) ? data.diseases.slice(0, FH_LIST_MAX * 5).map(d => fhStr(d, 200)).filter(s => s !== '') : [];
+    const maxId = members.reduce((mx, m) => Math.max(mx, m.id), 0);
+    const nextIdRaw = fhSafeId(data.nextId);
+    const nextId = (nextIdRaw != null && nextIdRaw > maxId) ? nextIdRaw : maxId + 1;
+
+    return {
+        members, partnerships, parentChildLinks, diseases, nextId,
+        mode: (data.mode === 'cancer') ? 'cancer' : 'rare',
+        title: fhStr(data.title)
+    };
+}
+
 function loadFamilyData(data) {
-    if (!data || !data.members) return false;
-    familyData.members = data.members || [];
-    familyData.partnerships = data.partnerships || [];
-    familyData.parentChildLinks = data.parentChildLinks || [];
-    familyData.diseases = new Set(data.diseases || []);
-    familyData.nextId = data.nextId || (Math.max(0, ...familyData.members.map(m => m.id)) + 1);
-    familyData.mode = data.mode || 'rare';
-    familyData.title = data.title || '';
+    const clean = sanitizeImportedFamily(data);
+    if (!clean) return false;
+    familyData.members = clean.members;
+    familyData.partnerships = clean.partnerships;
+    familyData.parentChildLinks = clean.parentChildLinks;
+    familyData.diseases = new Set(clean.diseases);
+    familyData.nextId = clean.nextId;
+    familyData.mode = clean.mode;
+    familyData.title = clean.title;
     currentDiseases = [];
     currentCancers = [];
     editingMemberId = null;
@@ -8426,6 +8510,46 @@ window.runRegressionTests = function() {
             errors: bothCarriers ? [] : ['parents not marked carrier after apply']
         });
 
+        // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----
+        window.__secXss = 0;
+        const evilData = {
+            members: [
+                { id: 1, name: '<img src=x onerror="window.__secXss=1">', sex: 'male', generation: 1,
+                  age: '40 <img src=x onerror="window.__secXss=1">', diseases: ['<svg onload="window.__secXss=1">CF'],
+                  note: '<img src=z onerror="window.__secXss=1">', cancers: [],
+                  customX: '100" onload="window.__secXss=1', customY: 1e9, affected: true },
+                { id: 2, name: 'Mom', sex: 'female', generation: 1 },
+                { id: 3, name: 'Kid', sex: 'male', generation: 2 }
+            ],
+            partnerships: [{ partner1: 1, partner2: 2 }, { partner1: 1, partner2: 999 }],
+            parentChildLinks: [{ parent1: 1, parent2: 2, childId: 3 }, { parent1: 1, parent2: 2, childId: 888 }],
+            diseases: ['<svg onload="window.__secXss=1">CF'], nextId: 4, mode: 'rare',
+            title: 'x', evilExtraField: 'drop me', __proto__: { polluted: 'YES' }
+        };
+        loadFamilyData(evilData);
+        updateUI(); renderPedigree();
+        const sm1 = familyData.members.find(m => m.id === 1);
+        const listEl = document.getElementById('memberListUI');
+        const svgEl = document.getElementById('pedigree-svg');
+        const noLiveHandlers = svgEl.querySelectorAll('[onerror],[onload],script,img,foreignObject').length === 0
+            && listEl.querySelectorAll('img,[onerror],[onload]').length === 0;
+        const sanitizationOK =
+            window.__secXss === 0 &&                         // nothing executed
+            noLiveHandlers &&                                 // no live injected element
+            ({}).polluted === undefined &&                    // no prototype pollution
+            sm1.customX === null &&                           // coordinate-injection string -> null
+            typeof sm1.age === 'number' && sm1.age === 40 &&  // age markup stripped to number
+            !('evilExtraField' in sm1) &&                     // unknown keys dropped
+            familyData.partnerships.length === 1 &&           // orphan partnership (ref 999) dropped
+            familyData.parentChildLinks.length === 1 &&       // orphan link (ref 888) dropped
+            /&lt;img/.test(listEl.innerHTML);                 // name shown as escaped text
+        tests.push({
+            name: 'Untrusted JSON/share-link is sanitized (no XSS, no proto pollution, coerced fields)',
+            passed: sanitizationOK,
+            errors: sanitizationOK ? [] : [`__secXss=${window.__secXss} customX=${JSON.stringify(sm1.customX)} age=${JSON.stringify(sm1.age)} parts=${familyData.partnerships.length} links=${familyData.parentChildLinks.length}`]
+        });
+        try { delete window.__secXss; } catch (e) {}
+
         // ----- 4. Legend toggle collapses panel without removing it -----
         const panel = document.getElementById('legendPanel');
         // Force expanded
@@ -9162,7 +9286,7 @@ function buildFamilyFromText() {
     closeImportModal();
     const warns = parsed._warnings || [];
     if (warns.length && typeof showToast === 'function') {
-        warns.slice(0, 4).forEach(w => showToast(w, { icon: '⚠️' }));
+        warns.slice(0, 4).forEach(w => showToast(fhEscapeHtml(w), { icon: '⚠️' }));
         if (warns.length > 4) showToast('+' + (warns.length - 4) + (currentLang === 'tr' ? ' uyarı daha' : ' more warnings'), { icon: '⚠️' });
     }
     if (typeof showToast === 'function') {
