@@ -1559,12 +1559,30 @@
         <h2 style="display:flex; align-items:center; gap:10px;">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="2" y2="18"/><polyline points="5 15 2 18 5 21"/></svg>
             <span data-i18n="import.title">Metinden Aile Oluştur</span></h2>
-        <p style="font-size:12px; color:#888; margin:-8px 0 10px;" data-i18n="import.subtitle">İngilizce, satır başına bir kişi: ilişki, isim, yaş ve tanılar. Pedigri otomatik kurulur.</p>
+        <p style="font-size:12px; color:#888; margin:-8px 0 10px;" data-i18n="import.subtitle">Satır başına bir kişi (İngilizce: ilişki, isim, yaş, tanılar) — ya da serbest anamnez yazıp "AI ile yapılandır"ı kullanın.</p>
         <textarea id="importText" spellcheck="false" placeholder="Proband, Sarah Cohen, female, age 52, breast cancer age 48 bilateral, variant BRCA1+&#10;Mother, Rachel Cohen, age 78, breast cancer age 45, ovarian cancer age 50&#10;Maternal grandmother, Esther Cohen, deceased, breast cancer age 38&#10;Father, David Cohen, age 80&#10;Sister, Emma Cohen, age 50, carrier&#10;Son, Jacob Cohen, age 28" style="width:100%; min-height:300px; padding:14px; border:1px solid #dfe3e8; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.65; resize:vertical; color:#2c3e50; background:#fafbfc; box-sizing:border-box;"></textarea>
-        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">
             <button onclick="loadImportExample()" style="font-size:12px; padding:5px 10px; border:1px solid #dfe3e8; background:#fff; color:#3498db; border-radius:6px; cursor:pointer;" data-i18n="import.example">Örnek doldur</button>
+            <button onclick="aiStructureText().catch(function(e){console.error('AI:',e);})" id="aiStructureBtn" style="font-size:12px; padding:5px 11px; border:1px solid #b9aee0; background:#f5f2fb; color:#6c5ce7; border-radius:6px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                <span data-i18n="import.ai.button">AI ile yapılandır</span></button>
             <span id="importStatus" style="font-size:12px; align-self:center; opacity:0; transition:opacity .2s;"></span>
         </div>
+        <details id="aiSettings" style="margin-top:10px;">
+            <summary style="cursor:pointer; color:#7f8c8d; user-select:none; font-size:12px;" data-i18n="import.ai.settings">AI ayarları — Anthropic API anahtarı &amp; gizlilik</summary>
+            <div style="margin-top:10px; padding:13px; background:#f8f9fb; border:1px solid #e8ecf1; border-radius:8px;">
+                <p style="margin:0 0 9px; color:#555; font-size:12px; line-height:1.55;" data-i18n="import.ai.intro">Serbest anamnez metni yazıp <strong>AI ile yapılandır</strong>'a basın; metin pedigri satır formatına çevrilir, siz gözden geçirip <strong>Pedigri Oluştur</strong>'a basarsınız.</p>
+                <label style="display:block; margin-bottom:5px; color:#555; font-weight:600; font-size:12px;" data-i18n="import.ai.keyLabel">Anthropic API anahtarı</label>
+                <input type="password" id="anthropicKeyInput" autocomplete="off" spellcheck="false" placeholder="sk-ant-..." style="width:100%; padding:8px 10px; border:1px solid #dfe3e8; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; box-sizing:border-box;">
+                <div style="margin-top:6px;"><button onclick="fhClearAnthropicKey()" type="button" style="font-size:11px; padding:3px 9px; border:1px solid #dfe3e8; background:#fff; color:#999; border-radius:5px; cursor:pointer;" data-i18n="import.ai.clear">Kayıtlı anahtarı sil</button></div>
+                <p style="margin:7px 0 0; color:#999; font-size:11px; line-height:1.5;" data-i18n="import.ai.keyNote">Anahtar yalnızca bu tarayıcıda saklanır (localStorage), hiçbir sunucuya gönderilmez. console.anthropic.com → API Keys'ten alabilirsiniz.</p>
+                <label style="display:flex; align-items:flex-start; gap:7px; margin-top:11px; cursor:pointer; color:#555; font-size:12px; line-height:1.45;">
+                    <input type="checkbox" id="aiAnonymize" checked style="margin:2px 0 0;">
+                    <span data-i18n="import.ai.anon">Üretilen pedigride isim kullanma (anonim — II-1, III-2 kodlanır)</span>
+                </label>
+                <p style="margin:11px 0 0; color:#c0392b; font-size:11px; line-height:1.5;" data-i18n="import.ai.privacy">⚠️ Girdiğiniz metin yapılandırma için Anthropic API'ye gönderilir. Tanımlayıcı hasta bilgisi (ad-soyad, kimlik no) girmemeye özen gösterin.</p>
+            </div>
+        </details>
         <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; align-items:center;">
             <button onclick="closeImportModal()" style="padding:9px 16px; border:1px solid #dfe3e8; background:white; color:#666; border-radius:8px; cursor:pointer; font-size:13px;" data-i18n="import.cancel">Vazgeç</button>
             <button onclick="buildFamilyFromText()" style="padding:9px 18px; border:none; background:#3498db; color:white; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;">
@@ -1963,7 +1981,7 @@ function deleteMember(id) {
     renderPedigree();
     // Show undo toast (saveState was called by the wrapper before deletion)
     if (typeof showToast === 'function') {
-        showToast(`${t('toast.deleted')}: <b>${memberName}</b>`, {
+        showToast(`${t('toast.deleted')}: <b>${fhEscapeHtml(memberName)}</b>`, {
             icon: '🗑️',
             undoCallback: () => undo()
         });
@@ -2118,7 +2136,7 @@ function updateCancerListUI() {
         const bilatText = c.bilateral ? ' · bilateral' : '';
         return `<div class="cancer-list-item">
             <div class="cancer-color" style="background:${color}"></div>
-            <div class="cancer-text">${c.type}${ageText}${bilatText}</div>
+            <div class="cancer-text">${fhEscapeHtml(c.type)}${ageText}${bilatText}</div>
             <span class="cancer-remove" onclick="removeCancerFromMember(${i})">✕</span>
         </div>`;
     }).join('');
@@ -2780,11 +2798,19 @@ const I18N = {
         'btn.import': 'Metinden Oluştur',
         'btn.import.tip': 'Metinden otomatik pedigri oluştur',
         'import.title': 'Metinden Aile Oluştur',
-        'import.subtitle': 'İngilizce, satır başına bir kişi: ilişki, isim, yaş ve tanılar. Pedigri otomatik kurulur.',
+        'import.subtitle': 'Satır başına bir kişi (İngilizce: ilişki, isim, yaş, tanılar) — ya da serbest anamnez yazıp "AI ile yapılandır"ı kullanın.',
         'import.example': 'Örnek doldur',
         'import.cancel': 'Vazgeç',
         'import.build': 'Pedigri Oluştur',
         'import.close': 'Kapat ✕',
+        'import.ai.button': 'AI ile yapılandır',
+        'import.ai.settings': 'AI ayarları — Anthropic API anahtarı & gizlilik',
+        'import.ai.intro': 'Serbest anamnez metni yazıp AI ile yapılandır\'a basın; metin pedigri satır formatına çevrilir, siz gözden geçirip Pedigri Oluştur\'a basarsınız.',
+        'import.ai.keyLabel': 'Anthropic API anahtarı',
+        'import.ai.keyNote': 'Anahtar yalnızca bu tarayıcıda saklanır (localStorage), hiçbir sunucuya gönderilmez. Paylaşılan/güvenmediğiniz cihazlarda kullanmayın; sızarsa console.anthropic.com\'dan yenileyin.',
+        'import.ai.anon': 'Üretilen pedigride isim gösterme — yalnızca ÇIKTIYI anonimleştirir; girdiğiniz metin AI\'a olduğu gibi gönderilir.',
+        'import.ai.privacy': '⚠️ Girdiğiniz metin yapılandırma için Anthropic API\'ye (üçüncü taraf) gönderilir. Ad-soyad, kimlik no gibi tanımlayıcı hasta bilgisi GİRMEYİN — önce anonimleştirin.',
+        'import.ai.clear': 'Kayıtlı anahtarı sil',
         'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
         'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
         'title.useProband': 'Proband adını başlık olarak kullan',
@@ -3112,11 +3138,19 @@ const I18N = {
         'btn.import': 'Build from Text',
         'btn.import.tip': 'Build a pedigree from text',
         'import.title': 'Build Family from Text',
-        'import.subtitle': 'English, one person per line: relationship, name, age and diagnoses. The pedigree is built automatically.',
+        'import.subtitle': 'One person per line (English: relationship, name, age, diagnoses) — or type free text and use "Structure with AI".',
         'import.example': 'Fill example',
         'import.cancel': 'Cancel',
         'import.build': 'Build Pedigree',
         'import.close': 'Close ✕',
+        'import.ai.button': 'Structure with AI',
+        'import.ai.settings': 'AI settings — Anthropic API key & privacy',
+        'import.ai.intro': 'Type a free-text family history and click Structure with AI; it is converted into the pedigree line format for you to review, then click Build Pedigree.',
+        'import.ai.keyLabel': 'Anthropic API key',
+        'import.ai.keyNote': 'The key is stored only in this browser (localStorage) and is never sent to any server. Do not use on shared/untrusted devices; if leaked, rotate it at console.anthropic.com.',
+        'import.ai.anon': 'Hide names in the generated pedigree — anonymizes the OUTPUT only; your input text is still sent to the AI as-is.',
+        'import.ai.privacy': '⚠️ Your input is sent to the Anthropic API for structuring (third party). Do NOT enter identifying patient data (full name, ID) — anonymize it first.',
+        'import.ai.clear': 'Clear saved key',
         'title.placeholder': 'Pedigree title (family name or proband)',
         'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
         'title.useProband': 'Use proband name as title',
@@ -4817,14 +4851,14 @@ function renderPedigree() {
                 const bilatText = c.bilateral ? ' bil' : '';
                 // Abbreviate long names
                 const shortName = c.type.length > 22 ? c.type.slice(0, 20) + '…' : c.type;
-                svgContent += `<text class="lbl-cancer" x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="${color}" font-weight="600">● ${shortName}${ageText}${bilatText}</text>`;
+                svgContent += `<text class="lbl-cancer" x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="${color}" font-weight="600">● ${fhEscapeHtml(shortName)}${ageText}${bilatText}</text>`;
                 labelY += 11;
             });
         }
 
         // Note
         if (m.note) {
-            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${m.note}</text>`;
+            svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${fhEscapeHtml(m.note)}</text>`;
         }
 
         // Selection / focus highlight
@@ -6114,7 +6148,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
             familyData.parentChildLinks = familyData.parentChildLinks.filter(l => l.childId !== m.id);
             familyData.members.forEach(x => { if (x.twinPartnerId === m.id) { x.twinPartnerId = null; x.twinType = 'none'; } });
             updateUI(); renderPedigree();
-            showToast(`${t('toast.deleted')}: <b>${memberName}</b>`, {
+            showToast(`${t('toast.deleted')}: <b>${fhEscapeHtml(memberName)}</b>`, {
                 icon: '🗑️',
                 undoCallback: () => undo()
             });
@@ -6844,7 +6878,7 @@ function showMemberTooltip(member, clientX, clientY) {
     if (!member) { tooltipEl.style.display = 'none'; lastTooltipMember = null; return; }
     if (lastTooltipMember !== member.id) {
         const rows = [];
-        rows.push(`<div class="tip-row"><strong>${member.name || 'Birey ' + member.id}</strong></div>`);
+        rows.push(`<div class="tip-row"><strong>${fhEscapeHtml(member.name || 'Birey ' + member.id)}</strong></div>`);
         const sexLabel = member.sex === 'male' ? 'Erkek' : member.sex === 'female' ? 'Kadın' : 'Bilinmiyor';
         rows.push(`<div class="tip-row">Cinsiyet: ${sexLabel} · Nesil ${toRoman(member.generation)}</div>`);
         if (member.age != null) rows.push(`<div class="tip-row">Yaş: ${member.age}</div>`);
@@ -6862,16 +6896,16 @@ function showMemberTooltip(member, clientX, clientY) {
             flags.push(member.adopted === 'in' ? 'Evlat edinilmiş' : 'Evlatlık verilmiş');
         }
         if (flags.length) rows.push(`<div class="tip-row">Durum: ${flags.join(', ')}</div>`);
-        if (member.diseases && member.diseases.length) rows.push(`<div class="tip-row">Hastalık: ${member.diseases.join(', ')}</div>`);
-        if (member.variant) rows.push(`<div class="tip-row" style="color:#bb8fce">🧬 ${member.variant}</div>`);
+        if (member.diseases && member.diseases.length) rows.push(`<div class="tip-row">Hastalık: ${fhEscapeHtml(member.diseases.join(', '))}</div>`);
+        if (member.variant) rows.push(`<div class="tip-row" style="color:#bb8fce">🧬 ${fhEscapeHtml(member.variant)}</div>`);
         if (member.cancers && member.cancers.length > 0) {
             member.cancers.forEach(c => {
                 const ageText = c.age != null ? ` (${c.age}y)` : '';
                 const bilatText = c.bilateral ? ' bilateral' : '';
-                rows.push(`<div class="tip-row" style="color:#ff7979">🩸 ${c.type}${ageText}${bilatText}</div>`);
+                rows.push(`<div class="tip-row" style="color:#ff7979">🩸 ${fhEscapeHtml(c.type)}${ageText}${bilatText}</div>`);
             });
         }
-        if (member.note) rows.push(`<div class="tip-row" style="font-style:italic; opacity:0.85">${member.note}</div>`);
+        if (member.note) rows.push(`<div class="tip-row" style="font-style:italic; opacity:0.85">${fhEscapeHtml(member.note)}</div>`);
         tooltipEl.innerHTML = rows.join('');
         lastTooltipMember = member.id;
     }
@@ -8580,6 +8614,12 @@ function copySummary() {
 // ============================================================
 const FH_CANCER_RE = /cancer|leukemi|lymphoma|melanoma|sarcoma|carcinoma|tumou?r|neoplasm|blastoma|glioma|myeloma/i;
 
+// Serbest-metin (isim/not/hastalık/kanser/varyant) alanlarını SVG ve innerHTML
+// bağlamlarında basmadan önce kaçışla — XSS koruması.
+function fhEscapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function fhResolveRelationship(raw) {
     const r = String(raw).toLowerCase().replace(/\s+/g, ' ').trim();
     const map = {
@@ -8861,6 +8901,14 @@ function parseTextToFamily(text) {
 
 function openImportModal() {
     const st = document.getElementById('importStatus'); if (st) st.style.opacity = '0';
+    // Anahtarı DOM'a yükleme — yalnızca kayıtlı olduğunu placeholder ile bildir (sızıntı yüzeyini azaltır)
+    const keyInput = document.getElementById('anthropicKeyInput');
+    if (keyInput) {
+        keyInput.value = '';
+        keyInput.placeholder = fhGetAnthropicKey()
+            ? (currentLang === 'tr' ? '•••• kayıtlı anahtar kullanılacak' : '•••• saved key will be used')
+            : 'sk-ant-...';
+    }
     const ov = document.getElementById('importModalOverlay'); if (ov) ov.classList.add('open');
     const ta = document.getElementById('importText'); if (ta) setTimeout(() => ta.focus(), 50);
 }
@@ -8909,6 +8957,165 @@ function buildFamilyFromText() {
     if (typeof showToast === 'function') {
         showToast((currentLang === 'tr' ? 'Pedigri oluşturuldu — ' : 'Pedigree built — ') + parsed.members.length + (currentLang === 'tr' ? ' birey' : ' individuals'), { icon: '✓' });
     }
+}
+
+// ============================================================
+// AI ile yapılandırma (Yol 2) — serbest anamnez metnini Claude API
+// (BYOK, tarayıcıdan doğrudan) ile pedigri satır formatına çevirir.
+// Çıktı düzenlenebilir textarea'ya yazılır; grafiği yine deterministik
+// parseTextToFamily kurar (klinisyen onayı korunur).
+// ============================================================
+const FH_AI_KEY_LS = 'pedigreeApp_anthropicKey';
+const FH_AI_ACK_LS = 'pedigreeApp_aiPrivacyAck';
+
+function fhGetAnthropicKey() { try { return localStorage.getItem(FH_AI_KEY_LS) || ''; } catch (e) { return ''; } }
+function fhSaveAnthropicKey(k) { try { if (k) localStorage.setItem(FH_AI_KEY_LS, k); else localStorage.removeItem(FH_AI_KEY_LS); } catch (e) {} }
+
+async function aiStructureText() {
+    const TR = currentLang === 'tr';
+    const ta = document.getElementById('importText');
+    const keyInput = document.getElementById('anthropicKeyInput');
+    const btn = document.getElementById('aiStructureBtn');
+    if (!ta) return;
+
+    const key = ((keyInput && keyInput.value.trim()) || fhGetAnthropicKey()).trim();
+    if (!key) {
+        const det = document.getElementById('aiSettings'); if (det) det.open = true;
+        importShowStatus(TR ? 'Önce Anthropic API anahtarı girin (AI ayarları).' : 'Enter your Anthropic API key first (AI settings).', 'error');
+        if (keyInput) keyInput.focus();
+        return;
+    }
+    if (key.slice(0, 7) !== 'sk-ant-') {
+        const det = document.getElementById('aiSettings'); if (det) det.open = true;
+        importShowStatus(TR ? 'Anahtar "sk-ant-" ile başlamalı.' : 'The key should start with "sk-ant-".', 'error');
+        if (keyInput) keyInput.focus();
+        return;
+    }
+    fhSaveAnthropicKey(key);
+
+    const text = ta.value.trim();
+    if (!text) { importShowStatus(TR ? 'Önce serbest metin girin.' : 'Enter free text first.', 'error'); return; }
+
+    // Gizlilik onayı — her OTURUMDA bir kez (sessionStorage; sekme kapanınca yeniden sorulur)
+    let ack = false; try { ack = sessionStorage.getItem(FH_AI_ACK_LS) === '1'; } catch (e) {}
+    if (!ack) {
+        const ok = window.confirm(TR
+            ? 'Girdiğiniz metin, pedigriye dönüştürülmek üzere üçüncü bir tarafa (Anthropic API) gönderilecek. Ad-soyad, kimlik numarası gibi tanımlayıcı hasta bilgisi içermediğinden emin olun (anonimleştirme yalnızca ÇIKTIYI gizler, gönderilen metni değil). Devam edilsin mi?'
+            : 'Your text will be sent to a third party (the Anthropic API) to be converted into a pedigree. Make sure it contains no identifying patient information (full name, ID) — anonymization hides only the OUTPUT, not the text you send. Continue?');
+        if (!ok) return;
+        try { sessionStorage.setItem(FH_AI_ACK_LS, '1'); } catch (e) {}
+    }
+
+    const anonymize = document.getElementById('aiAnonymize') ? document.getElementById('aiAnonymize').checked : true;
+
+    btn.disabled = true;
+    const lblSpan = btn.querySelector('span');
+    const oldLbl = lblSpan ? lblSpan.textContent : '';
+    if (lblSpan) lblSpan.textContent = TR ? 'Dönüştürülüyor…' : 'Converting…';
+    importShowStatus(TR ? 'AI metni yapılandırıyor…' : 'AI is structuring the text…', 'ok');
+    try {
+        const lines = await aiConvertToLines(key, text, anonymize);
+        ta.value = lines.join('\n');
+        importShowStatus(TR ? '✓ Yapılandırıldı — satırları GÖZDEN GEÇİRİP "Pedigri Oluştur"a basın.' : '✓ Structured — REVIEW the lines, then click "Build Pedigree".', 'ok');
+    } catch (err) {
+        importShowStatus((TR ? 'AI hatası: ' : 'AI error: ') + (err && err.message ? err.message : err), 'error');
+    } finally {
+        btn.disabled = false;
+        if (lblSpan) lblSpan.textContent = oldLbl;
+    }
+}
+
+function fhClearAnthropicKey() {
+    const TR = currentLang === 'tr';
+    if (!window.confirm(TR ? 'Kayıtlı API anahtarı silinsin mi?' : 'Delete the saved API key?')) return;
+    fhSaveAnthropicKey('');
+    const ki = document.getElementById('anthropicKeyInput');
+    if (ki) { ki.value = ''; ki.placeholder = 'sk-ant-...'; }
+    importShowStatus(TR ? 'Kayıtlı anahtar silindi.' : 'Saved key cleared.', 'ok');
+}
+
+async function aiConvertToLines(key, freeText, anonymize) {
+    const TR = currentLang === 'tr';
+    const grammar = [
+        'OUTPUT — one person per line, comma-separated, ENGLISH relationship terms.',
+        'Line shape: <Relationship>, [Name], [male|female], [age N], [deceased], [proband], [carrier], [affected], [consanguineous], [variant X], [note Y], [<disease>], [<organ> cancer age N bilateral]',
+        'Relationship terms (use these exact words): proband, mother, father, sister, brother, son, daughter, spouse, husband, wife,',
+        '  maternal grandmother, maternal grandfather, paternal grandmother, paternal grandfather,',
+        '  maternal aunt, maternal uncle, paternal aunt, paternal uncle.',
+        'Rules:',
+        '- Exactly ONE proband: the index patient, written first as "Proband, ...".',
+        '- Always write "maternal" or "paternal" for grandparents/aunts/uncles.',
+        '- Set sex explicitly (male/female) whenever it is known or clearly implied.',
+        '- Cancers: "<organ> cancer age N bilateral" (e.g. "breast cancer age 45 bilateral"). Other diseases: write the name (e.g. "cystic fibrosis").',
+        '- Mark deceased / carrier / affected / consanguineous only when the text states them.',
+        '- Be FAITHFUL to the source: never invent relatives, diagnoses, ages, or sexes that are not stated. Omit anything missing.'
+    ].join('\n');
+    const anonNote = anonymize
+        ? 'ANONYMIZE: do NOT output real patient names. Leave the Name field empty — write only the relationship and attributes (e.g. "Mother, age 60, breast cancer age 45"). Pedigree position codes are assigned automatically.'
+        : 'Include a name only when one is clearly given in the text.';
+    const system = 'You convert a free-text family / medical history into a strict pedigree LINE FORMAT for a clinical pedigree drawing tool. '
+        + 'The input may be written in Turkish or English; translate every relationship and finding into the standard ENGLISH terms listed below. '
+        + 'Extract every mentioned relative with their relationship to the proband, sex, age, vital status, and any diseases or cancers with diagnosis ages. '
+        + anonNote + '\n\n' + grammar + '\n\nReturn ONLY the array of lines via the structured output schema — no commentary.';
+
+    const body = {
+        model: 'claude-opus-4-8',
+        max_tokens: 4000,
+        system: system,
+        messages: [{ role: 'user', content: 'Family / medical history:\n\n' + freeText }],
+        output_config: {
+            format: {
+                type: 'json_schema',
+                schema: {
+                    type: 'object', additionalProperties: false,
+                    properties: { lines: { type: 'array', items: { type: 'string' } } },
+                    required: ['lines']
+                }
+            }
+        }
+    };
+
+    let resp;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+    try {
+        resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal
+        });
+    } catch (e) {
+        if (e && e.name === 'AbortError') throw new Error(TR ? 'İstek zaman aşımına uğradı (45 sn).' : 'Request timed out (45 s).');
+        throw new Error(TR ? 'Ağ hatası (internet bağlantısını kontrol edin).' : 'Network error (check your connection).');
+    } finally {
+        clearTimeout(timer);
+    }
+
+    if (!resp.ok) {
+        let msg = 'HTTP ' + resp.status;
+        try { const e = await resp.json(); if (e && e.error && e.error.message) msg = e.error.message; } catch (_) {}
+        if (resp.status === 401) msg = TR ? 'Geçersiz API anahtarı.' : 'Invalid API key.';
+        else if (resp.status === 429) msg = TR ? 'Hız limiti — biraz sonra tekrar deneyin.' : 'Rate limited — try again shortly.';
+        else if (resp.status === 529) msg = TR ? 'API yoğun — biraz sonra deneyin.' : 'API overloaded — try again shortly.';
+        throw new Error(msg);
+    }
+
+    const data = await resp.json();
+    let parsed = data.parsed_output || null;
+    if (!parsed) {
+        const txt = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+        if (!txt) throw new Error(TR ? 'AI boş yanıt döndürdü — tekrar deneyin.' : 'AI returned an empty response — please retry.');
+        try { parsed = JSON.parse(txt); } catch (e) { throw new Error(TR ? 'AI çıktısı çözümlenemedi.' : 'Could not parse AI output.'); }
+    }
+    const lines = (parsed && Array.isArray(parsed.lines)) ? parsed.lines.filter(l => l && String(l).trim()).map(l => String(l).trim()) : [];
+    if (!lines.length) throw new Error(TR ? 'AI hiç satır üretemedi (metni netleştirip tekrar deneyin).' : 'AI produced no lines (clarify the text and retry).');
+    return lines;
 }
 
 // Initialize
