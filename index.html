@@ -2748,7 +2748,7 @@ const I18N = {
         'btn.summary': 'Özet',
         'btn.summary.tip': 'Aile öyküsü klinik özeti oluştur',
         'summary.title': 'Aile Öyküsü Özeti',
-        'summary.subtitle': 'Pedigri verisinden otomatik üretilen klinik anamnez metni',
+        'summary.subtitle': 'Pedigri verisinden otomatik üretilen aile öyküsü ve kalıtım paterni analizi',
         'summary.copy': 'Panoya Kopyala',
         'summary.copied': 'Panoya kopyalandı ✓',
         'summary.close': 'Kapat ✕',
@@ -3072,7 +3072,7 @@ const I18N = {
         'btn.summary': 'Summary',
         'btn.summary.tip': 'Generate clinical family history summary',
         'summary.title': 'Family History Summary',
-        'summary.subtitle': 'Clinical narrative auto-generated from pedigree data',
+        'summary.subtitle': 'Family-history & inheritance-pattern analysis auto-generated from pedigree data',
         'summary.copy': 'Copy to Clipboard',
         'summary.copied': 'Copied to clipboard ✓',
         'summary.close': 'Close ✕',
@@ -3410,6 +3410,12 @@ function applyTranslations() {
     // Re-render dynamic content
     if (typeof updateUI === 'function') updateUI();
     if (typeof renderPedigree === 'function') renderPedigree();
+    // Özet modalı açıksa üretilmiş metni yeni dilde yenile
+    const summaryOv = document.getElementById('summaryModalOverlay');
+    if (summaryOv && summaryOv.classList.contains('open') && typeof generateFamilyHistory === 'function') {
+        const ta = document.getElementById('summaryText');
+        if (ta) ta.value = generateFamilyHistory(currentLang);
+    }
 }
 
 function toggleLanguage() {
@@ -8255,8 +8261,8 @@ function fhBuildIdMap() {
     });
     Object.keys(byGen).forEach(g => {
         byGen[g].slice().sort((a, b) => {
-            const ax = (a.customX != null) ? a.customX : (a.id * 100000);
-            const bx = (b.customX != null) ? b.customX : (b.id * 100000);
+            const ax = (a.customX != null && !isNaN(Number(a.customX))) ? Number(a.customX) : (a.id * 100000);
+            const bx = (b.customX != null && !isNaN(Number(b.customX))) ? Number(b.customX) : (b.id * 100000);
             return ax - bx;
         }).forEach((m, i) => { map[m.id] = fhRomanGen(g) + '-' + (i + 1); });
     });
@@ -8274,11 +8280,13 @@ function fhIsAffected(m) {
 
 function fhPhenotypeText(m, lang) {
     const parts = [];
-    (m.diseases || []).forEach(d => { if (d) parts.push(d); });
-    (m.cancers || []).forEach(c => {
+    (Array.isArray(m.diseases) ? m.diseases : []).forEach(d => { if (d) parts.push(String(d)); });
+    (Array.isArray(m.cancers) ? m.cancers : []).forEach(c => {
+        if (!c) return;
         let s = c.type || (lang === 'tr' ? 'kanser' : 'cancer');
         const bits = [];
-        if (c.age != null && c.age !== '') bits.push(c.age + 'y');
+        const ageNum = Number(c.age);
+        if (c.age != null && c.age !== '' && !isNaN(ageNum)) bits.push(ageNum + 'y');
         if (c.bilateral) bits.push('bilateral');
         if (bits.length) s += ' (' + bits.join(', ') + ')';
         parts.push(s);
@@ -8292,19 +8300,36 @@ function fhLabel(m, idMap, lang) {
     return nm ? (pid + ' — ' + nm) : pid;
 }
 
-// Konservatif, tentatif kalıtım paterni gözlemi
+// Konservatif, tentatif kalıtım paterni gözlemi.
+// Evlat edinilmiş (adopted='in') bireyler biyolojik kalıtımı yansıtmadığından
+// örüntü çıkarımına dahil edilmez. Tüm çıkarımlar tek başına tanı koydurmaz.
 function fhInheritancePattern(lang) {
     const T = (tr, en) => lang === 'tr' ? tr : en;
     const members = familyData.members || [];
-    const affected = members.filter(fhIsAffected);
+    const allAffected = members.filter(fhIsAffected);
+    const adoptedAffected = allAffected.filter(m => m.adopted === 'in');
+    const affected = allAffected.filter(m => m.adopted !== 'in');
+    const adoptedNote = adoptedAffected.length
+        ? ' ' + T('Evlat edinilmiş etkilenmiş birey(ler) biyolojik kalıtımı yansıtmadığından bu değerlendirmeye dahil edilmemiştir.',
+                  'Affected adopted-in individual(s) are excluded from this assessment as they do not reflect biological inheritance.')
+        : '';
+    const hedge = T(
+        ' Bu yalnızca bir örüntü gözlemidir, tek başına tanı koydurmaz; X’e bağlı ve diğer kalıtım biçimleri dışlanmamalı, küçük ailelerde rastlantısal kümelenme göz önünde bulundurulmalıdır.',
+        ' This is only a pattern observation and is not diagnostic on its own; X-linked and other modes of inheritance should not be excluded, and chance clustering in small families should be considered.'
+    );
+
+    if (affected.length === 0) {
+        return (T('Etkilenmiş bireyler biyolojik soyağacında yer almadığından kalıtım paterni değerlendirilememektedir.',
+                  'An inheritance pattern cannot be assessed as the affected individuals are not part of the biological pedigree.') + adoptedNote).trim();
+    }
     if (affected.length === 1) {
-        return T(
+        return (T(
             'Tek etkilenmiş birey bulunmaktadır; sporadik veya de novo olgu olabileceği gibi, düşük penetrans ya da sınırlı aile öyküsü de söz konusu olabilir. Mevcut veriyle kalıtım paterni tanımlanamamaktadır.',
             'Only one affected individual is present; this may represent a sporadic or de novo case, or reflect reduced penetrance or limited family history. An inheritance pattern cannot be determined from the current data.'
-        );
+        ) + adoptedNote).trim();
     }
     const affectedIds = new Set(affected.map(m => m.id));
-    const affectedGens = new Set(affected.map(m => m.generation || 1));
+    const affectedGens = new Set(affected.map(m => Number(m.generation) || 1));
     let vertical = false, maleToMale = false;
     (familyData.parentChildLinks || []).forEach(l => {
         if (!affectedIds.has(l.childId)) return;
@@ -8319,33 +8344,36 @@ function fhInheritancePattern(lang) {
     const hasConsang = (familyData.partnerships || []).some(p => p.consanguinity);
     const allMale = affected.every(m => m.sex === 'male');
 
+    let s;
     if (vertical && affectedGens.size >= 2) {
-        let s = T(
-            'Birden fazla ardışık kuşakta etkilenme (dikey geçiş) gözlenmekte olup otozomal dominant kalıtımla uyumlu olabilir.',
-            'Affected individuals are seen across multiple consecutive generations (vertical transmission), which may be consistent with autosomal dominant inheritance.'
+        s = T(
+            'Birden fazla ardışık kuşakta etkilenme (dikey geçiş) gözlenmekte olup ilk planda otozomal dominant kalıtımla uyumlu olabilir.',
+            'Affected individuals are seen across multiple consecutive generations (vertical transmission), which may, as a first consideration, be consistent with autosomal dominant inheritance.'
         );
-        if (maleToMale) s += ' ' + T('Erkekten erkeğe geçişin bulunması X’e bağlı kalıtımı olası dışı kılar.', 'The presence of male-to-male transmission makes X-linked inheritance unlikely.');
-        return s;
-    }
-    if (affectedGens.size === 1) {
-        let s = T(
+        s += ' ' + (maleToMale
+            ? T('Erkekten erkeğe geçişin bulunması X’e bağlı kalıtım aleyhinedir.', 'The presence of male-to-male transmission argues against X-linked inheritance.')
+            : T('Erkekten erkeğe geçiş gösterilemediğinden X’e bağlı kalıtım dışlanamaz.', 'As male-to-male transmission is not demonstrated, X-linked inheritance cannot be excluded.'));
+    } else if (affectedGens.size === 1) {
+        s = T(
             'Etkilenmenin tek kuşakta (kardeşlerde) toplanması ve ebeveyn kuşağında etkilenme bulunmaması otozomal resesif kalıtımı düşündürebilir.',
             'Clustering of affected individuals within a single generation (siblings), with no affected parental generation, may suggest autosomal recessive inheritance.'
         );
-        if (hasConsang) s += ' ' + T('Ailede bildirilen akraba evliliği bu olasılığı desteklemektedir.', 'The consanguinity reported in this family supports this possibility.');
-        if (allMale) s += ' ' + T('Etkilenen bireylerin yalnızca erkek olması X’e bağlı resesif kalıtımı da ayırıcı tanıda akla getirir.', 'As all affected individuals are male, X-linked recessive inheritance should also be considered in the differential.');
-        return s;
-    }
-    if (allMale) {
-        return T(
-            'Etkilenen bireylerin yalnızca erkeklerden oluşması X’e bağlı resesif kalıtım olasılığını akla getirir; doğrulama için ek bilgi gereklidir.',
-            'Affected individuals being exclusively male raises the possibility of X-linked recessive inheritance; further information is needed for confirmation.'
+        s += ' ' + (hasConsang
+            ? T('Ailede bildirilen akraba evliliği bu olasılığı desteklemektedir.', 'The consanguinity reported in this family supports this possibility.')
+            : T('Akraba evliliği bildirilmemiş olup sağlıklı ebeveynler bilinmeyen taşıyıcı olabilir; taşıyıcı taraması önerilir.', 'No consanguinity is reported; healthy parents may be unrecognized carriers, and carrier screening is advised.'));
+        if (allMale) s += ' ' + T('Etkilenenlerin yalnızca erkek olması X’e bağlı resesif kalıtımı da ayırıcı tanıda öne çıkarır.', 'As all affected individuals are male, X-linked recessive inheritance is also prominent in the differential.');
+    } else if (allMale) {
+        s = T(
+            'Etkilenen bireylerin yalnızca erkeklerden oluşması X’e bağlı resesif kalıtım olasılığını akla getirir; ancak taşıyıcı ebeveynlerle otozomal resesif kalıtım da dışlanmamalıdır.',
+            'Affected individuals being exclusively male raises the possibility of X-linked recessive inheritance; however, autosomal recessive inheritance with carrier parents should not be excluded either.'
+        );
+    } else {
+        s = T(
+            'Mevcut veriyle belirgin tek bir kalıtım paterni tanımlanamamıştır; ayrıntılı klinik değerlendirme önerilir.',
+            'A single clear inheritance pattern could not be determined from the current data; detailed clinical evaluation is recommended.'
         );
     }
-    return T(
-        'Mevcut veriyle belirgin tek bir kalıtım paterni tanımlanamamıştır; ayrıntılı klinik değerlendirme önerilir.',
-        'A single clear inheritance pattern could not be determined from the current data; detailed clinical evaluation is recommended.'
-    );
+    return (s + hedge + adoptedNote).trim();
 }
 
 function generateFamilyHistory(lang) {
@@ -8368,12 +8396,12 @@ function generateFamilyHistory(lang) {
         return L.join('\n');
     }
 
-    const genCount = new Set(members.map(m => m.generation || 1)).size;
+    const genCount = new Set(members.map(m => Number(m.generation) || 1)).size;
     const affected = members.filter(fhIsAffected);
     L.push(T('GENEL', 'OVERVIEW'));
     L.push(T(
-        `Soyağacında toplam ${members.length} birey ve ${genCount} kuşak yer almaktadır. ${affected.length} bireyde fenotip/hastalık kaydı bulunmaktadır.`,
-        `The pedigree contains ${members.length} individual(s) across ${genCount} generation(s). ${affected.length} individual(s) have a recorded phenotype/disease.`
+        `Soyağacında toplam ${members.length} birey ve ${genCount} kuşak yer almaktadır. ${affected.length} birey etkilenmiş olarak değerlendirilmektedir.`,
+        `The pedigree contains ${members.length} individual(s) across ${genCount} generation(s). ${affected.length} individual(s) are considered affected.`
     ));
     L.push('');
 
@@ -8381,12 +8409,14 @@ function generateFamilyHistory(lang) {
     L.push(T('PROBAND', 'PROBAND'));
     if (proband) {
         const b = [fhLabel(proband, idMap, lang)];
-        if (proband.age != null && proband.age !== '') b.push(proband.age + 'y');
+        if (typeof proband.age === 'number' && !isNaN(proband.age)) b.push(proband.age + 'y');
         b.push(fhSexWord(proband.sex, lang));
         let line = b.join(', ');
         if (proband.deceased) line += T(' (ex.)', ' (deceased)');
         const ph = fhPhenotypeText(proband, lang);
-        line += '. ' + (ph ? T(ph + ' tanılı.', 'Diagnosed with ' + ph + '.') : T('Belirtilmiş fenotip yok.', 'No phenotype recorded.'));
+        if (ph) line += '. ' + T(ph + ' tanılı.', 'Diagnosed with ' + ph + '.');
+        else if (fhIsAffected(proband)) line += '. ' + T('Etkilenmiş olarak işaretli; fenotip/hastalık detayı girilmemiş.', 'Marked as affected; no phenotype/disease detail entered.');
+        else line += '. ' + T('Kaydedilen fenotip/hastalık yok.', 'No phenotype/disease recorded.');
         L.push(line);
     } else {
         L.push(T('Proband işaretlenmemiştir. (Bir indeks bireyi proband olarak işaretlemeniz önerilir.)', 'No proband marked. (Marking an index case as proband is recommended.)'));
@@ -8395,20 +8425,22 @@ function generateFamilyHistory(lang) {
 
     if (affected.length) {
         L.push(T('ETKİLENEN BİREYLER', 'AFFECTED INDIVIDUALS'));
-        Array.from(new Set(affected.map(m => m.generation || 1))).sort((a, b) => a - b).forEach(g => {
+        Array.from(new Set(affected.map(m => Number(m.generation) || 1))).sort((a, b) => a - b).forEach(g => {
             L.push(T('Kuşak ', 'Generation ') + fhRomanGen(g) + ':');
-            affected.filter(m => (m.generation || 1) === g)
+            affected.filter(m => (Number(m.generation) || 1) === g)
                 .sort((a, b) => (idMap[a.id] || '').localeCompare(idMap[b.id] || '', undefined, { numeric: true }))
                 .forEach(m => {
                     let s = '  • ' + fhLabel(m, idMap, lang);
                     const sub = [];
-                    if (m.age != null && m.age !== '') sub.push(m.age + 'y');
+                    if (typeof m.age === 'number' && !isNaN(m.age)) sub.push(m.age + 'y');
                     sub.push(fhSexWord(m.sex, lang));
                     if (m.deceased) sub.push(T('ex.', 'deceased'));
+                    if (m.adopted === 'in') sub.push(T('evlat edinilmiş', 'adopted-in'));
                     if (m.proband) sub.push('PROBAND');
                     s += ', ' + sub.join(', ');
                     const ph = fhPhenotypeText(m, lang);
                     if (ph) s += ' — ' + ph;
+                    else s += T(' — fenotip detayı girilmemiş', ' — no phenotype detail entered');
                     L.push(s);
                 });
         });
@@ -8462,7 +8494,10 @@ function generateFamilyHistory(lang) {
     }
     L.push('');
     L.push('—');
-    L.push(T('Bu özet pedigri verisinden otomatik üretilmiştir ve tanısal karar yerine geçmez.', 'This summary is auto-generated from the pedigree data and does not replace a diagnostic decision.'));
+    L.push(T(
+        'Bu özet, pedigri verisinden otomatik üretilmiş bir örüntü çıkarımıdır; tanı yerine geçmez. Kesin değerlendirme için moleküler genetik test, segregasyon analizi ve klinik genetik danışmanlığı gereklidir.',
+        'This summary is an automated pattern inference from the pedigree data and does not replace a diagnosis. Definitive assessment requires molecular genetic testing, segregation analysis, and clinical genetic counseling.'
+    ));
 
     return L.join('\n');
 }
