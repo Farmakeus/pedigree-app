@@ -36,7 +36,16 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Hepsi commit'li ve **canlıda** (son: `f7d1c53`).
+> Hepsi commit'li (son: `6d4a0ff`).
+
+### 🆕 #2 Validation / Klinik Muhakeme Motoru (`6d4a0ff`)
+- Eski **Türkçe-sabit** `validatePedigree()` → **yapısal, iki dilli `computeValidation()`** ile değiştirildi. Bulgular `{errors, warnings, observations}` olarak gruplanır; her bulguda dile bağımsız `code` (test için) + `currentLang`'a göre yerelleştirilmiş `text` var. Mevcut `#validationPanel` render eder.
+- **Obligat taşıyıcı tespiti** (klinik çıkarım): iki **sağlam biyolojik ebeveynin etkilenmiş çocuğu** → otozomal resesif varsayımıyla her iki ebeveyn obligat taşıyıcı. **Dikey geçiş (etkilenmiş ebeveyn) ve evlatlık (adopted='in') çocuk çıkarımı bastırır** (yanlış pozitif önleme). Mavi, **bloklamayan** gözlem olarak gösterilir + tek tık **"Taşıyıcı işaretle"** (`applyObligateCarriers`): tek undo adımı, **klinisyen başlatır — asla otomatik değiştirmez** (zaten taşıyıcı/etkilenmiş olanları atlar).
+- **Yeni tutarsızlık kontrolleri**: aynı bireyde `carrier`+`affected` çelişkisi · **izole/kopuk düğüm** (hiç eş/ebeveyn-çocuk yok). Mevcut kuşak-sırası, yaş, çoklu-proband, eksik-referans kontrolleri korundu ve artık **II-1/III-2 kodlu, TR/EN yerel**.
+- **Panel durumu**: yalnız gözlem varsa **mavi (`info-only`)**, uyarı varsa amber, temizse yeşil. Tüm kullanıcı verisi **`fhEscapeHtml`** ile escape. Başlık "Pedigri Uyarıları" → **"Pedigri Kontrolleri / Pedigree Checks"**.
+- **+5 regresyon testi** (obligat tespit · dikey-geçiş bastırma · çelişki · izole düğüm · apply). **43/43 geçiyor**, JS syntax OK. Preview'da TR+EN, açık+dark, apply butonu doğrulandı.
+
+### Önceki özellikler (önceki session'lar, canlıda `f7d1c53`)
 
 ### `f44198a` — (önceki session'dan kalan, push'landı)
 Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kardeş simetri düzeltmeleri. Bu oturumun başında push edildi (local 1 commit öndeydi).
@@ -68,16 +77,12 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- Yukarıdaki **3 büyük özellik tamamlandı, test edildi (38/38), canlıda** (`f7d1c53`). Working tree temiz.
+- **#2 Validation/Klinik Muhakeme Motoru TAMAMLANDI** (`6d4a0ff`), 43/43 test, preview'da doğrulandı. ⚠️ **HENÜZ PUSH EDİLMEDİ — canlı değil.** İlk iş: push + Pages doğrula (bkz. bölüm 6 git notu).
+- Önceki 3 büyük özellik (Özet · Metinden Oluştur · AI BYOK) canlıda (`f7d1c53`).
 
-### 🎯 Kullanıcının Son Konuştuğu / SIRADAKİ İŞ
-**"Handoff ver, sıradaki chatte #2'ci adımı yapalım."**
-
-**#2 = Validation / Klinik Muhakeme Motoru** (kullanıcı onayladı, bunu yapacak):
-- **Obligat taşıyıcı tespiti**: otozomal resesif paternde, hasta çocuğu olan sağlam ebeveynleri otomatik taşıyıcı işaretle.
-- **Kalıtım modu çakışması / tutarsızlık uyarıları**: kalıtım paterni ile işaretlemeler çelişiyor mu; yaş tutarsızlığı (çocuk ebeveynden yaşlı vb.); izole/kopuk düğümler.
-- Sunum: ayrı bir **validation paneli** (sağ tarafta floating card, legend gibi) ya da Özet modalına entegre uyarı bölümü. **Basit/mevcut pattern tercih edilir** (kullanıcı tercihi).
-- Not: `fhInheritancePattern()` zaten temel kalıtım çıkarımı yapıyor (Özet'te) — #2 bunu obligat taşıyıcı + tutarsızlık tespitiyle genişletir. Mevcut `updateValidationPanel()` fonksiyonu var mı kontrol et (updateUI içinde çağrılıyordu).
+### 🎯 SIRADAKİ İŞ
+1. **`6d4a0ff`'i push et** ve `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages build'ini doğrula (canlıya almak için).
+2. Sonra kullanıcıya yeni özellik sor. #2 motoru genişletilebilir (opsiyonel, kullanıcı isterse): X'e bağlı resesif obligat taşıyıcı (etkilenmiş oğlu olan anne) · iki etkilenmiş ebeveynin sağlam çocuğu (AR'da beklenmez) · konsanguinite + tek-kuşak kümelenme vurgusu. `fhInheritancePattern()` (Özet'te) ile `computeValidation()` ayrı duruyor; istenirse pattern özetini panele de getirilebilir.
 
 ### 🤔 İptal Edilen / İstenmeyenler
 - **#3 Genetik test detay alanı (ACMG)** — kullanıcı istemedi.
@@ -128,6 +133,12 @@ FH_AI_KEY_LS='pedigreeApp_anthropicKey', FH_AI_ACK_LS='pedigreeApp_aiPrivacyAck'
 
 # Güvenlik
 fhEscapeHtml(s)  ← global; SVG/tooltip/panel/toast'ta kullanıcı verisi basmadan önce ÇAĞIR
+
+# Validation / Klinik muhakeme motoru (#2)
+computeValidation()       → {errors, warnings, observations}; her bulgu {code, text, action?}
+                            (code dile bağımsız/test için; text currentLang'a göre yerel)
+updateValidationPanel()   → #validationPanel'i render eder (esc + sev-error/warn/info + info-only)
+applyObligateCarriers(ids)→ verilen ebeveynleri carrier işaretler (tek undo, klinisyen tetikler)
 ```
 
 ### Programatik aile kurma (yeni özellikler bunu kullanır)
@@ -155,7 +166,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit:** `f7d1c53` (bu handoff commit'i üzerine işlenecek)
+- **Son commit:** `6d4a0ff` (#2 validation motoru — **henüz push edilmedi**, bir sonraki iş push)
 
 ---
 
@@ -171,7 +182,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (38 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (43 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.
