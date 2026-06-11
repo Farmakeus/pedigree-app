@@ -768,9 +768,25 @@
         .validation-warning {
             display: flex; gap: 6px; padding: 4px 0; align-items: flex-start;
         }
-        .validation-warning .warn-icon { color: #d39e00; font-weight: bold; }
+        .validation-warning .warn-icon { color: #d39e00; font-weight: bold; flex: 0 0 auto; }
+        .validation-warning.sev-error .warn-icon { color: #c0392b; }
+        .validation-warning.sev-info .warn-icon { color: #2471a3; }
+        /* Panel turns blue/neutral when only clinical observations remain (no errors/warnings) */
+        .validation-panel.info-only { background: #e8f1fb; border-color: #5b9bd5; color: #1a4971; }
+        .validation-panel.info-only h4 { color: #1a4971; }
+        .valid-action-btn {
+            margin-left: 6px; padding: 1px 8px; font-size: 11px; font-weight: 600;
+            border: 1px solid #5b9bd5; border-radius: 10px; background: #fff; color: #1a4971;
+            cursor: pointer; white-space: nowrap; vertical-align: middle;
+        }
+        .valid-action-btn:hover { background: #5b9bd5; color: #fff; }
         body.dark-theme .validation-panel { background: #3d3a1f; border-color: #d39e00; color: #ffe083; }
         body.dark-theme .validation-panel.empty { background: #1f3a25; border-color: #28a745; color: #a3e3b5; }
+        body.dark-theme .validation-panel.info-only { background: #1c2c3d; border-color: #5b9bd5; color: #bcd6f0; }
+        body.dark-theme .validation-panel.info-only h4 { color: #bcd6f0; }
+        body.dark-theme .validation-warning.sev-info .warn-icon { color: #7fb3e0; }
+        body.dark-theme .valid-action-btn { background: #243447; color: #bcd6f0; border-color: #5b9bd5; }
+        body.dark-theme .valid-action-btn:hover { background: #5b9bd5; color: #10243a; }
 
         /* ===== Mini-map ===== */
         .minimap {
@@ -2692,92 +2708,194 @@ function updateStatsPanel() {
 }
 
 // ======================== PEDIGREE VALIDATION ========================
-function validatePedigree() {
-    const warnings = [];
+// ======================== VALIDATION / CLINICAL REASONING ENGINE ========================
+// Returns structured findings grouped by severity so the panel can both flag
+// problems and offer clinical inferences:
+//   errors       — data-integrity problems (red ✕)
+//   warnings     — soft inconsistencies worth a look (amber ⚠)
+//   observations — clinical inferences/suggestions, non-blocking (blue ℹ),
+//                  optionally carrying an `action` the user can one-click apply.
+// Every finding has a stable `code` (language-independent, for tests) and a
+// `text` already localized to currentLang. Member names land in `text`, so the
+// renderer MUST escape it (fhEscapeHtml) before inserting as innerHTML.
+function computeValidation() {
+    const lang = (typeof currentLang !== 'undefined') ? currentLang : 'tr';
+    const T = (tr, en) => lang === 'en' ? en : tr;
+    const members = familyData.members || [];
+    const partnerships = familyData.partnerships || [];
+    const links = familyData.parentChildLinks || [];
+    const byId = id => members.find(m => m.id === id);
+    const idMap = (typeof fhBuildIdMap === 'function') ? fhBuildIdMap() : {};
+    const tag = m => {
+        if (!m) return '?';
+        const code = idMap[m.id] || ('#' + m.id);
+        const name = (m.name != null && String(m.name).trim()) ? String(m.name).trim() : '';
+        return name ? (code + ' ' + name) : code;
+    };
+    const isAff = m => (typeof fhIsAffected === 'function') ? fhIsAffected(m)
+        : !!(m && (m.affected || (m.diseases && m.diseases.length) || (m.cancers && m.cancers.length)));
+    const num = v => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
 
-    // 1. Cycle in parent-child links
-    familyData.parentChildLinks.forEach(l => {
+    const errors = [], warnings = [], observations = [];
+
+    // ---- Data integrity (errors) ----
+    links.forEach(l => {
         if (l.childId === l.parent1 || l.childId === l.parent2) {
-            warnings.push(`Birey ${l.childId} kendisinin ebeveyni olamaz.`);
+            errors.push({ code: 'self-parent', text: T(
+                `${tag(byId(l.childId))} kendisinin ebeveyni olamaz.`,
+                `${tag(byId(l.childId))} cannot be its own parent.`) });
         }
     });
-
-    // 2. Generation order: child should be in higher generation than parents
-    familyData.parentChildLinks.forEach(l => {
-        const child = familyData.members.find(m => m.id === l.childId);
-        const p1 = familyData.members.find(m => m.id === l.parent1);
-        const p2 = familyData.members.find(m => m.id === l.parent2);
-        if (child && p1 && child.generation <= p1.generation) {
-            warnings.push(`Birey "${child.name||'Birey '+child.id}" ebeveynleriyle aynı veya daha üst nesilde.`);
-        }
+    partnerships.forEach(p => {
+        if (p.partner1 === p.partner2) errors.push({ code: 'self-partner', text: T(
+            'Bir birey kendisiyle eş olamaz.', 'An individual cannot be partnered with themselves.') });
+    });
+    partnerships.forEach(p => {
+        if (!byId(p.partner1) || !byId(p.partner2)) errors.push({ code: 'orphan-partner', text: T(
+            'Eksik üyeye atıfta bulunan eş ilişkisi var.', 'A partnership references a missing member.') });
+    });
+    links.forEach(l => {
+        if (!byId(l.childId) || !byId(l.parent1) || !byId(l.parent2)) errors.push({ code: 'orphan-link', text: T(
+            'Eksik üyeye atıfta bulunan ebeveyn-çocuk bağlantısı var.', 'A parent–child link references a missing member.') });
     });
 
-    // 3. Age consistency: child age should be less than parent age
-    familyData.parentChildLinks.forEach(l => {
-        const child = familyData.members.find(m => m.id === l.childId);
-        const p1 = familyData.members.find(m => m.id === l.parent1);
-        const p2 = familyData.members.find(m => m.id === l.parent2);
-        if (child && child.age != null) {
-            if (p1 && p1.age != null && child.age >= p1.age) {
-                warnings.push(`"${child.name||'Birey '+child.id}" yaşı (${child.age}) ebeveyni "${p1.name||'Birey '+p1.id}" (${p1.age}) yaşına eşit/büyük.`);
+    // ---- Generation / age consistency (warnings) ----
+    links.forEach(l => {
+        const child = byId(l.childId);
+        [l.parent1, l.parent2].forEach(pid => {
+            const par = byId(pid);
+            if (child && par && num(child.generation) != null && num(par.generation) != null
+                && num(child.generation) <= num(par.generation)) {
+                warnings.push({ code: 'gen-order', text: T(
+                    `${tag(child)}, ebeveyni ${tag(par)} ile aynı veya daha üst kuşakta.`,
+                    `${tag(child)} is in the same or an earlier generation than parent ${tag(par)}.`) });
             }
-            if (p2 && p2.age != null && child.age >= p2.age) {
-                warnings.push(`"${child.name||'Birey '+child.id}" yaşı (${child.age}) ebeveyni "${p2.name||'Birey '+p2.id}" (${p2.age}) yaşına eşit/büyük.`);
+        });
+    });
+    links.forEach(l => {
+        const child = byId(l.childId);
+        const ca = child && num(child.age);
+        if (ca == null) return;
+        [l.parent1, l.parent2].forEach(pid => {
+            const par = byId(pid);
+            const pa = par && num(par.age);
+            if (pa != null && ca >= pa) {
+                warnings.push({ code: 'age', text: T(
+                    `${tag(child)} yaşı (${ca}), ebeveyni ${tag(par)} (${pa}) ile eşit/büyük.`,
+                    `${tag(child)} age (${ca}) is ≥ parent ${tag(par)} (${pa}).`) });
             }
-        }
+        });
     });
 
-    // 4. Self-partnership
-    familyData.partnerships.forEach(p => {
-        if (p.partner1 === p.partner2) warnings.push(`Bir birey kendisiyle eş olamaz.`);
+    // ---- Marking conflicts (warnings) ----
+    const probands = members.filter(m => m.proband);
+    if (probands.length > 1) warnings.push({ code: 'multi-proband', text: T(
+        `${probands.length} proband işaretli — genellikle yalnızca 1 olmalı.`,
+        `${probands.length} probands marked — usually there should be exactly one.`) });
+    members.forEach(m => {
+        if (m.carrier && m.affected) warnings.push({ code: 'carrier-affected', text: T(
+            `${tag(m)} hem "taşıyıcı" hem "etkilenmiş" işaretli — taşıyıcı, belirti göstermeyen bireyi ifade eder.`,
+            `${tag(m)} is marked both "carrier" and "affected" — a carrier is asymptomatic by definition.`) });
     });
 
-    // 5. Same-sex partnership warning (informational, not error)
-    familyData.partnerships.forEach(p => {
-        const m1 = familyData.members.find(m => m.id === p.partner1);
-        const m2 = familyData.members.find(m => m.id === p.partner2);
-        if (m1 && m2 && m1.sex === m2.sex && m1.sex !== 'unknown') {
-            // Don't warn — this is valid
-        }
+    // ---- Isolated / disconnected nodes (warnings) ----
+    if (members.length > 1) {
+        const connected = new Set();
+        partnerships.forEach(p => { connected.add(p.partner1); connected.add(p.partner2); });
+        links.forEach(l => { connected.add(l.childId); connected.add(l.parent1); connected.add(l.parent2); });
+        members.filter(m => !connected.has(m.id)).forEach(m => {
+            warnings.push({ code: 'isolated', text: T(
+                `${tag(m)} izole bir düğüm (hiçbir bağlantısı yok) — eş veya ebeveyn-çocuk ilişkisi ekleyin.`,
+                `${tag(m)} is an isolated node with no relationships — add a partnership or parent–child link.`) });
+        });
+    }
+
+    // ---- Obligate carrier inference (observation; autosomal-recessive assumption) ----
+    // Textbook case: an affected child of two UNAFFECTED biological parents ⇒
+    // under autosomal recessive inheritance both parents are obligate
+    // heterozygotes. We only infer when BOTH parents are present and unaffected.
+    // An affected parent (vertical transmission) points to dominant/pseudodominant
+    // inheritance, so we stay silent there to avoid a false inference. Adopted-in
+    // children do not reflect biological inheritance and are excluded.
+    const obligateIds = new Set();
+    links.forEach(l => {
+        const child = byId(l.childId);
+        if (!child || !isAff(child) || child.adopted === 'in') return;
+        const p1 = byId(l.parent1), p2 = byId(l.parent2);
+        if (!p1 || !p2) return;
+        if (isAff(p1) || isAff(p2)) return;
+        [p1, p2].forEach(par => { if (!par.affected && !par.carrier) obligateIds.add(par.id); });
     });
+    if (obligateIds.size) {
+        const list = Array.from(obligateIds).map(id => tag(byId(id))).join(', ');
+        observations.push({
+            code: 'obligate-carrier',
+            text: T(
+                `Otozomal resesif kalıtım varsayımıyla olası obligat taşıyıcı: ${list}. Etkilenmiş çocuk, sağlıklı ebeveynleri zorunlu taşıyıcı yapar.`,
+                `Possible obligate carrier(s) assuming autosomal recessive inheritance: ${list}. An affected child makes unaffected parents obligate carriers.`),
+            action: { type: 'carrier', ids: Array.from(obligateIds) }
+        });
+    }
 
-    // 6. Multiple probands
-    const probands = familyData.members.filter(m => m.proband);
-    if (probands.length > 1) warnings.push(`${probands.length} adet proband var — genellikle 1 olmalıdır.`);
-
-    // 7. Orphan partnerships (referencing missing members)
-    familyData.partnerships.forEach(p => {
-        if (!familyData.members.find(m => m.id === p.partner1) || !familyData.members.find(m => m.id === p.partner2)) {
-            warnings.push(`Eksik üyeye atıfta bulunan eş ilişkisi bulundu.`);
-        }
-    });
-
-    // 8. Orphan parent-child links
-    familyData.parentChildLinks.forEach(l => {
-        if (!familyData.members.find(m => m.id === l.childId) ||
-            !familyData.members.find(m => m.id === l.parent1) ||
-            !familyData.members.find(m => m.id === l.parent2)) {
-            warnings.push(`Eksik üyeye atıfta bulunan ebeveyn-çocuk bağlantısı bulundu.`);
-        }
-    });
-
-    return [...new Set(warnings)]; // dedupe
+    const dedupe = arr => {
+        const seen = new Set(), out = [];
+        arr.forEach(f => { if (!seen.has(f.text)) { seen.add(f.text); out.push(f); } });
+        return out;
+    };
+    return { errors: dedupe(errors), warnings: dedupe(warnings), observations: dedupe(observations) };
 }
 
 function updateValidationPanel() {
     const panel = document.getElementById('validationPanel');
     const list = document.getElementById('validationList');
     if (!panel || !list) return;
-    if (familyData.members.length === 0) { panel.style.display = 'none'; return; }
+    if (!familyData.members || familyData.members.length === 0) { panel.style.display = 'none'; return; }
 
-    const warnings = validatePedigree();
+    const { errors, warnings, observations } = computeValidation();
+    const esc = (typeof fhEscapeHtml === 'function') ? fhEscapeHtml : (s => String(s));
     panel.style.display = '';
-    if (warnings.length === 0) {
+    panel.classList.remove('empty', 'info-only');
+
+    const row = (sev, icon, f) => {
+        let btn = '';
+        if (f.action && f.action.type === 'carrier' && f.action.ids && f.action.ids.length) {
+            btn = ` <button type="button" class="valid-action-btn" onclick='applyObligateCarriers(${JSON.stringify(f.action.ids)})'>${esc(t('valid.carrier.apply'))}</button>`;
+        }
+        return `<div class="validation-warning sev-${sev}"><span class="warn-icon">${icon}</span><span>${esc(f.text)}${btn}</span></div>`;
+    };
+
+    const rows = [];
+    errors.forEach(f => rows.push(row('error', '✕', f)));
+    warnings.forEach(f => rows.push(row('warn', '⚠', f)));
+    observations.forEach(f => rows.push(row('info', 'ℹ', f)));
+
+    if (rows.length === 0) {
         panel.classList.add('empty');
-        list.innerHTML = `<div class="validation-warning">${t('valid.ok')}</div>`;
-    } else {
-        panel.classList.remove('empty');
-        list.innerHTML = warnings.map(w => `<div class="validation-warning"><span class="warn-icon">⚠</span><span>${w}</span></div>`).join('');
+        list.innerHTML = `<div class="validation-warning">${esc(t('valid.ok'))}</div>`;
+        return;
+    }
+    // Only clinical observations, no real problems → neutral/blue panel, not amber.
+    if (errors.length + warnings.length === 0) panel.classList.add('info-only');
+    list.innerHTML = rows.join('');
+}
+
+// Apply the obligate-carrier inference: mark the named individuals as carriers
+// (one undo step). Skips anyone already carrier/affected. Clinician-initiated —
+// never auto-applied, since the inference assumes autosomal recessive inheritance.
+function applyObligateCarriers(ids) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    const targets = ids
+        .map(id => (familyData.members || []).find(m => m.id === id))
+        .filter(m => m && !m.carrier && !m.affected);
+    if (!targets.length) return;
+    if (typeof saveState === 'function') {
+        saveState(t('valid.carrier.apply'), targets.map(m => (m.name && m.name.trim()) ? m.name.trim() : ('#' + m.id)).join(', '));
+    }
+    targets.forEach(m => { m.carrier = true; });
+    updateUI();
+    if (typeof renderPedigree === 'function') renderPedigree();
+    if (typeof showToast === 'function') {
+        showToast(t('valid.carrier.applied').replace('{n}', String(targets.length)), { icon: '🟡' });
     }
 }
 
@@ -2920,8 +3038,10 @@ const I18N = {
         'stats.bilateral': 'Bilateral',
         'stats.topcancer': 'En Sık Kanser',
         // Validation
-        'valid.title': '⚠️ Pedigri Uyarıları',
+        'valid.title': '⚠️ Pedigri Kontrolleri',
         'valid.ok': '✓ Pedigride tutarsızlık bulunamadı.',
+        'valid.carrier.apply': 'Taşıyıcı işaretle',
+        'valid.carrier.applied': '{n} birey taşıyıcı olarak işaretlendi',
         // History
         'hist.title': '⏰ Değişiklik Geçmişi',
         'hist.clear': 'Temizle',
@@ -3253,8 +3373,10 @@ const I18N = {
         'stats.early': 'Early Onset (<50)',
         'stats.bilateral': 'Bilateral',
         'stats.topcancer': 'Most Frequent',
-        'valid.title': '⚠️ Pedigree Warnings',
+        'valid.title': '⚠️ Pedigree Checks',
         'valid.ok': '✓ No inconsistencies found.',
+        'valid.carrier.apply': 'Mark as carrier',
+        'valid.carrier.applied': '{n} individual(s) marked as carrier',
         'hist.title': '⏰ Change History',
         'hist.clear': 'Clear',
         'hist.now': 'just now',
@@ -8213,6 +8335,95 @@ window.runRegressionTests = function() {
             errors: sibshipDoesNotOverhang ? [] : [
                 `sibship leftmost=${expectedMinX.toFixed(1)} outer twin X=${outerTwinX.toFixed(1)} (would overhang)`
             ]
+        });
+
+        // ----- Validation / clinical reasoning engine -----
+        // Helper to build a family directly and run the engine.
+        function setFamily(members, partnerships, links) {
+            // Ensure realistic member shape (renderPedigree reads m.diseases/m.cancers).
+            familyData.members = members.map(function(m){
+                return Object.assign({ diseases: [], cancers: [] }, m);
+            });
+            familyData.partnerships = partnerships || [];
+            familyData.parentChildLinks = links || [];
+        }
+        // 1. Obligate carrier: affected child of two unaffected parents → both parents flagged.
+        setFamily(
+            [ { id: 1, name: 'Dad', sex: 'male', generation: 1 },
+              { id: 2, name: 'Mom', sex: 'female', generation: 1 },
+              { id: 3, name: 'Kid', sex: 'male', generation: 2, affected: true } ],
+            [ { partner1: 1, partner2: 2 } ],
+            [ { parent1: 1, parent2: 2, childId: 3 } ]
+        );
+        let v = computeValidation();
+        const ob = v.observations.find(o => o.code === 'obligate-carrier');
+        const obIdsOK = !!ob && ob.action && [1, 2].every(id => ob.action.ids.includes(id)) && ob.action.ids.length === 2;
+        tests.push({
+            name: 'Obligate carrier: unaffected parents of affected child flagged',
+            passed: obIdsOK,
+            errors: obIdsOK ? [] : [`observation=${JSON.stringify(ob && ob.action)}`]
+        });
+
+        // 2. Vertical transmission (affected parent) → NO obligate-carrier inference.
+        setFamily(
+            [ { id: 1, name: 'Dad', sex: 'male', generation: 1, affected: true },
+              { id: 2, name: 'Mom', sex: 'female', generation: 1 },
+              { id: 3, name: 'Kid', sex: 'male', generation: 2, affected: true } ],
+            [ { partner1: 1, partner2: 2 } ],
+            [ { parent1: 1, parent2: 2, childId: 3 } ]
+        );
+        v = computeValidation();
+        const noObligate = !v.observations.some(o => o.code === 'obligate-carrier');
+        tests.push({
+            name: 'No obligate carrier when a parent is affected (vertical transmission)',
+            passed: noObligate,
+            errors: noObligate ? [] : ['unexpected obligate-carrier inference on dominant-looking pedigree']
+        });
+
+        // 3. Carrier + affected on the same individual → contradiction warning.
+        setFamily(
+            [ { id: 1, name: 'A', sex: 'male', generation: 1, affected: true, carrier: true },
+              { id: 2, name: 'B', sex: 'female', generation: 1 } ],
+            [ { partner1: 1, partner2: 2 } ], []
+        );
+        v = computeValidation();
+        const contradiction = v.warnings.some(w => w.code === 'carrier-affected');
+        tests.push({
+            name: 'Carrier+affected contradiction is warned',
+            passed: contradiction,
+            errors: contradiction ? [] : ['carrier-affected warning missing']
+        });
+
+        // 4. Isolated node (no relationships) → warning.
+        setFamily(
+            [ { id: 1, name: 'A', sex: 'male', generation: 1 },
+              { id: 2, name: 'B', sex: 'female', generation: 1 },
+              { id: 9, name: 'Lonely', sex: 'female', generation: 2 } ],
+            [ { partner1: 1, partner2: 2 } ], []
+        );
+        v = computeValidation();
+        const isolated = v.warnings.some(w => w.code === 'isolated');
+        tests.push({
+            name: 'Isolated/disconnected node is warned',
+            passed: isolated,
+            errors: isolated ? [] : ['isolated warning missing']
+        });
+
+        // 5. applyObligateCarriers marks suggested parents as carriers (and undo restores).
+        setFamily(
+            [ { id: 1, name: 'Dad', sex: 'male', generation: 1 },
+              { id: 2, name: 'Mom', sex: 'female', generation: 1 },
+              { id: 3, name: 'Kid', sex: 'male', generation: 2, affected: true } ],
+            [ { partner1: 1, partner2: 2 } ],
+            [ { parent1: 1, parent2: 2, childId: 3 } ]
+        );
+        applyObligateCarriers([1, 2]);
+        const bothCarriers = familyData.members.find(m => m.id === 1).carrier === true
+            && familyData.members.find(m => m.id === 2).carrier === true;
+        tests.push({
+            name: 'applyObligateCarriers marks both parents as carrier',
+            passed: bothCarriers,
+            errors: bothCarriers ? [] : ['parents not marked carrier after apply']
         });
 
         // ----- 4. Legend toggle collapses panel without removing it -----
