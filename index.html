@@ -296,7 +296,7 @@
         /* ===== Genotype probability panel ===== */
         .prob-panel {
             position: absolute; right: 16px; top: 56px;
-            width: 300px; max-width: calc(100% - 32px);
+            width: 320px; max-width: calc(100% - 32px);
             max-height: calc(100% - 90px); overflow-y: auto;
             background: #fff; border: 1px solid #d7dee8; border-radius: 10px;
             box-shadow: 0 6px 24px rgba(0,0,0,0.18);
@@ -317,6 +317,10 @@
         .prob-ctl { display:flex; flex-direction:column; gap:3px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#7a8699; flex:1; }
         .prob-ctl select, .prob-ctl input { font-size:12px; padding:5px 7px; border:1px solid #dfe3e8; border-radius:6px; background:#fff; color:#2c3e50; font-weight:500; text-transform:none; letter-spacing:0; }
         body.dark-theme .prob-ctl select, body.dark-theme .prob-ctl input { background:#1c2027; color:#e8e8e8; border-color:#3a4150; }
+        .prob-ctl-check { flex-direction:row; align-items:center; gap:6px; text-transform:none; letter-spacing:0; color:#2c3e50; }
+        .prob-ctl-check input[type=checkbox] { width:auto; margin:0; }
+        .prob-ctl-check select { flex:1; }
+        body.dark-theme .prob-ctl-check { color:#e8e8e8; }
         .prob-result { padding:10px 12px; }
         .prob-hint { color:#8a94a6; font-style:italic; padding:6px 0; }
         .prob-target { font-weight:700; font-size:13px; margin-bottom:2px; }
@@ -2987,7 +2991,12 @@ const PedigreeProb = (function () {
         }
         return false;
     }
-    function penetrance(g, sex, pattern) { return isAffected(g, sex, pattern) ? 1 : 0; }
+    // P(affected | genotype): f = penetrance (at-risk genotype), c = phenocopy
+    // rate (not-at-risk genotype). Defaults f=1, c=0 = full penetrance (legacy).
+    function penetrance(g, sex, pattern, f, c) {
+        if (f == null) f = 1; if (c == null) c = 0;
+        return isAffected(g, sex, pattern) ? f : c;
+    }
     function isCarrierGenotype(g, sex, pattern) {
         switch (pattern) {
             case 'AR':  return g === 'Aa';
@@ -3038,7 +3047,7 @@ const PedigreeProb = (function () {
         }
         return 0;
     }
-    function pinnedDomain(m, pattern, full) {
+    function pinnedDomain(m, pattern, full, fullPen) {
         const warnings = [];
         let dom = full.slice();
         const female = m.sex === 'female';
@@ -3047,7 +3056,12 @@ const PedigreeProb = (function () {
             else if (pattern === 'XLR') { if (female) dom = ['XAXa']; else { dom = ['XaY']; warnings.push('carrier-male-xlr'); } }
             else { dom = full.filter(g => isAffected(g, m.sex, pattern)); warnings.push('carrier-on-dominant'); }
         }
-        if (m.affected) dom = dom.filter(g => isAffected(g, m.sex, pattern));
+        // 'affected' hard-pins the genotype ONLY under full penetrance (f=1, c=0).
+        // With reduced penetrance / phenocopy an affected person may be genotype-
+        // normal (phenocopy) and an at-risk person unaffected, so there 'affected'
+        // enters only as SOFT likelihood (see makeFactor), not a domain restriction.
+        // 'carrier' (a tested genotype fact) always restricts, regardless of penetrance.
+        if (fullPen && m.affected) dom = dom.filter(g => isAffected(g, m.sex, pattern));
         if (dom.length === 0) { dom = full.slice(); warnings.push('contradictory-flags'); }
         return { domain: dom, warnings };
     }
@@ -3096,7 +3110,7 @@ const PedigreeProb = (function () {
             if (space == null) { errored = 'unknown-sex-xlinked'; domains.set(id, ['AA']); return; }
             if (opts.clamp && id === opts.clamp.id) { domains.set(id, [opts.clamp.g]); return; }
             if (opts.ignorePinId === id) { domains.set(id, space); return; }
-            const r = pinnedDomain(m, pattern, space);
+            const r = pinnedDomain(m, pattern, space, opts.fullPen);
             r.warnings.forEach(w => warnings.add(w));
             domains.set(id, r.domain);
         });
@@ -3113,7 +3127,7 @@ const PedigreeProb = (function () {
         })(0, 1);
         return { total, marg };
     }
-    function makeFactor(byId, parentsOf, isFounder, pattern, q, domains, ids, withEvidence, clampId) {
+    function makeFactor(byId, parentsOf, isFounder, pattern, q, domains, ids, withEvidence, clampId, f, c, phantomId) {
         const fmaps = {};
         // For the CLAMPED target founder, build the factor over the FULL genotype
         // space so its population prior P(target=H) survives (the singleton clamp
@@ -3132,14 +3146,16 @@ const PedigreeProb = (function () {
                 w = segregation(g, m.sex, assigned[mom.id], assigned[dad.id], pattern);
             }
             if (w === 0) return 0;
-            if (withEvidence) { const ev = m.affected ? penetrance(g, m.sex, pattern) : (1 - penetrance(g, m.sex, pattern)); w *= ev; }
+            // The phantom (hypothetical next child) is UNOBSERVED → no phenotype
+            // likelihood; it is marginalized, not conditioned on.
+            if (withEvidence && id !== phantomId) { const ev = m.affected ? penetrance(g, m.sex, pattern, f, c) : (1 - penetrance(g, m.sex, pattern, f, c)); w *= ev; }
             return w;
         };
     }
-    function priorDistribution(target, byId, parentsOf, isFounder, pattern, q) {
+    function priorDistribution(target, byId, parentsOf, isFounder, pattern, q, f, c) {
         const anc = ancestorsOf(target.id, parentsOf);
         const ids = Array.from(anc); ids.push(target.id);
-        const bd = buildDomains(ids, byId, pattern, { ignorePinId: target.id });
+        const bd = buildDomains(ids, byId, pattern, { ignorePinId: target.id, fullPen: (f == null || (f === 1 && (c == null || c === 0))) });
         if (bd.errored) return { dist: null, warnings: bd.warnings, errored: bd.errored };
         if (enumSpaceSize(ids, bd.domains) === Infinity) return { dist: null, warnings: bd.warnings, errored: 'too-large' };
         const order = topoOrder(ids, parentsOf);
@@ -3150,16 +3166,17 @@ const PedigreeProb = (function () {
         Object.keys(res.marg).forEach(g => dist[g] = res.marg[g] / res.total);
         return { dist, warnings: bd.warnings, errored: null };
     }
-    function fullJointClamped(target, H, byId, parentsOf, isFounder, pattern, q, componentIds) {
-        const bd = buildDomains(componentIds, byId, pattern, { clamp: { id: target.id, g: H } });
+    function fullJointClamped(target, H, byId, parentsOf, isFounder, pattern, q, componentIds, f, c, phantomId) {
+        const bd = buildDomains(componentIds, byId, pattern, { clamp: { id: target.id, g: H }, fullPen: (f === 1 && c === 0) });
         if (bd.errored) return 0;
         if (enumSpaceSize(componentIds, bd.domains) === Infinity) return NaN;
         const order = topoOrder(componentIds, parentsOf);
-        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, componentIds, true, target.id);
+        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, componentIds, true, target.id, f, c, phantomId);
         return enumerate(order, bd.domains, factor, null).total;
     }
     function analyzeMember(familyData, targetId, opts) {
         const pattern = opts.pattern, q = opts.q;
+        const f = (opts.f == null ? 1 : opts.f), c = (opts.c == null ? 0 : opts.c);
         const members = familyData.members || [], links = familyData.parentChildLinks || [], partnerships = familyData.partnerships || [];
         const target = members.find(m => m.id === targetId);
         if (!target) return { error: 'no-target' };
@@ -3167,7 +3184,7 @@ const PedigreeProb = (function () {
         if (xLinked && target.sex !== 'male' && target.sex !== 'female') return { error: 'target-unknown-sex-xlinked' };
         const g = buildGraph(members, links);
         const consanguinity = detectConsanguinity(links, g.parentsOf);
-        const pr = priorDistribution(target, g.byId, g.parentsOf, g.isFounder, pattern, q);
+        const pr = priorDistribution(target, g.byId, g.parentsOf, g.isFounder, pattern, q, f, c);
         if (pr.errored && pr.errored !== 'zero-prior') return { error: pr.errored, consanguinity };
         // X-linked needs each child's parents to be exactly one female + one male.
         if (xLinked) {
@@ -3180,18 +3197,18 @@ const PedigreeProb = (function () {
         }
         const prior = {
             dist: pr.dist,
-            pAffected: pr.dist ? Object.keys(pr.dist).reduce((s, k) => s + pr.dist[k] * penetrance(k, target.sex, pattern), 0) : null,
+            pAffected: pr.dist ? Object.keys(pr.dist).reduce((s, k) => s + pr.dist[k] * penetrance(k, target.sex, pattern, f, c), 0) : null,
             pCarrier: pr.dist ? Object.keys(pr.dist).reduce((s, k) => s + pr.dist[k] * (isCarrierGenotype(k, target.sex, pattern) ? 1 : 0), 0) : null,
         };
         const componentIds = Array.from(componentOf(target.id, members, links, partnerships));
-        // Posterior hypotheses span the target's genotype space, restricted by the
-        // target's OWN known-genotype pin (carrier/affected) — a carrier flag means
-        // we already know the genotype, so the posterior must respect it.
+        // Posterior hypotheses span the target's genotype space, restricted only by
+        // the target's CARRIER pin (a tested genotype fact). 'affected' is NOT a
+        // restriction here — it enters as soft likelihood inside fullJointClamped.
         let space = genotypeSpace(target.sex, pattern);
-        { const pd = pinnedDomain(target, pattern, space); if (pd.domain && pd.domain.length) space = space.filter(gg => pd.domain.indexOf(gg) >= 0); if (pd.warnings && pd.warnings.length) pr.warnings = Array.from(new Set((pr.warnings || []).concat(pd.warnings))); }
+        { const pd = pinnedDomain(target, pattern, space, (f === 1 && c === 0)); if (pd.domain && pd.domain.length) space = space.filter(gg => pd.domain.indexOf(gg) >= 0); if (pd.warnings && pd.warnings.length) pr.warnings = Array.from(new Set((pr.warnings || []).concat(pd.warnings))); }
         let tooLarge = false;
         const hyps = space.map(H => {
-            const j = fullJointClamped(target, H, g.byId, g.parentsOf, g.isFounder, pattern, q, componentIds);
+            const j = fullJointClamped(target, H, g.byId, g.parentsOf, g.isFounder, pattern, q, componentIds, f, c);
             if (isNaN(j)) tooLarge = true;
             return { genotype: H, joint: isNaN(j) ? 0 : j, priorH: pr.dist ? (pr.dist[H] || 0) : 0 };
         });
@@ -3207,16 +3224,64 @@ const PedigreeProb = (function () {
         }));
         return {
             prior, posterior,
-            postPAffected: posterior.reduce((s, h) => s + (h.affected ? h.posterior : 0), 0),
+            // Expected affected = sum over genotypes of posterior(g) * P(affected|g).
+            // Under reduced penetrance an at-risk genotype contributes f (<1) and a
+            // not-at-risk genotype contributes c (>0); at f=1,c=0 this == the legacy
+            // "sum posterior over at-risk genotypes".
+            postPAffected: posterior.reduce((s, h) => s + h.posterior * penetrance(h.genotype, target.sex, pattern, f, c), 0),
             postPCarrier: posterior.reduce((s, h) => s + (h.carrierGenotype ? h.posterior : 0), 0),
             consanguinity, warnings: pr.warnings, posteriorValid: jsum > 0 && !tooLarge, tooLarge,
         };
     }
-    return { analyzeMember, isAffected, genotypeSpace, founderPrior, segregation };
+    // Recurrence risk for a couple's NEXT (hypothetical, unobserved) child. Adds a
+    // phantom child of the couple, conditions on ALL real phenotypes, marginalizes
+    // the phantom's genotype (NOT clamped to a phenotype), then maps to risk. The
+    // joint enumeration preserves parental genotype correlation induced by existing
+    // shared children (naive parental-marginal products would be wrong). X-linked
+    // is reported per child sex.
+    function analyzeRecurrence(familyData, momId, dadId, opts) {
+        const pattern = opts.pattern, q = opts.q;
+        const f = (opts.f == null ? 1 : opts.f), c = (opts.c == null ? 0 : opts.c);
+        const members = familyData.members || [], links = familyData.parentChildLinks || [], partnerships = familyData.partnerships || [];
+        let mom = members.find(m => m.id === momId), dad = members.find(m => m.id === dadId);
+        if (!mom || !dad) return { error: 'no-couple' };
+        const xLinked = (pattern === 'XLR' || pattern === 'XLD');
+        // Orient to biological mother (female) / father (male) for X-linked transmission.
+        if (mom.sex !== 'female' && dad.sex === 'female') { const t = mom; mom = dad; dad = t; }
+        if (xLinked && (mom.sex !== 'female' || dad.sex !== 'male')) return { error: 'xlinked-couple-sex' };
+        const phantomId = members.reduce((mx, m) => Math.max(mx, m.id), 0) + 1000001;
+        const childSexes = xLinked ? ['male', 'female'] : ['female'];
+        const perSex = {}; let tooLarge = false;
+        childSexes.forEach(cs => {
+            const phantom = { id: phantomId, sex: cs, affected: false, carrier: false, diseases: [], cancers: [] };
+            const augMembers = members.concat([phantom]);
+            const augLinks = links.concat([{ parent1: mom.id, parent2: dad.id, childId: phantomId }]);
+            const g2 = buildGraph(augMembers, augLinks);
+            const componentIds = Array.from(componentOf(phantomId, augMembers, augLinks, partnerships));
+            const sp = genotypeSpace(cs, pattern) || [];
+            const hyps = sp.map(H => {
+                const j = fullJointClamped(phantom, H, g2.byId, g2.parentsOf, g2.isFounder, pattern, q, componentIds, f, c, phantomId);
+                if (isNaN(j)) tooLarge = true;
+                return { genotype: H, joint: isNaN(j) ? 0 : j };
+            });
+            const jsum = hyps.reduce((s, h) => s + h.joint, 0);
+            const norm = h => jsum > 0 ? h.joint / jsum : 0;
+            perSex[cs] = {
+                valid: jsum > 0 && !tooLarge,
+                pAffected: jsum > 0 ? hyps.reduce((s, h) => s + norm(h) * penetrance(h.genotype, cs, pattern, f, c), 0) : null,
+                pCarrier: jsum > 0 ? hyps.reduce((s, h) => s + norm(h) * (isCarrierGenotype(h.genotype, cs, pattern) ? 1 : 0), 0) : null,
+            };
+        });
+        const gg = buildGraph(members, links);
+        return { xLinked, perSex, tooLarge, consanguinity: detectConsanguinity(links, gg.parentsOf), momId: mom.id, dadId: dad.id };
+    }
+    return { analyzeMember, analyzeRecurrence, isAffected, genotypeSpace, founderPrior, segregation };
 })();
 
 // ======================== PROBABILITY MODE UI ========================
 let probSelectedId = null, probPattern = 'AR', probQ = 0.01;
+let probF = 1, probC = 0;                 // penetrance, phenocopy (defaults = full penetrance)
+let probOverlay = false, probOverlayMetric = 'carrier'; // on-canvas overlay: 'carrier' | 'affected'
 const PROB_PATTERNS = ['AR', 'AD', 'XLR', 'XLD'];
 function probT(tr, en) { return (typeof currentLang !== 'undefined' && currentLang === 'en') ? en : tr; }
 
@@ -3260,18 +3325,35 @@ function buildProbControls() {
     c.innerHTML =
         `<label class="prob-ctl">${probT('Kalıtım', 'Inheritance')}
             <select id="probPatternSel" onchange="onProbControlChange()">${opts}</select></label>
-         <label class="prob-ctl" style="max-width:96px;flex:0 0 auto;">${probT('Allel frek. q', 'Allele freq q')}
-            <input id="probQInput" type="number" min="0" max="1" step="0.001" value="${probQ}" onchange="onProbControlChange()" oninput="onProbControlChange()"></label>`;
+         <label class="prob-ctl" style="max-width:90px;flex:0 0 auto;">${probT('Allel frek. q', 'Allele freq q')}
+            <input id="probQInput" type="number" min="0" max="1" step="0.001" value="${probQ}" onchange="onProbControlChange()" oninput="onProbControlChange()"></label>
+         <label class="prob-ctl" style="max-width:84px;flex:0 0 auto;" title="${probT('Penetrans: risk-altı genotipin etkilenme olasılığı', 'Penetrance: P(affected) for an at-risk genotype')}">${probT('Penetrans %', 'Penetrance %')}
+            <input id="probFInput" type="number" min="0" max="100" step="1" value="${Math.round(probF * 100)}" onchange="onProbControlChange()" oninput="onProbControlChange()"></label>
+         <label class="prob-ctl" style="max-width:84px;flex:0 0 auto;" title="${probT('Fenokopi: risk-altı OLMAYAN genotipin etkilenme olasılığı', 'Phenocopy: P(affected) for a not-at-risk genotype')}">${probT('Fenokopi %', 'Phenocopy %')}
+            <input id="probCInput" type="number" min="0" max="100" step="1" value="${Math.round(probC * 100)}" onchange="onProbControlChange()" oninput="onProbControlChange()"></label>
+         <label class="prob-ctl prob-ctl-check" style="flex:1 1 100%;">
+            <input id="probOverlayChk" type="checkbox"${probOverlay ? ' checked' : ''} onchange="onProbControlChange()">
+            <span>${probT('Kanvasta göster:', 'Show on canvas:')}</span>
+            <select id="probOverlaySel" onchange="onProbControlChange()">
+                <option value="carrier"${probOverlayMetric === 'carrier' ? ' selected' : ''}>${probT('P(taşıyıcı)', 'P(carrier)')}</option>
+                <option value="affected"${probOverlayMetric === 'affected' ? ' selected' : ''}>${probT('P(etkilenmiş)', 'P(affected)')}</option>
+            </select></label>`;
 }
 function onProbControlChange() {
     const sel = document.getElementById('probPatternSel'), qi = document.getElementById('probQInput');
+    const fi = document.getElementById('probFInput'), ci = document.getElementById('probCInput');
+    const ov = document.getElementById('probOverlayChk'), ovs = document.getElementById('probOverlaySel');
     if (sel) probPattern = sel.value;
     if (qi) {
         let v = parseFloat(qi.value); if (isNaN(v)) v = 0; probQ = Math.max(0, Math.min(1, v));
-        // Reflect the clamped value back (but let an empty field stay empty mid-typing).
         if (qi.value !== '' && parseFloat(qi.value) !== probQ) qi.value = probQ;
     }
+    const pct = (el, cur) => { if (!el) return cur; let v = parseFloat(el.value); if (isNaN(v)) v = cur * 100; v = Math.max(0, Math.min(100, v)); if (el.value !== '' && parseFloat(el.value) !== v) el.value = v; return v / 100; };
+    probF = pct(fi, probF); probC = pct(ci, probC);
+    if (ov) probOverlay = ov.checked;
+    if (ovs) probOverlayMetric = ovs.value;
     renderProbabilityResult();
+    if (typeof renderPedigree === 'function') renderPedigree(); // refresh canvas overlay
 }
 function probSelectMember(id) { probSelectedId = id; renderProbabilityResult(); }
 function probGenoLabel(g) { return g.replace(/X([Aa])/g, function (_, al) { return 'X' + (al === 'A' ? 'ᴬ' : 'ᵃ'); }); }
@@ -3297,7 +3379,7 @@ function renderProbabilityResult() {
     }
     const member = (familyData.members || []).find(m => m.id === probSelectedId);
     if (!member) { probSelectedId = null; renderProbabilityResult(); return; }
-    const res = PedigreeProb.analyzeMember(familyData, probSelectedId, { pattern: probPattern, q: probQ });
+    const res = PedigreeProb.analyzeMember(familyData, probSelectedId, { pattern: probPattern, q: probQ, f: probF, c: probC });
     const nm = (member.name && member.name.trim()) ? member.name.trim() : (probT('Birey ', 'Individual ') + member.id);
     let html = `<div class="prob-target">${fhEscapeHtml(nm)}</div>`;
     if (res.error) {
@@ -3329,8 +3411,57 @@ function renderProbabilityResult() {
     if (res.consanguinity) html += `<div class="prob-note">${probT('Akraba evliliği (döngü) saptandı — ortak ata bir kez sayılarak tam ortak dağılımla hesaplandı.', 'Consanguinity (loop) detected — computed exactly via the full joint, counting the shared ancestor once.')}</div>`;
     if (res.warnings && res.warnings.indexOf('carrier-on-dominant') >= 0) html += `<div class="prob-note">${probT('Dominant paternde “taşıyıcı” işareti etkilenmiş gibi yorumlandı.', '“Carrier” flag on a dominant pattern was interpreted as affected.')}</div>`;
     if (res.warnings && res.warnings.indexOf('xlinked-parent-sex') >= 0) html += `<div class="prob-note">${probT('X’e bağlı kalıtım için her çocuğun ebeveynleri bir kadın + bir erkek olmalı; bazı ebeveynler buna uymuyor, sonuç güvenilmez olabilir.', 'X-linked inheritance needs each child to have one female + one male parent; some parents do not, so the result may be unreliable.')}</div>`;
-    html += `<div class="prob-hint" style="margin-top:8px;font-size:10px;">${probT('Tam penetrans varsayılır. Prior bireyin kendi fenotipini yok sayar; posterior tüm gözlemleri kullanır.', 'Full penetrance assumed. Prior ignores the individual’s own phenotype; posterior uses all observations.')}</div>`;
+
+    // Recurrence: if the selected member has a partner, show the couple's next-child risk.
+    html += renderRecurrenceSection(member);
+
+    const penNote = (probF === 1 && probC === 0)
+        ? probT('Tam penetrans varsayılır.', 'Full penetrance assumed.')
+        : probT(`Penetrans %${Math.round(probF * 100)}, fenokopi %${Math.round(probC * 100)}.`, `Penetrance ${Math.round(probF * 100)}%, phenocopy ${Math.round(probC * 100)}%.`);
+    html += `<div class="prob-hint" style="margin-top:8px;font-size:10px;">${penNote} ${probT('Prior bireyin kendi fenotipini yok sayar; posterior tüm gözlemleri kullanır.', 'Prior ignores the individual’s own phenotype; posterior uses all observations.')}</div>`;
     out.innerHTML = html;
+}
+
+// Find a partner id of `member` from partnerships (first match), or null.
+function probFindPartner(member) {
+    const ps = familyData.partnerships || [];
+    for (const p of ps) {
+        if (p.partner1 === member.id) return p.partner2;
+        if (p.partner2 === member.id) return p.partner1;
+    }
+    return null;
+}
+function renderRecurrenceSection(member) {
+    const partnerId = probFindPartner(member);
+    if (partnerId == null) return '';
+    const partner = (familyData.members || []).find(m => m.id === partnerId);
+    if (!partner) return '';
+    const rec = PedigreeProb.analyzeRecurrence(familyData, member.id, partnerId, { pattern: probPattern, q: probQ, f: probF, c: probC });
+    if (!rec || rec.error) {
+        if (rec && rec.error === 'xlinked-couple-sex') return `<div class="prob-note">${probT('Sonraki çocuk riski için çift bir kadın + bir erkek olmalı.', 'Next-child risk needs the couple to be one female + one male.')}</div>`;
+        return '';
+    }
+    const pn = (m) => (m && m.name && m.name.trim()) ? fhEscapeHtml(m.name.trim()) : (probT('Birey ', 'Individual ') + m.id);
+    const showCarrier = (probPattern === 'AR' || probPattern === 'XLR');
+    let h = `<div class="prob-section-title">${probT('Sonraki çocuk riski', 'Next-child risk')}</div>`;
+    h += `<div class="prob-hint" style="font-size:10px;margin:-2px 0 4px;">${pn(member)} × ${pn(partner)}</div>`;
+    const sexRow = (label, s) => {
+        if (!s || !s.valid) return `<div class="prob-kv"><span>${label}</span><b>–</b></div>`;
+        let r = `<div class="prob-kv"><span>${label} — ${probT('P(etkilenmiş)', 'P(affected)')}</span><b>${probPct(s.pAffected)}</b></div>`;
+        if (showCarrier) r += `<div class="prob-kv"><span>${label} — ${probT('P(taşıyıcı)', 'P(carrier)')}</span><b>${probPct(s.pCarrier)}</b></div>`;
+        return r;
+    };
+    if (rec.xLinked) {
+        h += sexRow(probT('Oğul', 'Son'), rec.perSex.male);
+        h += sexRow(probT('Kız', 'Daughter'), rec.perSex.female);
+    } else {
+        const s = rec.perSex.female;
+        if (s && s.valid) {
+            h += `<div class="prob-kv"><span>${probT('P(etkilenmiş)', 'P(affected)')}</span><b>${probPct(s.pAffected)}</b></div>`;
+            if (showCarrier) h += `<div class="prob-kv"><span>${probT('P(taşıyıcı)', 'P(carrier)')}</span><b>${probPct(s.pCarrier)}</b></div>`;
+        } else h += `<div class="prob-hint">${probT('Hesaplanamadı.', 'Could not compute.')}</div>`;
+    }
+    return h;
 }
 
 // ======================== I18N (LANGUAGE SUPPORT) ========================
@@ -5421,6 +5552,26 @@ function renderPedigree() {
         // Note
         if (m.note) {
             svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9" fill="#aaa" font-style="italic">${fhEscapeHtml(m.note)}</text>`;
+            labelY += 11;
+        }
+
+        // Probability overlay (opt-in, probability mode): metric under each node.
+        // Skipped for large pedigrees (per-node Bayes is expensive); panel still works on click.
+        if (probOverlay && typeof toolMode !== 'undefined' && toolMode === 'probability'
+            && typeof PedigreeProb !== 'undefined' && (familyData.members.length <= 30)) {
+            try {
+                const useCarrier = (probOverlayMetric === 'carrier' && (probPattern === 'AR' || probPattern === 'XLR'));
+                const pr = PedigreeProb.analyzeMember(familyData, m.id, { pattern: probPattern, q: probQ, f: probF, c: probC });
+                if (!pr.error && pr.posteriorValid) {
+                    const val = useCarrier ? pr.postPCarrier : pr.postPAffected;
+                    if (val != null && !isNaN(val)) {
+                        const pctTxt = (val * 100).toFixed(val > 0 && val < 0.1 ? 1 : 0) + '%';
+                        const lbl = useCarrier ? probT('taş', 'car') : probT('etk', 'aff');
+                        svgContent += `<text x="${pos.x}" y="${labelY}" text-anchor="middle" font-size="9.5" fill="#6c4ab6" font-weight="700">${lbl} ${pctTxt}</text>`;
+                        labelY += 11;
+                    }
+                }
+            } catch (e) {}
         }
 
         // Selection / focus highlight
@@ -9033,6 +9184,60 @@ window.runRegressionTests = function() {
             const f = pFam([{ id: 1, sex: 'female', carrier: true }], []);
             const r = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0.3 });
             pCheck('Prob: target carrier-pin -> posterior P(carrier)=1', r.postPCarrier, 1);
+        }
+        // ----- Reduced penetrance + phenocopy (RP oracles) -----
+        {   // RP3: AR isolated founder, f=1, c=0.05, q=0.01 -> prior P(affected)=0.050095
+            const f = pFam([{ id: 1, sex: 'female' }], []);
+            pCheck('Prob RP3: phenocopy founder prior P(affected)', PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0.01, f: 1, c: 0.05 }).prior.pAffected, 10019 / 200000);
+        }
+        {   // RP1/RP2/RP8: AD, known-Aa parent (carrier pin) x AA, child
+            const f = pFam([{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female' }, { id: 3, sex: 'male' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }]);
+            pCheck('Prob RP1: AD f=0.8 prior P(child affected)=0.4', PedigreeProb.analyzeMember(f, 3, { pattern: 'AD', q: 0, f: 0.8, c: 0 }).prior.pAffected, 0.4);
+            const r2 = PedigreeProb.analyzeMember(f, 3, { pattern: 'AD', q: 0, f: 0.8, c: 0 });
+            const aa2 = r2.posterior.find(h => h.genotype === 'Aa');
+            pCheck('Prob RP2: AD f=0.8 posterior P(Aa|unaffected)=1/6', aa2 ? aa2.posterior : -1, 1 / 6);
+            const r8 = PedigreeProb.analyzeMember(f, 3, { pattern: 'AD', q: 0, f: 0.5, c: 0 });
+            const aa8 = r8.posterior.find(h => h.genotype === 'Aa');
+            pCheck('Prob RP8: AD f=0.5 posterior P(Aa|unaffected)=1/3', aa8 ? aa8.posterior : -1, 1 / 3);
+        }
+        {   // RP9: AR affected founder, f=1, c=0.10, q=0 -> posterior AA=1 (phenocopy)
+            const f = pFam([{ id: 1, sex: 'female', affected: true }], []);
+            const aa = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0, f: 1, c: 0.10 }).posterior.find(h => h.genotype === 'AA');
+            pCheck('Prob RP9: AR affected founder phenocopy posterior AA=1', aa ? aa.posterior : -1, 1);
+        }
+        {   // reduced penetrance lets an UNAFFECTED person be a non-penetrant homozygote
+            const f = pFam([{ id: 1, sex: 'female' }], []);
+            const aa = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0.5, f: 0.5, c: 0 }).posterior.find(h => h.genotype === 'aa');
+            pCheck('Prob: f<1 unaffected founder posterior aa=1/7', aa ? aa.posterior : -1, 1 / 7);
+        }
+        {   // f=1,c=0 reproduces legacy: AR Aa x Aa unaffected child P(carrier)=2/3
+            const f = pFam([{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female', carrier: true }, { id: 3, sex: 'male' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }]);
+            pCheck('Prob RP4: defaults f=1,c=0 reproduce P(carrier)=2/3', PedigreeProb.analyzeMember(f, 3, { pattern: 'AR', q: 0.1, f: 1, c: 0 }).postPCarrier, 2 / 3);
+        }
+        // ----- Recurrence risk (next-child) -----
+        {   // RP5: AR carrier x carrier -> next child affected 1/4, carrier 1/2
+            const f = pFam([{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female', carrier: true }], [], [{ partner1: 1, partner2: 2 }]);
+            const rec = PedigreeProb.analyzeRecurrence(f, 1, 2, { pattern: 'AR', q: 0.1, f: 1, c: 0 });
+            pCheck('Prob RP5: AR recurrence P(next affected)=1/4', rec.perSex.female.pAffected, 1 / 4);
+            pCheck('Prob RP5: AR recurrence P(next carrier)=1/2', rec.perSex.female.pCarrier, 1 / 2);
+        }
+        {   // RP6: AD f=0.8, Aa x AA -> next child affected 0.4
+            const f = pFam([{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female' }], [], [{ partner1: 1, partner2: 2 }]);
+            pCheck('Prob RP6: AD f=0.8 recurrence P(next affected)=0.4', PedigreeProb.analyzeRecurrence(f, 1, 2, { pattern: 'AD', q: 0, f: 0.8, c: 0 }).perSex.female.pAffected, 0.4);
+        }
+        {   // RP7: XLR carrier mother x normal father -> per-sex
+            const f = pFam([{ id: 1, sex: 'female', carrier: true }, { id: 2, sex: 'male' }], [], [{ partner1: 1, partner2: 2 }]);
+            const rec = PedigreeProb.analyzeRecurrence(f, 1, 2, { pattern: 'XLR', q: 0, f: 1, c: 0 });
+            pCheck('Prob RP7: XLR P(son affected)=1/2', rec.perSex.male.pAffected, 1 / 2);
+            pCheck('Prob RP7: XLR P(daughter affected)=0', rec.perSex.female.pAffected, 0);
+            pCheck('Prob RP7: XLR P(daughter carrier)=1/2', rec.perSex.female.pCarrier, 1 / 2);
+        }
+        {   // RP10: existing affected child correlates parents (joint, not naive product)
+            const f = pFam([{ id: 1, sex: 'male' }, { id: 2, sex: 'female' }, { id: 3, sex: 'male', affected: true }],
+                [{ parent1: 1, parent2: 2, childId: 3 }], [{ partner1: 1, partner2: 2 }]);
+            pCheck('Prob RP10: recurrence w/ affected sib P(next affected)=1/4', PedigreeProb.analyzeRecurrence(f, 1, 2, { pattern: 'AR', q: 0.1, f: 1, c: 0 }).perSex.female.pAffected, 1 / 4);
         }
 
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----

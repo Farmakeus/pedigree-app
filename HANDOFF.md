@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık (Bayes) motoru · **59 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **73 otomatik test**.
 
 ---
 
@@ -36,9 +36,16 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Son commit: `10b8efa`. `8da149e`'ye kadar **canlıda**; `10b8efa` (olasılık hesaplayıcı) **henüz push edilmedi**.
+> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay (push EDİLMEDİ, 5 review bulgusu BEKLİYOR — bkz. bölüm 4).
 
-### 🆕 #5 Genotip Olasılık Hesaplayıcı — prior + Bayesçi posterior (`10b8efa`, henüz push'lanmadı)
+### 🚧 #6 Eksik penetrans + fenokopi + recurrence + canvas overlay (WIP — lokal checkpoint, push'lanmadı)
+- **Eksik penetrans `f` + fenokopi `c`** (kontrol çubuğunda %, varsayılan 100/0): `penetrance(g,sex,pattern,f,c)` = risk-altı→`f`, değilse→`c`. "Etkilenmiş" artık **yumuşak kanıt** (genotip pin'i DEĞİL); "taşıyıcı" sabit pin kalır. **Geri uyumluluk:** affected hard-pin yalnızca `fullPen=(f===1&&c===0)` dalında korunur (q=0 köşe durumları için). `priorDistribution`/`fullJointClamped`→`buildDomains`→`pinnedDomain` zincirine `fullPen` threaded.
+- **Recurrence (`analyzeRecurrence`)**: çifte **fantom çocuk** ekle (id=maxId+1000001), tüm gerçek fenotiplere koşulla, fantomu marjinalleştir (makeFactor `id!==phantomId` ile fantoma kanıt uygulamaz). X-bağlıda cinsiyete göre ayrı. Panelde "Sonraki çocuk riski" bölümü (`renderRecurrenceSection`, seçili bireyin eşi varsa).
+- **Canvas overlay**: olasılık modunda her düğüm altında posterior P(taşıyıcı)% (resesif) / P(etkilenmiş)% (dominant). `probOverlay`/`probOverlayMetric` state; ≤30 üye guard'ı; `onProbControlChange` `renderPedigree` çağırır.
+- **Doğrulama:** 2. tasarım+türetme workflow'u (penetrans/recurrence modeli + RP1–RP11 oracle'ları, arbitrajlı) → motor **Node'da** doğrulandı → **14 yeni RP testi eklendi, tüm paket 73/73** → tarayıcıda teyit (Huntington Aa=1/6, recurrence 1/4&1/2, overlay).
+- **Yeni motor fonksiyonları:** `analyzeRecurrence`, `penetrance(...,f,c)`, `pinnedDomain(...,fullPen)`. UI: `probF/probC/probOverlay/probOverlayMetric`, `renderRecurrenceSection`, `probFindPartner`.
+
+### ✅ #5 Genotip Olasılık Hesaplayıcı — prior + Bayesçi posterior (`10b8efa`/`38c0321`, CANLIDA)
 - Header'da **"Olasılık" modu** (Lucide ikon) → `toolMode='probability'` → **tıkla-panel-aç**: bir bireye tıkla, sağda kontrol çubuğu (kalıtım AR/AD/XLR/XLD + allel frekansı `q`) + **prior** (genotip dağılımı, P(etkilenmiş), P(taşıyıcı)) + **denetlenebilir posterior tablosu** (`prior × koşullu = ortak → posterior`).
 - **Motor: `PedigreeProb` IIFE — saf, `familyData`'yı ASLA değiştirmez.** Pedigri Bayes ağı üzerinde **tam ortak dağılım enumerasyonu**. Prior = atalardan aşağı segregasyon (hedefin kendi fenotipini yok sayar). Posterior = tüm fenotipleri koşullayan tam Bayes. Bilinmeyen founder → HWE(q); `q=0` deterministik textbook. X-bağlı hemizigot doğru (baba X→kız, Y→oğul). **Konsanguinite döngüleri TAM** (ortak ata bir kez, 1/16 doğrulandı) + tespit/uyarı. Büyük pedigri için boyut guard'ı.
 - **Geliştirme deseni:** çok-ajanlı **tasarım+türetme workflow** (3 bağımsız türetme → oracle çapraz-kontrol) → motoru **standalone Node'da** oracle'lara karşı doğrula → entegre et → **adversarial review workflow (8 bulgu, hepsi düzeltildi)**.
@@ -92,12 +99,21 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#5 Olasılık Hesaplayıcı TAMAMLANDI** (`10b8efa`), 59/59 test, motor oracle'lara + adversarial review'a karşı doğrulandı (8 bulgu düzeltildi). ⚠️ **HENÜZ PUSH EDİLMEDİ.**
-- **Güvenlik sertleştirme** (`d3f8a53`), **#2 Validation** (`6d4a0ff`) — `8da149e`'ye kadar **canlıda**.
+- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **73/73 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı, **henüz düzeltilmedi** (aşağıda). Özellik çalışıyor; bulgular köşe durumlar.
+- Önceki: `38c0321`'e kadar **canlıda** (olasılık hesaplayıcı dahil).
 
-### 🎯 SIRADAKİ İŞ
-1. **`10b8efa`'i push et** + `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages doğrula. (push sandbox DNS → `dangerouslyDisableSandbox:true`.)
-2. **Kullanıcının karar vermesi gereken 3 ürün kararı** (güvenlik denetiminde yüzeye çıktı, kod açığı değil — kullanıcıya soruldu):
+### 🎯 SIRADAKİ İŞ — yarın: önce #6 review bulgularını düzelt, sonra push
+**Düzeltilecek review bulguları (önem sırasına göre):**
+1. **HIGH — recurrence q=0 + (f<1, c=0) süreksizliği:** etkilenmiş bir FOUNDER'lı çiftte, `q=0` ve penetrans<%100 (fenokopi %0) iken `analyzeRecurrence` "Hesaplanamadı" döndürüyor (q=1e-10'da doğru: 0.40). Sebep: `fullPen=false` → affected pin kapalı; `founderFactorMap` q=0'da kütleyi AA'ya yığıyor; affected-kanıtı `penetrance(AA)=c=0` → joint sıfır. **Fix (a, önerilen):** `pinnedDomain`'e `c` thread et; **`c===0 && m.affected`** ise (fullPen'den BAĞIMSIZ) dom’i risk-altı genotiplere kısıtla — q=0 collapse {Aa,aa} içinde min-mutant=Aa seçer, `penetrance(Aa)=f` → doğru. (RP9 c=0.10 etkilenmez.) Regresyon testi ekle: AD q=0 f=0.8 etkilenmiş-baba×normal = 0.40; AR q=0 f=0.5; AD q=0 f=0.99.
+2. **MEDIUM — prior, f<1/c>0'da etkilenmiş ataları yok sayıyor:** `priorDistribution` `withEvidence=false` çağrılıyor; affected pin de `fullPen` kapalıyken yok → prior az-koşullanıyor (süreksiz). **Fix:** prior'ı `withEvidence=true` ile (hedefin KENDİ fenotipi hariç, `id!==target` skip — mevcut `phantomId` skip mekanizmasını yeniden kullan) enumerate et ki ata fenotipleri her f/c'de yumuşak kanıt olarak girsin. (Posterior zaten doğru; bu yalnızca PRIOR satırını etkiler.)
+3. **LOW — (önceden var olan) q=0 + tam penetrans + etkilenmiş founder:** clamp'lı founder hedefi q=0'da posteriorValid=false. Extension'ın getirdiği YENİ hata değil; #1 fix'i (b şıkkı / epsilon floor) ile birlikte ele alınabilir.
+4. **LOW — kendiyle-eş recurrence:** `momId===dadId` reddedilmiyor. **Fix:** `analyzeRecurrence`'a `if (mom.id===dad.id) return {error:'self-couple'}`; renderRecurrenceSection'da ele al; import sanitizer'da self-partnership düş.
+5. **LOW — `probFindPartner` boşanmış eşi seçebiliyor:** önce `!p.divorced` eşi seç; çoklu eşte hepsini listelemek daha iyi.
+> Bulgu ayrıntısı: `tasks/wi0a6odk0.output`. Reddedilen 4 bulgu (overlay debounce, tooLarge cross-contam, vb.) gerçek değildi.
+
+**Sonra:**
+6. #6 düzeltilince push et (`gh api .../pages/builds/latest` ile Pages doğrula; sandbox DNS → `dangerouslyDisableSandbox:true`, birkaç retry).
+7. **Bekleyen 3 ürün kararı** (güvenlik denetiminden, kod açığı değil — kullanıcıya soruldu, henüz seçmedi):
    - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
    - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
    - **CSP meta yok**: inline-script mimarisi `'unsafe-inline'` gerektirdiğinden tam CSP zor; ama `connect-src`/`img-src` kısıtı, sızıntı kanalını (key exfil) kapatan derinlemesine savunma olabilir — dikkatli denenmeli (export/AI'yi bozmadan).
@@ -190,7 +206,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit:** `10b8efa` (olasılık hesaplayıcı — **henüz push edilmedi**, öncelikli push)
+- **Son commit (lokal):** WIP `#6 penetrans/recurrence/overlay` — **push EDİLMEDİ**, 5 review bulgusu bekliyor (bkz. bölüm 4). Canlı: `38c0321`.
 
 ---
 
@@ -206,7 +222,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (59 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (73 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.
