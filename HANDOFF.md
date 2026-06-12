@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation motoru · **44 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık (Bayes) motoru · **59 otomatik test**.
 
 ---
 
@@ -36,7 +36,14 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Son commit: `d3f8a53`. `dc5cb0e`'ye kadar **canlıda**; `d3f8a53` (güvenlik) **henüz push edilmedi**.
+> Son commit: `10b8efa`. `8da149e`'ye kadar **canlıda**; `10b8efa` (olasılık hesaplayıcı) **henüz push edilmedi**.
+
+### 🆕 #5 Genotip Olasılık Hesaplayıcı — prior + Bayesçi posterior (`10b8efa`, henüz push'lanmadı)
+- Header'da **"Olasılık" modu** (Lucide ikon) → `toolMode='probability'` → **tıkla-panel-aç**: bir bireye tıkla, sağda kontrol çubuğu (kalıtım AR/AD/XLR/XLD + allel frekansı `q`) + **prior** (genotip dağılımı, P(etkilenmiş), P(taşıyıcı)) + **denetlenebilir posterior tablosu** (`prior × koşullu = ortak → posterior`).
+- **Motor: `PedigreeProb` IIFE — saf, `familyData`'yı ASLA değiştirmez.** Pedigri Bayes ağı üzerinde **tam ortak dağılım enumerasyonu**. Prior = atalardan aşağı segregasyon (hedefin kendi fenotipini yok sayar). Posterior = tüm fenotipleri koşullayan tam Bayes. Bilinmeyen founder → HWE(q); `q=0` deterministik textbook. X-bağlı hemizigot doğru (baba X→kız, Y→oğul). **Konsanguinite döngüleri TAM** (ortak ata bir kez, 1/16 doğrulandı) + tespit/uyarı. Büyük pedigri için boyut guard'ı.
+- **Geliştirme deseni:** çok-ajanlı **tasarım+türetme workflow** (3 bağımsız türetme → oracle çapraz-kontrol) → motoru **standalone Node'da** oracle'lara karşı doğrula → entegre et → **adversarial review workflow (8 bulgu, hepsi düzeltildi)**.
+- **Review'da bulunan KRİTİK bug (düzeltildi):** founder-hedef posterior'u popülasyon prior'unu atıyordu (singleton clamp → factor 1.0) → düz 0.5/0.5; artık prior-ağırlıklı. Ayrıca: hedefin kendi carrier/affected pin'i posterior'u kısıtlar · panel her veri değişiminde yenilenir (`renderPedigree` hook) · X-bağlı aynı-cinsiyet ebeveyn uyarısı · mod açıkken araç paleti gizlenir · q clamp geri yazılır.
+- **15 olasılık testi** (O1–O10 + founder-posterior + carrier-pin). **Tüm paket 59/59.** TR/EN, dark tema, isimler `fhEscapeHtml`'li. Salt-okunur (şemaya dokunmaz).
 
 ### 🔒 Güvenlik sertleştirme — cross-user XSS / API anahtar hırsızlığı kapatıldı (`d3f8a53`)
 - **Çok-ajanlı adversarial denetim** (6 yüzey × doğrulama; 18 teyit / 9 red) ile **gerçek, ulaşılabilir stored-XSS kümesi** bulundu: saldırganın hazırladığı pedigri (paylaşım linki `#data=` veya JSON dosyası) **başka bir klinisyende açılınca** onun origin'inde JS çalıştırıp **localStorage'daki Anthropic API anahtarını** çalabiliyordu. Güvenilmeyen isim/hastalık/not birçok panelde ham `innerHTML`'e gidiyordu; sayısal alanlar coerce edilmiyordu.
@@ -85,11 +92,11 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **Güvenlik sertleştirme TAMAMLANDI** (`d3f8a53`), 44/44 test, tarayıcıda payload ile doğrulandı. ⚠️ **HENÜZ PUSH EDİLMEDİ.** Canlı site şu an hâlâ açık sürümü (`dc5cb0e`) sunuyor → **fix'i push etmek öncelikli.**
-- **#2 Validation Motoru** (`6d4a0ff`) ve önceki 3 özellik (`dc5cb0e`'ye kadar) canlıda.
+- **#5 Olasılık Hesaplayıcı TAMAMLANDI** (`10b8efa`), 59/59 test, motor oracle'lara + adversarial review'a karşı doğrulandı (8 bulgu düzeltildi). ⚠️ **HENÜZ PUSH EDİLMEDİ.**
+- **Güvenlik sertleştirme** (`d3f8a53`), **#2 Validation** (`6d4a0ff`) — `8da149e`'ye kadar **canlıda**.
 
 ### 🎯 SIRADAKİ İŞ
-1. **`d3f8a53`'i push et** (canlı sitedeki XSS/key-theft açığını kapatmak için öncelikli) + `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages doğrula.
+1. **`10b8efa`'i push et** + `gh api repos/Farmakeus/pedigree-app/pages/builds/latest` ile Pages doğrula. (push sandbox DNS → `dangerouslyDisableSandbox:true`.)
 2. **Kullanıcının karar vermesi gereken 3 ürün kararı** (güvenlik denetiminde yüzeye çıktı, kod açığı değil — kullanıcıya soruldu):
    - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
    - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
@@ -183,7 +190,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit:** `d3f8a53` (güvenlik sertleştirme — **henüz push edilmedi**, öncelikli push)
+- **Son commit:** `10b8efa` (olasılık hesaplayıcı — **henüz push edilmedi**, öncelikli push)
 
 ---
 
@@ -199,7 +206,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (44 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (59 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.
