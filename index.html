@@ -293,6 +293,51 @@
         /* Default top is set dynamically by JS (positionLegendPanel) so the
            legend always sits 8px below the place-toolbar regardless of toolbar
            height. We provide a sensible CSS fallback for first paint. */
+        /* ===== Genotype probability panel ===== */
+        .prob-panel {
+            position: absolute; right: 16px; top: 56px;
+            width: 300px; max-width: calc(100% - 32px);
+            max-height: calc(100% - 90px); overflow-y: auto;
+            background: #fff; border: 1px solid #d7dee8; border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+            z-index: 40; font-size: 12px; color: #2c3e50;
+        }
+        body.dark-theme .prob-panel { background: #242830; border-color: #3a4150; color: #e8e8e8; }
+        .prob-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 9px 12px; border-radius: 10px 10px 0 0;
+            background: linear-gradient(135deg,#6a5acd,#5b4bbd);
+            position: sticky; top: 0;
+        }
+        .prob-title { color:#fff; font-weight:700; font-size:12.5px; letter-spacing:.2px; }
+        .prob-close { background:rgba(255,255,255,.18); color:#fff; border:none; width:22px; height:22px; border-radius:6px; cursor:pointer; font-size:12px; line-height:1; }
+        .prob-close:hover { background:rgba(255,255,255,.35); }
+        .prob-controls { display:flex; gap:8px; flex-wrap:wrap; padding:10px 12px; border-bottom:1px solid #eef1f5; }
+        body.dark-theme .prob-controls { border-bottom-color:#3a4150; }
+        .prob-ctl { display:flex; flex-direction:column; gap:3px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#7a8699; flex:1; }
+        .prob-ctl select, .prob-ctl input { font-size:12px; padding:5px 7px; border:1px solid #dfe3e8; border-radius:6px; background:#fff; color:#2c3e50; font-weight:500; text-transform:none; letter-spacing:0; }
+        body.dark-theme .prob-ctl select, body.dark-theme .prob-ctl input { background:#1c2027; color:#e8e8e8; border-color:#3a4150; }
+        .prob-result { padding:10px 12px; }
+        .prob-hint { color:#8a94a6; font-style:italic; padding:6px 0; }
+        .prob-target { font-weight:700; font-size:13px; margin-bottom:2px; }
+        .prob-section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#6a5acd; margin:10px 0 5px; }
+        body.dark-theme .prob-section-title { color:#9b8fe0; }
+        .prob-kv { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted #eef1f5; }
+        body.dark-theme .prob-kv { border-bottom-color:#333a45; }
+        .prob-kv b { color:#2c3e50; } body.dark-theme .prob-kv b { color:#fff; }
+        .prob-table { width:100%; border-collapse:collapse; font-size:11px; margin-top:4px; }
+        .prob-table th, .prob-table td { padding:4px 5px; text-align:right; border-bottom:1px solid #eef1f5; }
+        .prob-table th { color:#7a8699; font-weight:700; font-size:9.5px; text-transform:uppercase; }
+        .prob-table td:first-child, .prob-table th:first-child { text-align:left; }
+        body.dark-theme .prob-table th, body.dark-theme .prob-table td { border-bottom-color:#333a45; }
+        .prob-row-aff td:first-child { color:#e74c3c; }
+        .prob-row-best { font-weight:700; background:rgba(106,90,205,.08); }
+        .prob-note { font-size:10.5px; color:#8a6d3b; background:#fcf8e3; border:1px solid #f5e7b8; border-radius:6px; padding:6px 8px; margin-top:8px; }
+        body.dark-theme .prob-note { color:#ffe083; background:#3d3a1f; border-color:#5a5320; }
+        .prob-genolabel { font-family:ui-monospace,Menlo,monospace; font-weight:600; }
+        #probModeBtn.active { background:linear-gradient(135deg,#6a5acd,#5b4bbd) !important; color:#fff !important; }
+        #probModeBtn.active svg { stroke:#fff; }
+
         .legend-panel {
             position: absolute; right: 16px; top: 410px;
             background: white; border-radius: 8px;
@@ -1052,6 +1097,9 @@
         <button onclick="openSummaryModal()" data-i18n-title="btn.summary.tip" title="Aile öyküsü klinik özeti">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <span data-i18n="btn.summary">Özet</span></button>
+        <button onclick="toggleProbabilityMode()" id="probModeBtn" data-i18n-title="prob.btn.tip" title="Genotip olasılık hesaplayıcı (Bayes)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        <span data-i18n="prob.btn">Olasılık</span></button>
         <button onclick="toggleLanguage()" title="Dil / Language" id="langBtn" class="icon-btn-text">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         <span id="langBtnText">TR</span></button>
@@ -1437,6 +1485,16 @@
             <div id="legendPanelBody" class="legend-panel-body">
                 <div id="legendContent"></div>
             </div>
+        </div>
+
+        <!-- Genotype probability calculator (shown only in 'probability' tool mode) -->
+        <div id="probabilityPanel" class="prob-panel" style="display:none;">
+            <div class="prob-head">
+                <span class="prob-title" id="probTitle">Olasılık</span>
+                <button type="button" class="prob-close" onclick="toggleProbabilityMode()" title="Kapat" aria-label="Kapat">✕</button>
+            </div>
+            <div id="probControls" class="prob-controls"></div>
+            <div id="probResult" class="prob-result"></div>
         </div>
     </div>
 </div>
@@ -2900,6 +2958,381 @@ function applyObligateCarriers(ids) {
     }
 }
 
+// ======================== GENOTYPE PROBABILITY ENGINE ========================
+// Exact joint-enumeration over the pedigree Bayesian network.
+// Allele convention: 'a' = MUTANT/disease allele, 'A' = wild-type. q = P(a).
+// Patterns: AR, AD, XLR, XLD. Full penetrance (isolated in penetrance()).
+// PRIOR  = founders-down segregation in the target's ancestral subgraph,
+//          ignoring the target's own observed phenotype.
+// POSTERIOR = full Bayesian: clamp target=H, likelihood of all observed
+//          phenotypes, joint = prior x conditional, normalize.
+// Validated against textbook oracles (2/3, 1/4, 1/2, 1/5, q^2, hemizygous q,
+// XLD father, consanguinity 1/16). Wrapped in an IIFE to avoid global clashes.
+const PedigreeProb = (function () {
+    'use strict';
+    function genotypeSpace(sex, pattern) {
+        const x = (pattern === 'XLR' || pattern === 'XLD');
+        if (!x) return ['AA', 'Aa', 'aa'];
+        if (sex === 'male') return ['XAY', 'XaY'];
+        if (sex === 'female') return ['XAXA', 'XAXa', 'XaXa'];
+        return null;
+    }
+    // THE single affected/unaffected determination (full-penetrance hook).
+    function isAffected(g, sex, pattern) {
+        switch (pattern) {
+            case 'AR':  return g === 'aa';
+            case 'AD':  return g === 'Aa' || g === 'aa';
+            case 'XLR': return g === 'XaY' || g === 'XaXa';
+            case 'XLD': return g === 'XaY' || g === 'XAXa' || g === 'XaXa';
+        }
+        return false;
+    }
+    function penetrance(g, sex, pattern) { return isAffected(g, sex, pattern) ? 1 : 0; }
+    function isCarrierGenotype(g, sex, pattern) {
+        switch (pattern) {
+            case 'AR':  return g === 'Aa';
+            case 'XLR': return g === 'XAXa';
+            default:    return false;
+        }
+    }
+    function founderPrior(g, sex, pattern, q) {
+        const p = 1 - q, x = (pattern === 'XLR' || pattern === 'XLD');
+        if (!x) { if (g === 'AA') return p * p; if (g === 'Aa') return 2 * p * q; if (g === 'aa') return q * q; }
+        else if (sex === 'male') { if (g === 'XAY') return p; if (g === 'XaY') return q; }
+        else { if (g === 'XAXA') return p * p; if (g === 'XAXa') return 2 * p * q; if (g === 'XaXa') return q * q; }
+        return 0;
+    }
+    function mutantCount(g) { return (g.match(/a/g) || []).length; }
+    // Founder weight per genotype, renormalized within its (possibly pinned) domain.
+    // q=0 limit: all mass on the genotype(s) with the fewest mutant alleles.
+    function founderFactorMap(domain, sex, pattern, q) {
+        const raw = domain.map(g => founderPrior(g, sex, pattern, q));
+        const sum = raw.reduce((a, b) => a + b, 0);
+        const out = {};
+        if (sum > 0) { domain.forEach((g, i) => out[g] = raw[i] / sum); return out; }
+        const minMut = Math.min.apply(null, domain.map(mutantCount));
+        const winners = domain.filter(g => mutantCount(g) === minMut);
+        domain.forEach(g => out[g] = winners.indexOf(g) >= 0 ? 1 / winners.length : 0);
+        return out;
+    }
+    function pXaMother(g) { return g === 'XaXa' ? 1 : g === 'XAXa' ? 0.5 : 0; }
+    function pMutantAuto(g) { return g === 'aa' ? 1 : g === 'Aa' ? 0.5 : 0; }
+    function fatherXallele(g) { return g === 'XaY' ? 'a' : 'A'; }
+    function segregation(childG, childSex, momG, dadG, pattern) {
+        const x = (pattern === 'XLR' || pattern === 'XLD');
+        if (!x) {
+            const am = pMutantAuto(momG), ad = pMutantAuto(dadG), Am = 1 - am, Ad = 1 - ad;
+            if (childG === 'aa') return am * ad;
+            if (childG === 'AA') return Am * Ad;
+            if (childG === 'Aa') return am * Ad + Am * ad;
+            return 0;
+        }
+        const pa = pXaMother(momG), pA = 1 - pa;
+        if (childSex === 'male') { if (childG === 'XaY') return pa; if (childG === 'XAY') return pA; return 0; }
+        if (childSex === 'female') {
+            const d = fatherXallele(dadG);
+            if (childG === 'XaXa') return d === 'a' ? pa : 0;
+            if (childG === 'XAXA') return d === 'A' ? pA : 0;
+            if (childG === 'XAXa') return (d === 'A' ? pa : 0) + (d === 'a' ? pA : 0);
+            return 0;
+        }
+        return 0;
+    }
+    function pinnedDomain(m, pattern, full) {
+        const warnings = [];
+        let dom = full.slice();
+        const female = m.sex === 'female';
+        if (m.carrier) {
+            if (pattern === 'AR') dom = ['Aa'];
+            else if (pattern === 'XLR') { if (female) dom = ['XAXa']; else { dom = ['XaY']; warnings.push('carrier-male-xlr'); } }
+            else { dom = full.filter(g => isAffected(g, m.sex, pattern)); warnings.push('carrier-on-dominant'); }
+        }
+        if (m.affected) dom = dom.filter(g => isAffected(g, m.sex, pattern));
+        if (dom.length === 0) { dom = full.slice(); warnings.push('contradictory-flags'); }
+        return { domain: dom, warnings };
+    }
+    function buildGraph(members, links) {
+        const byId = new Map(members.map(m => [m.id, m]));
+        const parentsOf = new Map();
+        links.forEach(l => { if (byId.has(l.childId) && byId.has(l.parent1) && byId.has(l.parent2)) parentsOf.set(l.childId, [l.parent1, l.parent2]); });
+        const isFounder = m => !parentsOf.has(m.id);
+        return { byId, parentsOf, isFounder };
+    }
+    function ancestorsOf(id, parentsOf) {
+        const seen = new Set(), stack = [id];
+        while (stack.length) { const c = stack.pop(); const ps = parentsOf.get(c); if (ps) ps.forEach(p => { if (!seen.has(p)) { seen.add(p); stack.push(p); } }); }
+        return seen;
+    }
+    function detectConsanguinity(links, parentsOf) {
+        for (const l of links) {
+            const a = ancestorsOf(l.parent1, parentsOf); a.add(l.parent1);
+            const b = ancestorsOf(l.parent2, parentsOf); b.add(l.parent2);
+            for (const x of a) if (b.has(x)) return true;
+        }
+        return false;
+    }
+    function topoOrder(ids, parentsOf) {
+        const inSet = new Set(ids), order = [], done = new Set();
+        function visit(id) { if (done.has(id) || !inSet.has(id)) return; const ps = parentsOf.get(id); if (ps) ps.forEach(visit); if (!done.has(id)) { done.add(id); order.push(id); } }
+        ids.forEach(visit);
+        return order;
+    }
+    function componentOf(id, members, links, partnerships) {
+        const adj = new Map(members.map(m => [m.id, new Set()]));
+        const e = (a, b) => { if (adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } };
+        links.forEach(l => { e(l.parent1, l.childId); e(l.parent2, l.childId); e(l.parent1, l.parent2); });
+        (partnerships || []).forEach(p => e(p.partner1, p.partner2));
+        const seen = new Set([id]), stack = [id];
+        while (stack.length) { const c = stack.pop(); (adj.get(c) || new Set()).forEach(n => { if (!seen.has(n)) { seen.add(n); stack.push(n); } }); }
+        return seen;
+    }
+    const SIZE_CAP = 3000000;
+    function enumSpaceSize(ids, domains) { let n = 1; for (const id of ids) { n *= domains.get(id).length; if (n > SIZE_CAP) return Infinity; } return n; }
+    function buildDomains(ids, byId, pattern, opts) {
+        const domains = new Map(); const warnings = new Set(); let errored = null;
+        ids.forEach(id => {
+            const m = byId.get(id);
+            const space = genotypeSpace(m.sex, pattern);
+            if (space == null) { errored = 'unknown-sex-xlinked'; domains.set(id, ['AA']); return; }
+            if (opts.clamp && id === opts.clamp.id) { domains.set(id, [opts.clamp.g]); return; }
+            if (opts.ignorePinId === id) { domains.set(id, space); return; }
+            const r = pinnedDomain(m, pattern, space);
+            r.warnings.forEach(w => warnings.add(w));
+            domains.set(id, r.domain);
+        });
+        return { domains, warnings: Array.from(warnings), errored };
+    }
+    function enumerate(order, domains, factorFn, targetId) {
+        let total = 0; const marg = {}; const assigned = {};
+        (function rec(i, w) {
+            if (w === 0) return;
+            if (i === order.length) { total += w; if (targetId != null) { const g = assigned[targetId]; marg[g] = (marg[g] || 0) + w; } return; }
+            const id = order[i], dom = domains.get(id);
+            for (let k = 0; k < dom.length; k++) { const g = dom[k]; const f = factorFn(id, g, assigned); if (f === 0) continue; assigned[id] = g; rec(i + 1, w * f); }
+            assigned[id] = undefined;
+        })(0, 1);
+        return { total, marg };
+    }
+    function makeFactor(byId, parentsOf, isFounder, pattern, q, domains, ids, withEvidence, clampId) {
+        const fmaps = {};
+        // For the CLAMPED target founder, build the factor over the FULL genotype
+        // space so its population prior P(target=H) survives (the singleton clamp
+        // domain still gates enumeration in buildDomains). Other founders keep
+        // their pinned-domain renormalization (needed for the q=0 fallback).
+        ids.forEach(id => { const m = byId.get(id); if (isFounder(m)) { const dom = (id === clampId) ? genotypeSpace(m.sex, pattern) : domains.get(id); fmaps[id] = founderFactorMap(dom, m.sex, pattern, q); } });
+        const xLinked = (pattern === 'XLR' || pattern === 'XLD');
+        return function (id, g, assigned) {
+            const m = byId.get(id);
+            let w;
+            if (isFounder(m)) w = fmaps[id][g] || 0;
+            else {
+                const ps = parentsOf.get(id), m1 = byId.get(ps[0]), m2 = byId.get(ps[1]);
+                const mom = m1.sex === 'female' ? m1 : m2, dad = m1.sex === 'female' ? m2 : m1;
+                if (xLinked && (mom.sex !== 'female' || dad.sex !== 'male')) return 0;
+                w = segregation(g, m.sex, assigned[mom.id], assigned[dad.id], pattern);
+            }
+            if (w === 0) return 0;
+            if (withEvidence) { const ev = m.affected ? penetrance(g, m.sex, pattern) : (1 - penetrance(g, m.sex, pattern)); w *= ev; }
+            return w;
+        };
+    }
+    function priorDistribution(target, byId, parentsOf, isFounder, pattern, q) {
+        const anc = ancestorsOf(target.id, parentsOf);
+        const ids = Array.from(anc); ids.push(target.id);
+        const bd = buildDomains(ids, byId, pattern, { ignorePinId: target.id });
+        if (bd.errored) return { dist: null, warnings: bd.warnings, errored: bd.errored };
+        if (enumSpaceSize(ids, bd.domains) === Infinity) return { dist: null, warnings: bd.warnings, errored: 'too-large' };
+        const order = topoOrder(ids, parentsOf);
+        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, ids, false);
+        const res = enumerate(order, bd.domains, factor, target.id);
+        if (res.total === 0) return { dist: null, warnings: bd.warnings, errored: 'zero-prior' };
+        const dist = {};
+        Object.keys(res.marg).forEach(g => dist[g] = res.marg[g] / res.total);
+        return { dist, warnings: bd.warnings, errored: null };
+    }
+    function fullJointClamped(target, H, byId, parentsOf, isFounder, pattern, q, componentIds) {
+        const bd = buildDomains(componentIds, byId, pattern, { clamp: { id: target.id, g: H } });
+        if (bd.errored) return 0;
+        if (enumSpaceSize(componentIds, bd.domains) === Infinity) return NaN;
+        const order = topoOrder(componentIds, parentsOf);
+        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, componentIds, true, target.id);
+        return enumerate(order, bd.domains, factor, null).total;
+    }
+    function analyzeMember(familyData, targetId, opts) {
+        const pattern = opts.pattern, q = opts.q;
+        const members = familyData.members || [], links = familyData.parentChildLinks || [], partnerships = familyData.partnerships || [];
+        const target = members.find(m => m.id === targetId);
+        if (!target) return { error: 'no-target' };
+        const xLinked = (pattern === 'XLR' || pattern === 'XLD');
+        if (xLinked && target.sex !== 'male' && target.sex !== 'female') return { error: 'target-unknown-sex-xlinked' };
+        const g = buildGraph(members, links);
+        const consanguinity = detectConsanguinity(links, g.parentsOf);
+        const pr = priorDistribution(target, g.byId, g.parentsOf, g.isFounder, pattern, q);
+        if (pr.errored && pr.errored !== 'zero-prior') return { error: pr.errored, consanguinity };
+        // X-linked needs each child's parents to be exactly one female + one male.
+        if (xLinked) {
+            for (const l of links) {
+                const a = g.byId.get(l.parent1), b = g.byId.get(l.parent2);
+                if (a && b && !((a.sex === 'female' && b.sex === 'male') || (a.sex === 'male' && b.sex === 'female'))) {
+                    pr.warnings = Array.from(new Set((pr.warnings || []).concat('xlinked-parent-sex'))); break;
+                }
+            }
+        }
+        const prior = {
+            dist: pr.dist,
+            pAffected: pr.dist ? Object.keys(pr.dist).reduce((s, k) => s + pr.dist[k] * penetrance(k, target.sex, pattern), 0) : null,
+            pCarrier: pr.dist ? Object.keys(pr.dist).reduce((s, k) => s + pr.dist[k] * (isCarrierGenotype(k, target.sex, pattern) ? 1 : 0), 0) : null,
+        };
+        const componentIds = Array.from(componentOf(target.id, members, links, partnerships));
+        // Posterior hypotheses span the target's genotype space, restricted by the
+        // target's OWN known-genotype pin (carrier/affected) — a carrier flag means
+        // we already know the genotype, so the posterior must respect it.
+        let space = genotypeSpace(target.sex, pattern);
+        { const pd = pinnedDomain(target, pattern, space); if (pd.domain && pd.domain.length) space = space.filter(gg => pd.domain.indexOf(gg) >= 0); if (pd.warnings && pd.warnings.length) pr.warnings = Array.from(new Set((pr.warnings || []).concat(pd.warnings))); }
+        let tooLarge = false;
+        const hyps = space.map(H => {
+            const j = fullJointClamped(target, H, g.byId, g.parentsOf, g.isFounder, pattern, q, componentIds);
+            if (isNaN(j)) tooLarge = true;
+            return { genotype: H, joint: isNaN(j) ? 0 : j, priorH: pr.dist ? (pr.dist[H] || 0) : 0 };
+        });
+        const jsum = hyps.reduce((s, h) => s + h.joint, 0);
+        const posterior = hyps.map(h => ({
+            genotype: h.genotype,
+            affected: isAffected(h.genotype, target.sex, pattern),
+            carrierGenotype: isCarrierGenotype(h.genotype, target.sex, pattern),
+            prior: h.priorH,
+            conditional: h.priorH > 0 ? h.joint / h.priorH : 0,
+            joint: h.joint,
+            posterior: jsum > 0 ? h.joint / jsum : 0,
+        }));
+        return {
+            prior, posterior,
+            postPAffected: posterior.reduce((s, h) => s + (h.affected ? h.posterior : 0), 0),
+            postPCarrier: posterior.reduce((s, h) => s + (h.carrierGenotype ? h.posterior : 0), 0),
+            consanguinity, warnings: pr.warnings, posteriorValid: jsum > 0 && !tooLarge, tooLarge,
+        };
+    }
+    return { analyzeMember, isAffected, genotypeSpace, founderPrior, segregation };
+})();
+
+// ======================== PROBABILITY MODE UI ========================
+let probSelectedId = null, probPattern = 'AR', probQ = 0.01;
+const PROB_PATTERNS = ['AR', 'AD', 'XLR', 'XLD'];
+function probT(tr, en) { return (typeof currentLang !== 'undefined' && currentLang === 'en') ? en : tr; }
+
+function toggleProbabilityMode() {
+    if (typeof toolMode !== 'undefined' && toolMode === 'probability') { clearAllModes(); return; }
+    if (typeof clearAllModes === 'function') clearAllModes();
+    toolMode = 'probability';
+    const btn = document.getElementById('probModeBtn');
+    if (btn) btn.classList.add('active');
+    const tb = document.getElementById('placeToolbar'); // shares the top-right anchor — hide to avoid overlap
+    if (tb) tb.style.display = 'none';
+    showProbabilityPanel();
+}
+function hideProbabilityUI() {
+    const p = document.getElementById('probabilityPanel');
+    if (p) p.style.display = 'none';
+    const btn = document.getElementById('probModeBtn');
+    if (btn) btn.classList.remove('active');
+    const tb = document.getElementById('placeToolbar');
+    if (tb) tb.style.display = '';
+}
+function showProbabilityPanel() {
+    const panel = document.getElementById('probabilityPanel');
+    if (!panel) return;
+    panel.style.display = '';
+    const title = document.getElementById('probTitle');
+    if (title) title.textContent = probT('Olasılık Hesaplayıcı', 'Probability Calculator');
+    buildProbControls();
+    renderProbabilityResult();
+}
+function buildProbControls() {
+    const c = document.getElementById('probControls');
+    if (!c) return;
+    const names = {
+        AR: probT('Otozomal resesif', 'Autosomal recessive'),
+        AD: probT('Otozomal dominant', 'Autosomal dominant'),
+        XLR: probT('X’e bağlı resesif', 'X-linked recessive'),
+        XLD: probT('X’e bağlı dominant', 'X-linked dominant'),
+    };
+    const opts = PROB_PATTERNS.map(p => `<option value="${p}"${p === probPattern ? ' selected' : ''}>${p} — ${fhEscapeHtml(names[p])}</option>`).join('');
+    c.innerHTML =
+        `<label class="prob-ctl">${probT('Kalıtım', 'Inheritance')}
+            <select id="probPatternSel" onchange="onProbControlChange()">${opts}</select></label>
+         <label class="prob-ctl" style="max-width:96px;flex:0 0 auto;">${probT('Allel frek. q', 'Allele freq q')}
+            <input id="probQInput" type="number" min="0" max="1" step="0.001" value="${probQ}" onchange="onProbControlChange()" oninput="onProbControlChange()"></label>`;
+}
+function onProbControlChange() {
+    const sel = document.getElementById('probPatternSel'), qi = document.getElementById('probQInput');
+    if (sel) probPattern = sel.value;
+    if (qi) {
+        let v = parseFloat(qi.value); if (isNaN(v)) v = 0; probQ = Math.max(0, Math.min(1, v));
+        // Reflect the clamped value back (but let an empty field stay empty mid-typing).
+        if (qi.value !== '' && parseFloat(qi.value) !== probQ) qi.value = probQ;
+    }
+    renderProbabilityResult();
+}
+function probSelectMember(id) { probSelectedId = id; renderProbabilityResult(); }
+function probGenoLabel(g) { return g.replace(/X([Aa])/g, function (_, al) { return 'X' + (al === 'A' ? 'ᴬ' : 'ᵃ'); }); }
+function probToFraction(x) {
+    if (x === 0) return '0';
+    if (Math.abs(x - 1) < 1e-12) return '1';
+    for (let den = 2; den <= 64; den++) { const num = x * den; if (Math.abs(num - Math.round(num)) < 1e-9) { const n = Math.round(num); if (n > 0 && n < den) return n + '/' + den; } }
+    return null;
+}
+function probPct(x) {
+    if (x == null || isNaN(x)) return '–';
+    const frac = probToFraction(x), pct = x * 100;
+    const pctStr = (Math.abs(pct - Math.round(pct)) < 1e-9) ? Math.round(pct) + '%' : pct.toFixed(pct < 1 ? 3 : 1) + '%';
+    return frac ? `${pctStr} (${frac})` : pctStr;
+}
+function probFmtNum(x) { if (x == null || isNaN(x)) return '–'; const f = probToFraction(x); return f || String(Math.round(x * 1000) / 1000); }
+function renderProbabilityResult() {
+    const out = document.getElementById('probResult');
+    if (!out) return;
+    if (probSelectedId == null) {
+        out.innerHTML = `<div class="prob-hint">${probT('Bir bireye tıklayın — prior ve posterior olasılıkları gösterilir.', 'Click an individual — its prior and posterior probabilities will appear.')}</div>`;
+        return;
+    }
+    const member = (familyData.members || []).find(m => m.id === probSelectedId);
+    if (!member) { probSelectedId = null; renderProbabilityResult(); return; }
+    const res = PedigreeProb.analyzeMember(familyData, probSelectedId, { pattern: probPattern, q: probQ });
+    const nm = (member.name && member.name.trim()) ? member.name.trim() : (probT('Birey ', 'Individual ') + member.id);
+    let html = `<div class="prob-target">${fhEscapeHtml(nm)}</div>`;
+    if (res.error) {
+        const msg = res.error === 'target-unknown-sex-xlinked'
+            ? probT('X’e bağlı kalıtım için bireyin cinsiyeti belirli olmalı (erkek/kadın).', 'For X-linked inheritance the individual must have a defined sex.')
+            : res.error === 'too-large' ? probT('Pedigri bu hesap için çok büyük.', 'Pedigree too large for this computation.')
+            : probT('Hesaplanamadı.', 'Could not compute.');
+        out.innerHTML = html + `<div class="prob-note">${msg}</div>`;
+        return;
+    }
+    const showCarrier = (probPattern === 'AR' || probPattern === 'XLR');
+    html += `<div class="prob-section-title">${probT('Prior (segregasyon)', 'Prior (segregation)')}</div>`;
+    if (res.prior.dist) {
+        html += `<div class="prob-kv"><span>${probT('P(etkilenmiş)', 'P(affected)')}</span><b>${probPct(res.prior.pAffected)}</b></div>`;
+        if (showCarrier) html += `<div class="prob-kv"><span>${probT('P(taşıyıcı)', 'P(carrier)')}</span><b>${probPct(res.prior.pCarrier)}</b></div>`;
+    } else html += `<div class="prob-hint">${probT('Prior hesaplanamadı.', 'Prior unavailable.')}</div>`;
+    html += `<div class="prob-section-title">${probT('Posterior (Bayes — tüm fenotipler)', 'Posterior (Bayes — all phenotypes)')}</div>`;
+    if (res.posteriorValid) {
+        const maxPost = Math.max.apply(null, res.posterior.map(h => h.posterior));
+        html += `<table class="prob-table"><thead><tr><th>${probT('Genotip', 'Genotype')}</th><th>${probT('Prior', 'Prior')}</th><th>${probT('Koşul.', 'Cond.')}</th><th>${probT('Post.', 'Post.')}</th></tr></thead><tbody>`;
+        res.posterior.forEach(h => {
+            const cls = (h.affected ? 'prob-row-aff ' : '') + (Math.abs(h.posterior - maxPost) < 1e-12 ? 'prob-row-best' : '');
+            html += `<tr class="${cls.trim()}"><td><span class="prob-genolabel">${probGenoLabel(h.genotype)}</span></td><td>${probFmtNum(h.prior)}</td><td>${probFmtNum(h.conditional)}</td><td><b>${probPct(h.posterior)}</b></td></tr>`;
+        });
+        html += `</tbody></table>`;
+        html += `<div class="prob-kv" style="margin-top:6px;"><span>${probT('Posterior P(etkilenmiş)', 'Posterior P(affected)')}</span><b>${probPct(res.postPAffected)}</b></div>`;
+        if (showCarrier) html += `<div class="prob-kv"><span>${probT('Posterior P(taşıyıcı)', 'Posterior P(carrier)')}</span><b>${probPct(res.postPCarrier)}</b></div>`;
+    } else html += `<div class="prob-hint">${probT('Posterior hesaplanamadı (çelişkili kanıt ya da çok büyük).', 'Posterior unavailable (contradictory evidence or too large).')}</div>`;
+    if (res.consanguinity) html += `<div class="prob-note">${probT('Akraba evliliği (döngü) saptandı — ortak ata bir kez sayılarak tam ortak dağılımla hesaplandı.', 'Consanguinity (loop) detected — computed exactly via the full joint, counting the shared ancestor once.')}</div>`;
+    if (res.warnings && res.warnings.indexOf('carrier-on-dominant') >= 0) html += `<div class="prob-note">${probT('Dominant paternde “taşıyıcı” işareti etkilenmiş gibi yorumlandı.', '“Carrier” flag on a dominant pattern was interpreted as affected.')}</div>`;
+    if (res.warnings && res.warnings.indexOf('xlinked-parent-sex') >= 0) html += `<div class="prob-note">${probT('X’e bağlı kalıtım için her çocuğun ebeveynleri bir kadın + bir erkek olmalı; bazı ebeveynler buna uymuyor, sonuç güvenilmez olabilir.', 'X-linked inheritance needs each child to have one female + one male parent; some parents do not, so the result may be unreliable.')}</div>`;
+    html += `<div class="prob-hint" style="margin-top:8px;font-size:10px;">${probT('Tam penetrans varsayılır. Prior bireyin kendi fenotipini yok sayar; posterior tüm gözlemleri kullanır.', 'Full penetrance assumed. Prior ignores the individual’s own phenotype; posterior uses all observations.')}</div>`;
+    out.innerHTML = html;
+}
+
 // ======================== I18N (LANGUAGE SUPPORT) ========================
 const I18N = {
     tr: {
@@ -2909,6 +3342,8 @@ const I18N = {
         'mode.cancer': 'Kanser Pedigresi',
         'btn.summary': 'Özet',
         'btn.summary.tip': 'Aile öyküsü klinik özeti oluştur',
+        'prob.btn': 'Olasılık',
+        'prob.btn.tip': 'Genotip olasılık hesaplayıcı (Bayes) — bir bireye tıklayın',
         'summary.title': 'Aile Öyküsü Özeti',
         'summary.subtitle': 'Pedigri verisinden otomatik üretilen aile öyküsü ve kalıtım paterni analizi',
         'summary.copy': 'Panoya Kopyala',
@@ -3251,6 +3686,8 @@ const I18N = {
         'mode.cancer': 'Cancer Pedigree',
         'btn.summary': 'Summary',
         'btn.summary.tip': 'Generate clinical family history summary',
+        'prob.btn': 'Probability',
+        'prob.btn.tip': 'Genotype probability calculator (Bayesian) — click an individual',
         'summary.title': 'Family History Summary',
         'summary.subtitle': 'Family-history & inheritance-pattern analysis auto-generated from pedigree data',
         'summary.copy': 'Copy to Clipboard',
@@ -3614,6 +4051,8 @@ function applyTranslations() {
         const ta = document.getElementById('summaryText');
         if (ta) ta.value = generateFamilyHistory(currentLang);
     }
+    // Olasılık paneli açıksa yeni dilde yeniden çiz
+    if (typeof toolMode !== 'undefined' && toolMode === 'probability' && typeof showProbabilityPanel === 'function') showProbabilityPanel();
 }
 
 function toggleLanguage() {
@@ -5076,6 +5515,13 @@ function renderPedigree() {
     }
 
     svg.innerHTML = svgContent;
+
+    // Keep the probability panel in sync with the live pedigree: every data
+    // mutation funnels through renderPedigree (undo/redo, delete, clearAll,
+    // form saves, right-click quick-edits), so refresh the open panel here.
+    if (typeof toolMode !== 'undefined' && toolMode === 'probability' && probSelectedId != null && typeof renderProbabilityResult === 'function') {
+        try { renderProbabilityResult(); } catch (e) {}
+    }
 }
 
 // ======================== EXPORT ========================
@@ -5806,6 +6252,7 @@ const connectPreview = document.getElementById('connectPreview');
 
 function clearAllModes() {
     const wasPlace = (toolMode === 'place');
+    if (typeof hideProbabilityUI === 'function') hideProbabilityUI();
     placeMode = null; toolMode = null; connectStart = null; movingMemberId = null;
     canvasContainer.classList.remove('tool-active', 'tool-move', 'tool-consan', 'dragging');
     // Turn off consan flag and its button highlight when leaving any tool
@@ -6255,6 +6702,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault(); e.stopPropagation();
     const pos = getSVGPos(e);
+    if (toolMode === 'probability') { const m = findMemberAtPos(pos); if (m) probSelectMember(m.id); return; }
     if (toolMode === 'place') { placeMember(pos); return; }
     if (toolMode === 'connect') {
         const target = findTargetAtPos(pos);
@@ -6347,6 +6795,7 @@ canvasContainer.addEventListener('touchstart', (e) => {
     if (e.target && e.target.closest && e.target.closest('.gen-row-label')) return;
     e.preventDefault();
     const pos = getSVGPos(e);
+    if (toolMode === 'probability') { const m = findMemberAtPos(pos); if (m) probSelectMember(m.id); return; }
     if (toolMode === 'place') { placeMember(pos); return; }
     if (toolMode === 'connect') {
         const target = findTargetAtPos(pos);
@@ -8509,6 +8958,82 @@ window.runRegressionTests = function() {
             passed: bothCarriers,
             errors: bothCarriers ? [] : ['parents not marked carrier after apply']
         });
+
+        // ----- Genotype probability engine (textbook oracles) -----
+        const pFam = (members, links, partnerships) => ({ members, partnerships: partnerships || [], parentChildLinks: links || [] });
+        const pAbout = (a, b) => Math.abs(a - b) < 1e-9;
+        function pCheck(name, got, expected) {
+            tests.push({ name, passed: pAbout(got, expected), errors: pAbout(got, expected) ? [] : [`got ${got} expected ${expected}`] });
+        }
+        // O2/O1: AR Aa x Aa, child
+        {
+            const f = pFam([{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female', carrier: true }, { id: 3, sex: 'male' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }]);
+            const r = PedigreeProb.analyzeMember(f, 3, { pattern: 'AR', q: 0 });
+            pCheck('Prob O2: AR prior P(child affected)=1/4', r.prior.pAffected, 1 / 4);
+            pCheck('Prob O1: AR posterior P(carrier|unaffected)=2/3', r.postPCarrier, 2 / 3);
+        }
+        // O3/O4: XLR carrier mother
+        {
+            const f = pFam([{ id: 1, sex: 'male' }, { id: 2, sex: 'female', carrier: true }, { id: 3, sex: 'male' }, { id: 4, sex: 'female' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }, { parent1: 1, parent2: 2, childId: 4 }]);
+            pCheck('Prob O3: XLR prior P(son affected)=1/2', PedigreeProb.analyzeMember(f, 3, { pattern: 'XLR', q: 0 }).prior.pAffected, 1 / 2);
+            pCheck('Prob O4: XLR prior P(daughter carrier)=1/2', PedigreeProb.analyzeMember(f, 4, { pattern: 'XLR', q: 0 }).prior.pCarrier, 1 / 2);
+        }
+        // O5: AD affected x unaffected
+        {
+            const f = pFam([{ id: 1, sex: 'male', affected: true }, { id: 2, sex: 'female' }, { id: 3, sex: 'female' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }]);
+            pCheck('Prob O5: AD prior P(child affected)=1/2', PedigreeProb.analyzeMember(f, 3, { pattern: 'AD', q: 0 }).prior.pAffected, 1 / 2);
+        }
+        // O6: XLR consultand, obligate-carrier mother, two unaffected sons
+        {
+            const f = pFam(
+                [{ id: 1, sex: 'male' }, { id: 2, sex: 'female', carrier: true }, { id: 3, sex: 'female' }, { id: 4, sex: 'male' }, { id: 5, sex: 'male' }, { id: 6, sex: 'male' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }, { parent1: 4, parent2: 3, childId: 5 }, { parent1: 4, parent2: 3, childId: 6 }],
+                [{ partner1: 1, partner2: 2 }, { partner1: 4, partner2: 3 }]);
+            pCheck('Prob O6: XLR posterior P(consultand carrier)=1/5', PedigreeProb.analyzeMember(f, 3, { pattern: 'XLR', q: 0 }).postPCarrier, 1 / 5);
+        }
+        // O7: AR founder HWE; O8: XLR male founder; consanguinity 1/16
+        {
+            const f = pFam([{ id: 1, sex: 'male' }], []);
+            const r = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0.01 });
+            pCheck('Prob O7: AR founder P(carrier)=2pq', r.prior.pCarrier, 2 * 0.99 * 0.01);
+            pCheck('Prob O8: XLR male founder P(affected)=q', PedigreeProb.analyzeMember(f, 1, { pattern: 'XLR', q: 0.2 }).prior.pAffected, 0.2);
+        }
+        {
+            const f = pFam(
+                [{ id: 1, sex: 'male', carrier: true }, { id: 2, sex: 'female' }, { id: 3, sex: 'male' }, { id: 4, sex: 'female' }, { id: 5, sex: 'male' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }, { parent1: 1, parent2: 2, childId: 4 }, { parent1: 3, parent2: 4, childId: 5 }],
+                [{ partner1: 1, partner2: 2 }, { partner1: 3, partner2: 4 }]);
+            const r = PedigreeProb.analyzeMember(f, 5, { pattern: 'AR', q: 0 });
+            pCheck('Prob: consanguinity loop exact P(affected)=1/16', r.prior.pAffected, 1 / 16);
+            tests.push({ name: 'Prob: consanguinity detected', passed: r.consanguinity === true, errors: r.consanguinity ? [] : ['loop not detected'] });
+        }
+        // FOUNDER POSTERIOR (regression for the clamped-singleton prior bug): the
+        // posterior must be PRIOR-WEIGHTED (not the buggy flat 0.5/0.5). The lone
+        // founder is affected:false = observed unaffected, so the posterior is the
+        // population prior CONDITIONED on unaffected: P(AA)=p^2/(p^2+2pq), aa=0.
+        {
+            const p = 0.99, qq = 0.01, denom = p * p + 2 * p * qq;
+            const f = pFam([{ id: 1, sex: 'female' }], []);
+            const r = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: qq });
+            pCheck('Prob: lone unaffected founder posterior P(carrier)=2pq/(p^2+2pq)', r.postPCarrier, (2 * p * qq) / denom);
+            const aa = r.posterior.find(h => h.genotype === 'aa'), AA = r.posterior.find(h => h.genotype === 'AA');
+            pCheck('Prob: lone unaffected founder posterior P(aa)=0', aa ? aa.posterior : -1, 0);
+            pCheck('Prob: lone unaffected founder posterior P(AA)=p^2/(p^2+2pq) (NOT flat 0.5)', AA ? AA.posterior : -1, (p * p) / denom);
+        }
+        {   // affected lone founder, AD, q=0.01 -> posterior Aa = 2p/(2p+q)
+            const f = pFam([{ id: 1, sex: 'female', affected: true }], []);
+            const r = PedigreeProb.analyzeMember(f, 1, { pattern: 'AD', q: 0.01 });
+            const aa = r.posterior.find(h => h.genotype === 'Aa');
+            pCheck('Prob: affected founder posterior Aa=2p/(2p+q)', aa ? aa.posterior : -1, (2 * 0.99) / (2 * 0.99 + 0.01));
+        }
+        {   // target's own carrier pin constrains posterior to the carrier genotype
+            const f = pFam([{ id: 1, sex: 'female', carrier: true }], []);
+            const r = PedigreeProb.analyzeMember(f, 1, { pattern: 'AR', q: 0.3 });
+            pCheck('Prob: target carrier-pin -> posterior P(carrier)=1', r.postPCarrier, 1);
+        }
 
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----
         window.__secXss = 0;
