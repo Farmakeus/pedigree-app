@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **77 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **79 otomatik test**.
 
 ---
 
@@ -99,13 +99,13 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **77/77 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı; **HIGH olan #1 düzeltildi (working tree'de, henüz commit edilmedi)**, kalan **4 bulgu (1 MEDIUM + 3 LOW)** bekliyor (aşağıda). Özellik çalışıyor; kalan bulgular köşe durumlar.
+- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **79/79 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı; **HIGH olan #1 düzeltildi (working tree'de, henüz commit edilmedi)**, kalan **4 bulgu (1 MEDIUM + 3 LOW)** bekliyor (aşağıda). Özellik çalışıyor; kalan bulgular köşe durumlar.
 - Önceki: `38c0321`'e kadar **canlıda** (olasılık hesaplayıcı dahil).
 
 ### 🎯 SIRADAKİ İŞ — yarın: önce #6 review bulgularını düzelt, sonra push
 **Düzeltilecek review bulguları (önem sırasına göre):**
-1. ✅ **DÜZELTİLDİ — HIGH recurrence q=0 + (f<1, c=0) süreksizliği:** Kök fix uygulandı: `pinnedDomain`'in affected hard-pin'i artık `fullPen` yerine **`c===0`** ile kontrol ediliyor (param `fullPen`→`pinAffected` olarak yeniden adlandırıldı; `pinAffected: (c===0)` joint/posterior/recurrence yollarına thread edildi — `buildDomains` opts, `fullJointClamped`, `priorDistribution`, `analyzeMember` posterior-space). Mantık: `c===0` iken etkilenmiş birey genotip-normal OLAMAZ → bu bir genotip GERÇEĞİ, kısıtlama hiç kütle kaybetmez ama q=0 collapse'ını {Aa,aa} içinde min-mutant=Aa'ya yönlendirir → `penetrance(Aa)=f` → doğru. q>0'da eski yumuşak-kanıt davranışıyla **bit-bit aynı** (regresyon yok); yalnız q=0 dejenere durumu onarılır. **+4 regresyon testi** (RP11: AD q=0 f=0.8 etkilenmiş-baba×normal=0.40 + VALID + f=0.99=0.495; RP12: AR q=0 f=0.5 etkilenmiş×etkilenmiş=0.50). RP9 (c=0.10) etkilenmedi. **Tüm paket 77/77**, UI'da recurrence paneli "Hesaplanamadı" yerine "P(etkilenmiş) 40% (2/5)" gösteriyor. Node + tarayıcı + UI ile doğrulandı.
-2. **MEDIUM — prior, f<1/c>0'da etkilenmiş ataları yok sayıyor:** `priorDistribution` `withEvidence=false` çağrılıyor; affected pin de `fullPen` kapalıyken yok → prior az-koşullanıyor (süreksiz). **Fix:** prior'ı `withEvidence=true` ile (hedefin KENDİ fenotipi hariç, `id!==target` skip — mevcut `phantomId` skip mekanizmasını yeniden kullan) enumerate et ki ata fenotipleri her f/c'de yumuşak kanıt olarak girsin. (Posterior zaten doğru; bu yalnızca PRIOR satırını etkiler.)
+1. ✅ **DÜZELTİLDİ — HIGH recurrence q=0 + (f<1, c=0) süreksizliği:** Kök fix uygulandı: `pinnedDomain`'in affected hard-pin'i artık `fullPen` yerine **`c===0`** ile kontrol ediliyor (param `fullPen`→`pinAffected` olarak yeniden adlandırıldı; `pinAffected: (c===0)` joint/posterior/recurrence yollarına thread edildi — `buildDomains` opts, `fullJointClamped`, `priorDistribution`, `analyzeMember` posterior-space). Mantık: `c===0` iken etkilenmiş birey genotip-normal OLAMAZ → bu bir genotip GERÇEĞİ, kısıtlama hiç kütle kaybetmez ama q=0 collapse'ını {Aa,aa} içinde min-mutant=Aa'ya yönlendirir → `penetrance(Aa)=f` → doğru. q>0'da eski yumuşak-kanıt davranışıyla **bit-bit aynı** (regresyon yok); yalnız q=0 dejenere durumu onarılır. **+4 regresyon testi** (RP11: AD q=0 f=0.8 etkilenmiş-baba×normal=0.40 + VALID + f=0.99=0.495; RP12: AR q=0 f=0.5 etkilenmiş×etkilenmiş=0.50). RP9 (c=0.10) etkilenmedi. **Tüm paket 79/79**, UI'da recurrence paneli "Hesaplanamadı" yerine "P(etkilenmiş) 40% (2/5)" gösteriyor. Node + tarayıcı + UI ile doğrulandı.
+2. ✅ **DÜZELTİLDİ — MEDIUM prior, ata fenotiplerini koşullamıyordu:** `priorDistribution` artık `withEvidence=true` ile (hedefin KENDİ fenotipi hariç — `makeFactor`'a `phantomId=target.id` geçilerek mevcut skip mekanizması yeniden kullanıldı) enumerate ediliyor; ata fenotipleri her f/c'de yumuşak kanıt olarak prior'a giriyor. Yan etki: tam-penetrans `c=0` durumda da prior düzeldi (örn. etkilenmemiş tam-penetrans bir ebeveyn artık risk-altı genotipte oturamaz). #1'in `pinAffected:(c===0)` hard-pin'i korundu (q=0 founder collapse'ını önler; soft-evidence ile birlikte çalışır). **Posterior değişmedi** (joint-tabanlı), yalnız prior satırı + audit tablosu keskinleşti. **+2 regresyon testi** (RP13: AD q=0.1 etkilenmiş-baba × etkilenmemiş-anne → çocuk prior P(etkilenmiş)=10/19, prior'da çocuk aa=0; eski az-koşullu prior ~0.574 + sahte aa veriyordu). Tüm O1–O8/konsanguinite/lone-founder oracle'ları korundu. **Tüm paket 79/79**, UI'da prior paneli "52.6% (10/19)" gösteriyor.
 3. **LOW — (önceden var olan) q=0 + tam penetrans + etkilenmiş founder:** clamp'lı founder hedefi q=0'da posteriorValid=false. Extension'ın getirdiği YENİ hata değil; #1 fix'i (b şıkkı / epsilon floor) ile birlikte ele alınabilir.
 4. **LOW — kendiyle-eş recurrence:** `momId===dadId` reddedilmiyor. **Fix:** `analyzeRecurrence`'a `if (mom.id===dad.id) return {error:'self-couple'}`; renderRecurrenceSection'da ele al; import sanitizer'da self-partnership düş.
 5. **LOW — `probFindPartner` boşanmış eşi seçebiliyor:** önce `!p.divorced` eşi seç; çoklu eşte hepsini listelemek daha iyi.
@@ -222,7 +222,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (77 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (79 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.

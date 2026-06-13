@@ -3163,7 +3163,16 @@ const PedigreeProb = (function () {
         if (bd.errored) return { dist: null, warnings: bd.warnings, errored: bd.errored };
         if (enumSpaceSize(ids, bd.domains) === Infinity) return { dist: null, warnings: bd.warnings, errored: 'too-large' };
         const order = topoOrder(ids, parentsOf);
-        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, ids, false);
+        // Condition the prior on the ANCESTORS' phenotypes (soft likelihood), but
+        // NOT on the target's own phenotype — reuse the phantom-skip mechanism with
+        // phantomId=target.id so makeFactor applies penetrance evidence to every
+        // ancestor yet skips the target. Without this the prior ignored ancestor
+        // phenotypes entirely (e.g. an unaffected full-penetrance parent could still
+        // sit at an at-risk genotype), making it under-conditioned and discontinuous
+        // as f/c vary. The posterior (joint-based) is unaffected; this only sharpens
+        // the audit table's prior column. Affected ancestors with c===0 are also
+        // hard-pinned (buildDomains above) so the q=0 founder collapse is avoided.
+        const factor = makeFactor(byId, parentsOf, isFounder, pattern, q, bd.domains, ids, true, null, f, c, target.id);
         const res = enumerate(order, bd.domains, factor, target.id);
         if (res.total === 0) return { dist: null, warnings: bd.warnings, errored: 'zero-prior' };
         const dist = {};
@@ -9257,6 +9266,18 @@ window.runRegressionTests = function() {
         {   // RP12: AR affected x affected at q=0, f=0.5 -> all children aa, P(aff)=f.
             const f12 = pFam([{ id: 1, sex: 'male', affected: true }, { id: 2, sex: 'female', affected: true }], [], [{ partner1: 1, partner2: 2 }]);
             pCheck('Prob RP12: AR q=0 f=0.5 affected x affected P(next affected)=0.50', PedigreeProb.analyzeRecurrence(f12, 1, 2, { pattern: 'AR', q: 0, f: 0.5, c: 0 }).perSex.female.pAffected, 0.50);
+        }
+        {   // RP13: prior conditions on ANCESTOR phenotypes (review #2). AD q=0.1,
+            // affected father x UNAFFECTED mother. The unaffected full-penetrance
+            // mother CANNOT be at-risk -> she is AA, so the child can never be aa and
+            // P(child affected)=10/19. The old under-conditioned prior (ancestor
+            // phenotypes ignored) let the mother sit at Aa/aa and gave ~0.574 with a
+            // spurious aa mass; this locks in the corrected, continuous prior.
+            const f13 = pFam([{ id: 1, sex: 'male', affected: true }, { id: 2, sex: 'female' }, { id: 3, sex: 'female' }],
+                [{ parent1: 1, parent2: 2, childId: 3 }]);
+            const pr13 = PedigreeProb.analyzeMember(f13, 3, { pattern: 'AD', q: 0.1, f: 1, c: 0 }).prior;
+            pCheck('Prob RP13: prior conditions on ancestors -> child P(affected)=10/19', pr13.pAffected, 10 / 19);
+            pCheck('Prob RP13: unaffected full-pen mother -> child P(aa)=0 in prior', (pr13.dist && pr13.dist.aa) || 0, 0);
         }
 
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----
