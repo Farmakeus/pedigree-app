@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **79 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **91 otomatik test**.
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay (push EDİLMEDİ; 5 review bulgusundan **HIGH olan #1 düzeltildi (henüz commit edilmedi)**, 4 bulgu (1 MEDIUM + 3 LOW) BEKLİYOR — bkz. bölüm 4).
+> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay + **5 review bulgusunun HEPSİ düzeltildi (commit'li)** + adversarial review'da çıkan DoS hardening. **PUSH EDİLMEDİ** — push'a hazır (bkz. bölüm 4).
 
 ### 🚧 #6 Eksik penetrans + fenokopi + recurrence + canvas overlay (WIP — lokal checkpoint, push'lanmadı)
 - **Eksik penetrans `f` + fenokopi `c`** (kontrol çubuğunda %, varsayılan 100/0): `penetrance(g,sex,pattern,f,c)` = risk-altı→`f`, değilse→`c`. "Etkilenmiş" artık **yumuşak kanıt** (genotip pin'i DEĞİL); "taşıyıcı" sabit pin kalır. **Geri uyumluluk:** affected hard-pin yalnızca `fullPen=(f===1&&c===0)` dalında korunur (q=0 köşe durumları için). `priorDistribution`/`fullJointClamped`→`buildDomains`→`pinnedDomain` zincirine `fullPen` threaded.
@@ -99,20 +99,20 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **79/79 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı; **HIGH olan #1 düzeltildi (working tree'de, henüz commit edilmedi)**, kalan **4 bulgu (1 MEDIUM + 3 LOW)** bekliyor (aşağıda). Özellik çalışıyor; kalan bulgular köşe durumlar.
+- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **91/91 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal commit'li, PUSH EDİLMEDİ.** Adversarial review'ın çıkardığı **5 bulgunun HEPSİ düzeltildi + commit'li** (bu oturumun ikinci review'i ek bir DoS bulgusu da çıkardı → düzeltildi). Push'a hazır (aşağıda bölüm 4).
 - Önceki: `38c0321`'e kadar **canlıda** (olasılık hesaplayıcı dahil).
 
 ### 🎯 SIRADAKİ İŞ — yarın: önce #6 review bulgularını düzelt, sonra push
 **Düzeltilecek review bulguları (önem sırasına göre):**
-1. ✅ **DÜZELTİLDİ — HIGH recurrence q=0 + (f<1, c=0) süreksizliği:** Kök fix uygulandı: `pinnedDomain`'in affected hard-pin'i artık `fullPen` yerine **`c===0`** ile kontrol ediliyor (param `fullPen`→`pinAffected` olarak yeniden adlandırıldı; `pinAffected: (c===0)` joint/posterior/recurrence yollarına thread edildi — `buildDomains` opts, `fullJointClamped`, `priorDistribution`, `analyzeMember` posterior-space). Mantık: `c===0` iken etkilenmiş birey genotip-normal OLAMAZ → bu bir genotip GERÇEĞİ, kısıtlama hiç kütle kaybetmez ama q=0 collapse'ını {Aa,aa} içinde min-mutant=Aa'ya yönlendirir → `penetrance(Aa)=f` → doğru. q>0'da eski yumuşak-kanıt davranışıyla **bit-bit aynı** (regresyon yok); yalnız q=0 dejenere durumu onarılır. **+4 regresyon testi** (RP11: AD q=0 f=0.8 etkilenmiş-baba×normal=0.40 + VALID + f=0.99=0.495; RP12: AR q=0 f=0.5 etkilenmiş×etkilenmiş=0.50). RP9 (c=0.10) etkilenmedi. **Tüm paket 79/79**, UI'da recurrence paneli "Hesaplanamadı" yerine "P(etkilenmiş) 40% (2/5)" gösteriyor. Node + tarayıcı + UI ile doğrulandı.
-2. ✅ **DÜZELTİLDİ — MEDIUM prior, ata fenotiplerini koşullamıyordu:** `priorDistribution` artık `withEvidence=true` ile (hedefin KENDİ fenotipi hariç — `makeFactor`'a `phantomId=target.id` geçilerek mevcut skip mekanizması yeniden kullanıldı) enumerate ediliyor; ata fenotipleri her f/c'de yumuşak kanıt olarak prior'a giriyor. Yan etki: tam-penetrans `c=0` durumda da prior düzeldi (örn. etkilenmemiş tam-penetrans bir ebeveyn artık risk-altı genotipte oturamaz). #1'in `pinAffected:(c===0)` hard-pin'i korundu (q=0 founder collapse'ını önler; soft-evidence ile birlikte çalışır). **Posterior değişmedi** (joint-tabanlı), yalnız prior satırı + audit tablosu keskinleşti. **+2 regresyon testi** (RP13: AD q=0.1 etkilenmiş-baba × etkilenmemiş-anne → çocuk prior P(etkilenmiş)=10/19, prior'da çocuk aa=0; eski az-koşullu prior ~0.574 + sahte aa veriyordu). Tüm O1–O8/konsanguinite/lone-founder oracle'ları korundu. **Tüm paket 79/79**, UI'da prior paneli "52.6% (10/19)" gösteriyor.
-3. **LOW — (önceden var olan) q=0 + tam penetrans + etkilenmiş founder:** clamp'lı founder hedefi q=0'da posteriorValid=false. Extension'ın getirdiği YENİ hata değil; #1 fix'i (b şıkkı / epsilon floor) ile birlikte ele alınabilir.
-4. **LOW — kendiyle-eş recurrence:** `momId===dadId` reddedilmiyor. **Fix:** `analyzeRecurrence`'a `if (mom.id===dad.id) return {error:'self-couple'}`; renderRecurrenceSection'da ele al; import sanitizer'da self-partnership düş.
-5. **LOW — `probFindPartner` boşanmış eşi seçebiliyor:** önce `!p.divorced` eşi seç; çoklu eşte hepsini listelemek daha iyi.
-> Bulgu ayrıntısı: `tasks/wi0a6odk0.output`. Reddedilen 4 bulgu (overlay debounce, tooLarge cross-contam, vb.) gerçek değildi.
+1. ✅ **DÜZELTİLDİ — HIGH recurrence q=0 + (f<1, c=0) süreksizliği:** Kök fix uygulandı: `pinnedDomain`'in affected hard-pin'i artık `fullPen` yerine **`c===0`** ile kontrol ediliyor (param `fullPen`→`pinAffected` olarak yeniden adlandırıldı; `pinAffected: (c===0)` joint/posterior/recurrence yollarına thread edildi — `buildDomains` opts, `fullJointClamped`, `priorDistribution`, `analyzeMember` posterior-space). Mantık: `c===0` iken etkilenmiş birey genotip-normal OLAMAZ → bu bir genotip GERÇEĞİ, kısıtlama hiç kütle kaybetmez ama q=0 collapse'ını {Aa,aa} içinde min-mutant=Aa'ya yönlendirir → `penetrance(Aa)=f` → doğru. q>0'da eski yumuşak-kanıt davranışıyla **bit-bit aynı** (regresyon yok); yalnız q=0 dejenere durumu onarılır. **+4 regresyon testi** (RP11: AD q=0 f=0.8 etkilenmiş-baba×normal=0.40 + VALID + f=0.99=0.495; RP12: AR q=0 f=0.5 etkilenmiş×etkilenmiş=0.50). RP9 (c=0.10) etkilenmedi. **Tüm paket 91/91**, UI'da recurrence paneli "Hesaplanamadı" yerine "P(etkilenmiş) 40% (2/5)" gösteriyor. Node + tarayıcı + UI ile doğrulandı.
+2. ✅ **DÜZELTİLDİ — MEDIUM prior, ata fenotiplerini koşullamıyordu:** `priorDistribution` artık `withEvidence=true` ile (hedefin KENDİ fenotipi hariç — `makeFactor`'a `phantomId=target.id` geçilerek mevcut skip mekanizması yeniden kullanıldı) enumerate ediliyor; ata fenotipleri her f/c'de yumuşak kanıt olarak prior'a giriyor. Yan etki: tam-penetrans `c=0` durumda da prior düzeldi (örn. etkilenmemiş tam-penetrans bir ebeveyn artık risk-altı genotipte oturamaz). #1'in `pinAffected:(c===0)` hard-pin'i korundu (q=0 founder collapse'ını önler; soft-evidence ile birlikte çalışır). **Posterior değişmedi** (joint-tabanlı), yalnız prior satırı + audit tablosu keskinleşti. **+2 regresyon testi** (RP13: AD q=0.1 etkilenmiş-baba × etkilenmemiş-anne → çocuk prior P(etkilenmiş)=10/19, prior'da çocuk aa=0; eski az-koşullu prior ~0.574 + sahte aa veriyordu). Tüm O1–O8/konsanguinite/lone-founder oracle'ları korundu. **Tüm paket 91/91**, UI'da prior paneli "52.6% (10/19)" gösteriyor.
+3. ✅ **DÜZELTİLDİ — LOW q=0 + tam penetrans + etkilenmiş founder TARGET (posteriorValid=false):** `makeFactor`'da YALNIZ clamp'lı founder için, `q===0` iken founder prior q'su `1e-12`'ye floor'lanıyor; böylece lider-mertebe sıralaması AA~1, Aa~2q, aa~q² korunuyor ve `c=0` etkilenmiş-kanıtı AA'yı eleyince textbook q→0⁺ limiti seçiliyor (AD→Aa=1, AR→aa=1, XLR male→XaY=1). Epsilon yalnız clamp'lı founder'a + tam q=0'a dokunur; q>0 ve diğer founder'lar etkilenmez. **+3 regresyon testi** (RP14). *Not (kozmetik, kapsam dışı):* prior epsilon almadığı için q=0 etkilenmiş-founder'da prior satırı AA=1 / conditional=0 gösterirken posterior Aa≈1 — posterior doğru, yalnız audit satırı bu köşe durumda tutarsız görünür.
+4. ✅ **DÜZELTİLDİ — LOW kendiyle-eş recurrence + (review'da çıkan DoS) döngüsel ata:** `analyzeRecurrence` `mom.id===dad.id` → `{error:'self-couple'}` döndürüyor; `sanitizeImportedFamily` self-partnership'leri zaten düşürüyordu, **ek olarak self/döngü parent-child link'lerini de düşürüyor** (`p1===c||p2===c||p1===p2`, UI'nın `addParentChild` kuralıyla tutarlı). **Adversarial review #4'ün yarım kaldığını buldu:** kötü niyetli import (`{parent1:1,childId:1}` veya 2-düğüm döngü) sanitizer'dan geçip `topoOrder`'da sonsuz özyineleme → **stack overflow / DoS** (trust boundary'de). `topoOrder`'a `onStack` döngü guard'ı eklendi → her döngü artık crash yerine sonlu sonuç (legit DAG'lar etkilenmez). **+3 regresyon testi** (RP17: sanitizer self-link düşürür, geçerli link kalır, motor döngüde overflow etmez).
+5. ✅ **DÜZELTİLDİ — LOW `probFindPartner` boşanmış eşi seçebiliyor:** artık önce güncel (`!divorced`) eş seçiliyor, boşanmış eş yalnız başka eş yoksa fallback; self-partnership atlanıyor. **+3 regresyon testi** (RP16).
+> Düzeltmeler **adversarial review workflow** (3 lens × çürütme doğrulaması) ile denetlendi: 20 aday → 2 gerçek (biri #3'ün matematiksel sağlamlığını TEYİT etti, diğeri yukarıdaki #4 DoS eksikliğiydi → düzeltildi), 18 reddedildi. #1/#2/#5 review'dan temiz geçti. Önceki review bulgu dökümü: `tasks/wi0a6odk0.output`; bu oturumun review'i: `tasks/ww3ta1i01.output`.
 
 **Sonra:**
-6. #6 düzeltilince push et (`gh api .../pages/builds/latest` ile Pages doğrula; sandbox DNS → `dangerouslyDisableSandbox:true`, birkaç retry).
+6. **5 bulgu da düzeltildi (commit'li, PUSH EDİLMEDİ).** Push'a hazır → `gh api .../pages/builds/latest` ile Pages doğrula; sandbox DNS → `dangerouslyDisableSandbox:true`, birkaç retry.
 7. **Bekleyen 3 ürün kararı** (güvenlik denetiminden, kod açığı değil — kullanıcıya soruldu, henüz seçmedi):
    - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
    - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
@@ -206,7 +206,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit (lokal):** WIP `#6 penetrans/recurrence/overlay` — **push EDİLMEDİ**. HIGH bulgusu #1 working tree'de düzeltildi (henüz commit edilmedi), 4 bulgu bekliyor (bkz. bölüm 4). Canlı: `38c0321`.
+- **Son commit (lokal):** `#6 penetrans/recurrence/overlay` WIP (`b52865f`) + 5 review bulgusunun düzeltmeleri (`6fb92f3` #1, `0d82131` #2, + #3/#4/#5 & DoS hardening commit'leri) — **push EDİLMEDİ**, push'a hazır. Canlı: `38c0321`.
 
 ---
 
@@ -222,7 +222,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (79 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (91 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.

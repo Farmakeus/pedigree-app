@@ -3090,8 +3090,11 @@ const PedigreeProb = (function () {
         return false;
     }
     function topoOrder(ids, parentsOf) {
-        const inSet = new Set(ids), order = [], done = new Set();
-        function visit(id) { if (done.has(id) || !inSet.has(id)) return; const ps = parentsOf.get(id); if (ps) ps.forEach(visit); if (!done.has(id)) { done.add(id); order.push(id); } }
+        const inSet = new Set(ids), order = [], done = new Set(), onStack = new Set();
+        // onStack breaks ancestry CYCLES (a node that is its own ancestor) so a
+        // malformed pedigree degrades to a finite order instead of overflowing the
+        // stack (review #4 hardening; legitimate DAGs never hit the guard).
+        function visit(id) { if (done.has(id) || onStack.has(id) || !inSet.has(id)) return; onStack.add(id); const ps = parentsOf.get(id); if (ps) ps.forEach(visit); onStack.delete(id); if (!done.has(id)) { done.add(id); order.push(id); } }
         ids.forEach(visit);
         return order;
     }
@@ -3137,7 +3140,13 @@ const PedigreeProb = (function () {
         // space so its population prior P(target=H) survives (the singleton clamp
         // domain still gates enumeration in buildDomains). Other founders keep
         // their pinned-domain renormalization (needed for the q=0 fallback).
-        ids.forEach(id => { const m = byId.get(id); if (isFounder(m)) { const dom = (id === clampId) ? genotypeSpace(m.sex, pattern) : domains.get(id); fmaps[id] = founderFactorMap(dom, m.sex, pattern, q); } });
+        // q=0 edge (review #3): the full-space map collapses to wild-type (Aa=aa=0),
+        // so an AFFECTED founder target whose wild-type branch is then killed by the
+        // c=0 likelihood would leave an all-zero joint (posteriorValid=false). For
+        // that clamped founder at q=0 only, floor q to a tiny epsilon so the leading
+        // -order ordering AA~1, Aa~2q, aa~q^2 is preserved; the affected evidence
+        // then selects the textbook q->0+ limit (e.g. AD affected founder -> Aa=1).
+        ids.forEach(id => { const m = byId.get(id); if (isFounder(m)) { const isClamp = (id === clampId); const dom = isClamp ? genotypeSpace(m.sex, pattern) : domains.get(id); const qF = (isClamp && q === 0) ? 1e-12 : q; fmaps[id] = founderFactorMap(dom, m.sex, pattern, qF); } });
         const xLinked = (pattern === 'XLR' || pattern === 'XLD');
         return function (id, g, assigned) {
             const m = byId.get(id);
@@ -3258,6 +3267,10 @@ const PedigreeProb = (function () {
         const members = familyData.members || [], links = familyData.parentChildLinks || [], partnerships = familyData.partnerships || [];
         let mom = members.find(m => m.id === momId), dad = members.find(m => m.id === dadId);
         if (!mom || !dad) return { error: 'no-couple' };
+        // A person cannot be their own co-parent (review #4): a self-partnership
+        // would put the same node on both sides of segregation and yield a bogus
+        // "child". Reject it rather than enumerate a nonsensical joint.
+        if (mom.id === dad.id) return { error: 'self-couple' };
         const xLinked = (pattern === 'XLR' || pattern === 'XLD');
         // Orient to biological mother (female) / father (male) for X-linked transmission.
         if (mom.sex !== 'female' && dad.sex === 'female') { const t = mom; mom = dad; dad = t; }
@@ -3437,12 +3450,17 @@ function renderProbabilityResult() {
 
 // Find a partner id of `member` from partnerships (first match), or null.
 function probFindPartner(member) {
+    // Prefer a CURRENT (non-divorced) partner; fall back to a divorced one only if
+    // that is all there is (review #5). Skip self-partnerships (review #4).
     const ps = familyData.partnerships || [];
+    let fallback = null;
     for (const p of ps) {
-        if (p.partner1 === member.id) return p.partner2;
-        if (p.partner2 === member.id) return p.partner1;
+        const other = p.partner1 === member.id ? p.partner2 : (p.partner2 === member.id ? p.partner1 : null);
+        if (other == null || other === member.id) continue;
+        if (!p.divorced) return other;
+        if (fallback == null) fallback = other;
     }
-    return null;
+    return fallback;
 }
 function renderRecurrenceSection(member) {
     const partnerId = probFindPartner(member);
@@ -7094,14 +7112,17 @@ function sanitizeImportedFamily(data) {
     const partnerships = (Array.isArray(data.partnerships) ? data.partnerships : []).slice(0, FH_MAX_REL).map(p => {
         if (!p || typeof p !== 'object') return null;
         const a = fhSafeId(p.partner1), b = fhSafeId(p.partner2);
-        if (a == null || b == null || !ids.has(a) || !ids.has(b)) return null;
+        if (a == null || b == null || a === b || !ids.has(a) || !ids.has(b)) return null;  // drop self-partnerships (review #4)
         return { partner1: a, partner2: b, consanguinity: !!p.consanguinity, divorced: !!p.divorced };
     }).filter(Boolean);
 
     const parentChildLinks = (Array.isArray(data.parentChildLinks) ? data.parentChildLinks : []).slice(0, FH_MAX_REL).map(l => {
         if (!l || typeof l !== 'object') return null;
         const p1 = fhSafeId(l.parent1), p2 = fhSafeId(l.parent2), c = fhSafeId(l.childId);
-        if (p1 == null || p2 == null || c == null || !ids.has(p1) || !ids.has(p2) || !ids.has(c)) return null;
+        // Drop self/degenerate links: a person cannot be their own parent (p1===c /
+        // p2===c) and a single-parent self-couple (p1===p2) is invalid — mirrors the
+        // UI guard (addParentChild) and the self-partnership drop above (review #4).
+        if (p1 == null || p2 == null || c == null || p1 === c || p2 === c || p1 === p2 || !ids.has(p1) || !ids.has(p2) || !ids.has(c)) return null;
         return { parent1: p1, parent2: p2, childId: c };
     }).filter(Boolean);
 
@@ -9278,6 +9299,49 @@ window.runRegressionTests = function() {
             const pr13 = PedigreeProb.analyzeMember(f13, 3, { pattern: 'AD', q: 0.1, f: 1, c: 0 }).prior;
             pCheck('Prob RP13: prior conditions on ancestors -> child P(affected)=10/19', pr13.pAffected, 10 / 19);
             pCheck('Prob RP13: unaffected full-pen mother -> child P(aa)=0 in prior', (pr13.dist && pr13.dist.aa) || 0, 0);
+        }
+        {   // RP14: affected founder TARGET at q=0, full penetrance must produce a
+            // VALID posterior (review #3). The clamped-founder full-space prior
+            // collapses to wild-type at q=0; the c=0 likelihood then kills it,
+            // leaving an all-zero joint unless q is epsilon-floored for the clamp.
+            // Textbook q->0+ limit: AD affected founder -> Aa=1; AR -> aa=1.
+            const fAD = pFam([{ id: 1, sex: 'female', affected: true }], []);
+            const rAD = PedigreeProb.analyzeMember(fAD, 1, { pattern: 'AD', q: 0, f: 1, c: 0 });
+            pCheck('Prob RP14: AD affected founder q=0 posterior is VALID', rAD.posteriorValid ? 1 : 0, 1);
+            pCheck('Prob RP14: AD affected founder q=0 posterior Aa=1', rAD.posterior.find(h => h.genotype === 'Aa').posterior, 1);
+            const fAR = pFam([{ id: 1, sex: 'male', affected: true }], []);
+            const rAR = PedigreeProb.analyzeMember(fAR, 1, { pattern: 'AR', q: 0, f: 1, c: 0 });
+            pCheck('Prob RP14: AR affected founder q=0 posterior aa=1', rAR.posterior.find(h => h.genotype === 'aa').posterior, 1);
+        }
+        {   // RP15: a self-couple must be rejected, not enumerated (review #4) — both
+            // in the engine and dropped by the import sanitizer.
+            const fSelf = pFam([{ id: 1, sex: 'female' }], [], [{ partner1: 1, partner2: 1 }]);
+            pCheck('Prob RP15: self-couple recurrence rejected', PedigreeProb.analyzeRecurrence(fSelf, 1, 1, { pattern: 'AR', q: 0.1 }).error === 'self-couple' ? 1 : 0, 1);
+            const cleaned = sanitizeImportedFamily({ members: [{ id: 1, sex: 'female' }, { id: 2, sex: 'male' }], partnerships: [{ partner1: 1, partner2: 1 }, { partner1: 1, partner2: 2 }], parentChildLinks: [] });
+            pCheck('Prob RP15: sanitizer drops self-partnership', cleaned.partnerships.filter(p => p.partner1 === p.partner2).length, 0);
+            pCheck('Prob RP15: sanitizer keeps the valid partnership', cleaned.partnerships.length, 1);
+        }
+        {   // RP16: probFindPartner prefers a CURRENT partner over a divorced one and
+            // skips self-partnerships (review #5/#4).
+            const savedP = familyData.partnerships;
+            try {
+                familyData.partnerships = [{ partner1: 1, partner2: 2, divorced: true }, { partner1: 1, partner2: 3 }];
+                pCheck('Prob RP16: probFindPartner skips divorced, picks current', probFindPartner({ id: 1 }), 3);
+                familyData.partnerships = [{ partner1: 1, partner2: 2, divorced: true }];
+                pCheck('Prob RP16: divorced-only falls back to that partner', probFindPartner({ id: 1 }), 2);
+                familyData.partnerships = [{ partner1: 1, partner2: 1 }];
+                pCheck('Prob RP16: probFindPartner skips self-partnership', probFindPartner({ id: 1 }) == null ? 1 : 0, 1);
+            } finally { familyData.partnerships = savedP; }
+        }
+        {   // RP17: import trust boundary must not admit self/cycle ancestry links,
+            // and the engine must not stack-overflow on a residual cycle (review #4
+            // hardening — surfaced by the adversarial review of the fixes).
+            const sanA = sanitizeImportedFamily({ members: [{ id: 1, sex: 'female' }, { id: 2, sex: 'male' }, { id: 3, sex: 'female' }], parentChildLinks: [{ parent1: 1, parent2: 1, childId: 1 }, { parent1: 1, parent2: 1, childId: 3 }, { parent1: 1, parent2: 2, childId: 3 }], partnerships: [] });
+            pCheck('Prob RP17: sanitizer drops self/degenerate parent-child links', sanA.parentChildLinks.filter(l => l.parent1 === l.childId || l.parent2 === l.childId || l.parent1 === l.parent2).length, 0);
+            pCheck('Prob RP17: sanitizer keeps the valid parent-child link', sanA.parentChildLinks.length, 1);
+            let noCrash = 1;
+            try { PedigreeProb.analyzeMember(pFam([{ id: 1, sex: 'male' }, { id: 2, sex: 'female' }], [{ parent1: 2, parent2: 2, childId: 1 }, { parent1: 1, parent2: 1, childId: 2 }]), 1, { pattern: 'AR', q: 0.1 }); } catch (e) { noCrash = 0; }
+            pCheck('Prob RP17: engine does not stack-overflow on a residual ancestry cycle', noCrash, 1);
         }
 
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----
