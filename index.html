@@ -3047,7 +3047,7 @@ const PedigreeProb = (function () {
         }
         return 0;
     }
-    function pinnedDomain(m, pattern, full, fullPen) {
+    function pinnedDomain(m, pattern, full, pinAffected) {
         const warnings = [];
         let dom = full.slice();
         const female = m.sex === 'female';
@@ -3056,12 +3056,16 @@ const PedigreeProb = (function () {
             else if (pattern === 'XLR') { if (female) dom = ['XAXa']; else { dom = ['XaY']; warnings.push('carrier-male-xlr'); } }
             else { dom = full.filter(g => isAffected(g, m.sex, pattern)); warnings.push('carrier-on-dominant'); }
         }
-        // 'affected' hard-pins the genotype ONLY under full penetrance (f=1, c=0).
-        // With reduced penetrance / phenocopy an affected person may be genotype-
-        // normal (phenocopy) and an at-risk person unaffected, so there 'affected'
-        // enters only as SOFT likelihood (see makeFactor), not a domain restriction.
+        // 'affected' hard-pins to at-risk genotypes whenever phenocopy is impossible
+        // (c===0): an affected person then CANNOT be genotype-normal, so this is a
+        // genotype FACT and the restriction loses no posterior mass (the excluded
+        // genotypes carry likelihood penetrance=c=0 anyway). It is REQUIRED at q=0,
+        // where the founder renormalization piles all mass on the wild-type genotype
+        // and the affected likelihood (=c=0) would otherwise zero the whole joint
+        // (recurrence reported "cannot compute"). When c>0 phenocopy IS possible, so
+        // 'affected' stays a SOFT likelihood only (see makeFactor), not pinned.
         // 'carrier' (a tested genotype fact) always restricts, regardless of penetrance.
-        if (fullPen && m.affected) dom = dom.filter(g => isAffected(g, m.sex, pattern));
+        if (pinAffected && m.affected) dom = dom.filter(g => isAffected(g, m.sex, pattern));
         if (dom.length === 0) { dom = full.slice(); warnings.push('contradictory-flags'); }
         return { domain: dom, warnings };
     }
@@ -3110,7 +3114,7 @@ const PedigreeProb = (function () {
             if (space == null) { errored = 'unknown-sex-xlinked'; domains.set(id, ['AA']); return; }
             if (opts.clamp && id === opts.clamp.id) { domains.set(id, [opts.clamp.g]); return; }
             if (opts.ignorePinId === id) { domains.set(id, space); return; }
-            const r = pinnedDomain(m, pattern, space, opts.fullPen);
+            const r = pinnedDomain(m, pattern, space, opts.pinAffected);
             r.warnings.forEach(w => warnings.add(w));
             domains.set(id, r.domain);
         });
@@ -3155,7 +3159,7 @@ const PedigreeProb = (function () {
     function priorDistribution(target, byId, parentsOf, isFounder, pattern, q, f, c) {
         const anc = ancestorsOf(target.id, parentsOf);
         const ids = Array.from(anc); ids.push(target.id);
-        const bd = buildDomains(ids, byId, pattern, { ignorePinId: target.id, fullPen: (f == null || (f === 1 && (c == null || c === 0))) });
+        const bd = buildDomains(ids, byId, pattern, { ignorePinId: target.id, pinAffected: (c === 0) });
         if (bd.errored) return { dist: null, warnings: bd.warnings, errored: bd.errored };
         if (enumSpaceSize(ids, bd.domains) === Infinity) return { dist: null, warnings: bd.warnings, errored: 'too-large' };
         const order = topoOrder(ids, parentsOf);
@@ -3167,7 +3171,7 @@ const PedigreeProb = (function () {
         return { dist, warnings: bd.warnings, errored: null };
     }
     function fullJointClamped(target, H, byId, parentsOf, isFounder, pattern, q, componentIds, f, c, phantomId) {
-        const bd = buildDomains(componentIds, byId, pattern, { clamp: { id: target.id, g: H }, fullPen: (f === 1 && c === 0) });
+        const bd = buildDomains(componentIds, byId, pattern, { clamp: { id: target.id, g: H }, pinAffected: (c === 0) });
         if (bd.errored) return 0;
         if (enumSpaceSize(componentIds, bd.domains) === Infinity) return NaN;
         const order = topoOrder(componentIds, parentsOf);
@@ -3205,7 +3209,7 @@ const PedigreeProb = (function () {
         // the target's CARRIER pin (a tested genotype fact). 'affected' is NOT a
         // restriction here — it enters as soft likelihood inside fullJointClamped.
         let space = genotypeSpace(target.sex, pattern);
-        { const pd = pinnedDomain(target, pattern, space, (f === 1 && c === 0)); if (pd.domain && pd.domain.length) space = space.filter(gg => pd.domain.indexOf(gg) >= 0); if (pd.warnings && pd.warnings.length) pr.warnings = Array.from(new Set((pr.warnings || []).concat(pd.warnings))); }
+        { const pd = pinnedDomain(target, pattern, space, (c === 0)); if (pd.domain && pd.domain.length) space = space.filter(gg => pd.domain.indexOf(gg) >= 0); if (pd.warnings && pd.warnings.length) pr.warnings = Array.from(new Set((pr.warnings || []).concat(pd.warnings))); }
         let tooLarge = false;
         const hyps = space.map(H => {
             const j = fullJointClamped(target, H, g.byId, g.parentsOf, g.isFounder, pattern, q, componentIds, f, c);
@@ -9238,6 +9242,21 @@ window.runRegressionTests = function() {
             const f = pFam([{ id: 1, sex: 'male' }, { id: 2, sex: 'female' }, { id: 3, sex: 'male', affected: true }],
                 [{ parent1: 1, parent2: 2, childId: 3 }], [{ partner1: 1, partner2: 2 }]);
             pCheck('Prob RP10: recurrence w/ affected sib P(next affected)=1/4', PedigreeProb.analyzeRecurrence(f, 1, 2, { pattern: 'AR', q: 0.1, f: 1, c: 0 }).perSex.female.pAffected, 1 / 4);
+        }
+        {   // RP11: q=0 + reduced penetrance + AFFECTED founder must NOT collapse.
+            // Affected + c=0 ⇒ genotype is at-risk (fact); at q=0 the founder mass
+            // would otherwise pile on wild-type and the c=0 likelihood zero the joint
+            // ("cannot compute"). AD affected father (-> Aa) x normal mother (-> AA):
+            // next child Aa w.p. 1/2, P(affected)=1/2*f.
+            const f11 = pFam([{ id: 1, sex: 'male', affected: true }, { id: 2, sex: 'female' }], [], [{ partner1: 1, partner2: 2 }]);
+            const r11 = PedigreeProb.analyzeRecurrence(f11, 1, 2, { pattern: 'AD', q: 0, f: 0.8, c: 0 });
+            pCheck('Prob RP11: AD q=0 f=0.8 affected-father recurrence is VALID', r11.perSex.female.valid ? 1 : 0, 1);
+            pCheck('Prob RP11: AD q=0 f=0.8 affected-father P(next affected)=0.40', r11.perSex.female.pAffected, 0.40);
+            pCheck('Prob RP11: AD q=0 f=0.99 affected-father P(next affected)=0.495', PedigreeProb.analyzeRecurrence(f11, 1, 2, { pattern: 'AD', q: 0, f: 0.99, c: 0 }).perSex.female.pAffected, 0.495);
+        }
+        {   // RP12: AR affected x affected at q=0, f=0.5 -> all children aa, P(aff)=f.
+            const f12 = pFam([{ id: 1, sex: 'male', affected: true }, { id: 2, sex: 'female', affected: true }], [], [{ partner1: 1, partner2: 2 }]);
+            pCheck('Prob RP12: AR q=0 f=0.5 affected x affected P(next affected)=0.50', PedigreeProb.analyzeRecurrence(f12, 1, 2, { pattern: 'AR', q: 0, f: 0.5, c: 0 }).perSex.female.pAffected, 0.50);
         }
 
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----

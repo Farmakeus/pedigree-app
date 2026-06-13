@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **73 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **77 otomatik test**.
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay (push EDİLMEDİ, 5 review bulgusu BEKLİYOR — bkz. bölüm 4).
+> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay (push EDİLMEDİ; 5 review bulgusundan **HIGH olan #1 düzeltildi (henüz commit edilmedi)**, 4 bulgu (1 MEDIUM + 3 LOW) BEKLİYOR — bkz. bölüm 4).
 
 ### 🚧 #6 Eksik penetrans + fenokopi + recurrence + canvas overlay (WIP — lokal checkpoint, push'lanmadı)
 - **Eksik penetrans `f` + fenokopi `c`** (kontrol çubuğunda %, varsayılan 100/0): `penetrance(g,sex,pattern,f,c)` = risk-altı→`f`, değilse→`c`. "Etkilenmiş" artık **yumuşak kanıt** (genotip pin'i DEĞİL); "taşıyıcı" sabit pin kalır. **Geri uyumluluk:** affected hard-pin yalnızca `fullPen=(f===1&&c===0)` dalında korunur (q=0 köşe durumları için). `priorDistribution`/`fullJointClamped`→`buildDomains`→`pinnedDomain` zincirine `fullPen` threaded.
@@ -99,12 +99,12 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **73/73 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı, **henüz düzeltilmedi** (aşağıda). Özellik çalışıyor; bulgular köşe durumlar.
+- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **77/77 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal WIP checkpoint commit'li, PUSH EDİLMEDİ.** Adversarial review **5 bulgu** çıkardı; **HIGH olan #1 düzeltildi (working tree'de, henüz commit edilmedi)**, kalan **4 bulgu (1 MEDIUM + 3 LOW)** bekliyor (aşağıda). Özellik çalışıyor; kalan bulgular köşe durumlar.
 - Önceki: `38c0321`'e kadar **canlıda** (olasılık hesaplayıcı dahil).
 
 ### 🎯 SIRADAKİ İŞ — yarın: önce #6 review bulgularını düzelt, sonra push
 **Düzeltilecek review bulguları (önem sırasına göre):**
-1. **HIGH — recurrence q=0 + (f<1, c=0) süreksizliği:** etkilenmiş bir FOUNDER'lı çiftte, `q=0` ve penetrans<%100 (fenokopi %0) iken `analyzeRecurrence` "Hesaplanamadı" döndürüyor (q=1e-10'da doğru: 0.40). Sebep: `fullPen=false` → affected pin kapalı; `founderFactorMap` q=0'da kütleyi AA'ya yığıyor; affected-kanıtı `penetrance(AA)=c=0` → joint sıfır. **Fix (a, önerilen):** `pinnedDomain`'e `c` thread et; **`c===0 && m.affected`** ise (fullPen'den BAĞIMSIZ) dom’i risk-altı genotiplere kısıtla — q=0 collapse {Aa,aa} içinde min-mutant=Aa seçer, `penetrance(Aa)=f` → doğru. (RP9 c=0.10 etkilenmez.) Regresyon testi ekle: AD q=0 f=0.8 etkilenmiş-baba×normal = 0.40; AR q=0 f=0.5; AD q=0 f=0.99.
+1. ✅ **DÜZELTİLDİ — HIGH recurrence q=0 + (f<1, c=0) süreksizliği:** Kök fix uygulandı: `pinnedDomain`'in affected hard-pin'i artık `fullPen` yerine **`c===0`** ile kontrol ediliyor (param `fullPen`→`pinAffected` olarak yeniden adlandırıldı; `pinAffected: (c===0)` joint/posterior/recurrence yollarına thread edildi — `buildDomains` opts, `fullJointClamped`, `priorDistribution`, `analyzeMember` posterior-space). Mantık: `c===0` iken etkilenmiş birey genotip-normal OLAMAZ → bu bir genotip GERÇEĞİ, kısıtlama hiç kütle kaybetmez ama q=0 collapse'ını {Aa,aa} içinde min-mutant=Aa'ya yönlendirir → `penetrance(Aa)=f` → doğru. q>0'da eski yumuşak-kanıt davranışıyla **bit-bit aynı** (regresyon yok); yalnız q=0 dejenere durumu onarılır. **+4 regresyon testi** (RP11: AD q=0 f=0.8 etkilenmiş-baba×normal=0.40 + VALID + f=0.99=0.495; RP12: AR q=0 f=0.5 etkilenmiş×etkilenmiş=0.50). RP9 (c=0.10) etkilenmedi. **Tüm paket 77/77**, UI'da recurrence paneli "Hesaplanamadı" yerine "P(etkilenmiş) 40% (2/5)" gösteriyor. Node + tarayıcı + UI ile doğrulandı.
 2. **MEDIUM — prior, f<1/c>0'da etkilenmiş ataları yok sayıyor:** `priorDistribution` `withEvidence=false` çağrılıyor; affected pin de `fullPen` kapalıyken yok → prior az-koşullanıyor (süreksiz). **Fix:** prior'ı `withEvidence=true` ile (hedefin KENDİ fenotipi hariç, `id!==target` skip — mevcut `phantomId` skip mekanizmasını yeniden kullan) enumerate et ki ata fenotipleri her f/c'de yumuşak kanıt olarak girsin. (Posterior zaten doğru; bu yalnızca PRIOR satırını etkiler.)
 3. **LOW — (önceden var olan) q=0 + tam penetrans + etkilenmiş founder:** clamp'lı founder hedefi q=0'da posteriorValid=false. Extension'ın getirdiği YENİ hata değil; #1 fix'i (b şıkkı / epsilon floor) ile birlikte ele alınabilir.
 4. **LOW — kendiyle-eş recurrence:** `momId===dadId` reddedilmiyor. **Fix:** `analyzeRecurrence`'a `if (mom.id===dad.id) return {error:'self-couple'}`; renderRecurrenceSection'da ele al; import sanitizer'da self-partnership düş.
@@ -206,7 +206,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit (lokal):** WIP `#6 penetrans/recurrence/overlay` — **push EDİLMEDİ**, 5 review bulgusu bekliyor (bkz. bölüm 4). Canlı: `38c0321`.
+- **Son commit (lokal):** WIP `#6 penetrans/recurrence/overlay` — **push EDİLMEDİ**. HIGH bulgusu #1 working tree'de düzeltildi (henüz commit edilmedi), 4 bulgu bekliyor (bkz. bölüm 4). Canlı: `38c0321`.
 
 ---
 
@@ -222,7 +222,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (73 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (77 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.
