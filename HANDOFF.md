@@ -36,7 +36,7 @@
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
 
-> Canlıda: `38c0321`'e kadar (olasılık hesaplayıcı dahil). Lokalde **WIP checkpoint** = penetrans/fenokopi + recurrence + overlay + **5 review bulgusunun HEPSİ düzeltildi (commit'li)** + adversarial review'da çıkan DoS hardening. **PUSH EDİLMEDİ** — push'a hazır (bkz. bölüm 4).
+> **Canlıda: `8f3b522` (PUSH EDİLDİ, Pages build OK, doğrulandı).** İçerik: penetrans/fenokopi + recurrence + overlay + **5 review bulgusunun HEPSİ düzeltildi** + adversarial review'da çıkan döngüsel-ata DoS hardening. 91/91 test.
 
 ### 🚧 #6 Eksik penetrans + fenokopi + recurrence + canvas overlay (WIP — lokal checkpoint, push'lanmadı)
 - **Eksik penetrans `f` + fenokopi `c`** (kontrol çubuğunda %, varsayılan 100/0): `penetrance(g,sex,pattern,f,c)` = risk-altı→`f`, değilse→`c`. "Etkilenmiş" artık **yumuşak kanıt** (genotip pin'i DEĞİL); "taşıyıcı" sabit pin kalır. **Geri uyumluluk:** affected hard-pin yalnızca `fullPen=(f===1&&c===0)` dalında korunur (q=0 köşe durumları için). `priorDistribution`/`fullJointClamped`→`buildDomains`→`pinnedDomain` zincirine `fullPen` threaded.
@@ -99,7 +99,7 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 ## 4. Devam Eden İş — Şu An Nerede Kaldık?
 
 ### ✅ Son durum
-- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **91/91 test geçiyor**, tarayıcıda doğrulandı. ⚠️ **Lokal commit'li, PUSH EDİLMEDİ.** Adversarial review'ın çıkardığı **5 bulgunun HEPSİ düzeltildi + commit'li** (bu oturumun ikinci review'i ek bir DoS bulgusu da çıkardı → düzeltildi). Push'a hazır (aşağıda bölüm 4).
+- **#6 Penetrans/fenokopi + recurrence + overlay** kodlandı, **91/91 test geçiyor**, tarayıcıda doğrulandı. ✅ **PUSH EDİLDİ — canlı `8f3b522`, Pages build OK.** Adversarial review'ın çıkardığı **5 bulgunun HEPSİ düzeltildi** (bu oturumun ikinci review'i ek bir döngüsel-ata DoS bulgusu da çıkardı → düzeltildi).
 - Önceki: `38c0321`'e kadar **canlıda** (olasılık hesaplayıcı dahil).
 
 ### 🎯 SIRADAKİ İŞ — yarın: önce #6 review bulgularını düzelt, sonra push
@@ -112,7 +112,7 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 > Düzeltmeler **adversarial review workflow** (3 lens × çürütme doğrulaması) ile denetlendi: 20 aday → 2 gerçek (biri #3'ün matematiksel sağlamlığını TEYİT etti, diğeri yukarıdaki #4 DoS eksikliğiydi → düzeltildi), 18 reddedildi. #1/#2/#5 review'dan temiz geçti. Önceki review bulgu dökümü: `tasks/wi0a6odk0.output`; bu oturumun review'i: `tasks/ww3ta1i01.output`.
 
 **Sonra:**
-6. **5 bulgu da düzeltildi (commit'li, PUSH EDİLMEDİ).** Push'a hazır → `gh api .../pages/builds/latest` ile Pages doğrula; sandbox DNS → `dangerouslyDisableSandbox:true`, birkaç retry.
+6. ✅ **5 bulgu + DoS hardening düzeltildi, PUSH EDİLDİ (`8f3b522`), Pages build OK, canlı doğrulandı.**
 7. **Bekleyen 3 ürün kararı** (güvenlik denetiminden, kod açığı değil — kullanıcıya soruldu, henüz seçmedi):
    - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
    - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
@@ -206,7 +206,7 @@ pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başın
 ### Repo
 - **Owner:** Farmakeus · **Repo:** `Farmakeus/pedigree-app` · **Branch:** `main`
 - **Live:** https://farmakeus.github.io/pedigree-app/
-- **Son commit (lokal):** `#6 penetrans/recurrence/overlay` WIP (`b52865f`) + 5 review bulgusunun düzeltmeleri (`6fb92f3` #1, `0d82131` #2, + #3/#4/#5 & DoS hardening commit'leri) — **push EDİLMEDİ**, push'a hazır. Canlı: `38c0321`.
+- **Son commit (canlı):** `8f3b522` = `b52865f` (#6 WIP) + `6fb92f3` (#1) + `0d82131` (#2) + `8f3b522` (#3/#4/#5 & DoS hardening). **PUSH EDİLDİ**, Pages build OK, canlı doğrulandı.
 
 ---
 
