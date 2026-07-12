@@ -4555,22 +4555,31 @@ function computeLayout() {
             const partners = getPartnersInGen(m.id, genMembers);
             if (partners.length === 0) return; // single, handle later
 
-            // For multi-partner: place P1, M, P2(, P3...)
+            // For multi-partner: place mates around the central member M, but
+            // ORDER the mates by their own lineage anchor so each mate sits on
+            // the side its ancestry/children fall — this reduces descent-line
+            // crossings (bug #4: the old code kept partnership-insertion order,
+            // which is arbitrary). Mates with unknown lineage sort to the right.
             if (partners.length >= 2) {
                 const blockMembers = [];
                 const partnerObjs = partners.map(pid => genMembers.find(x => x.id === pid)).filter(Boolean);
-                // Place first partner left, then central, then remaining partners on right
-                if (partnerObjs[0] && !placedInBlock.has(partnerObjs[0].id)) {
-                    blockMembers.push(partnerObjs[0]);
-                    placedInBlock.add(partnerObjs[0].id);
-                }
+                partnerObjs.sort((a, b) => {
+                    const ax = lineageX[a.id], bx = lineageX[b.id];
+                    if (ax == null && bx == null) return 0;
+                    if (ax == null) return 1;
+                    if (bx == null) return -1;
+                    return ax - bx;
+                });
+                // Split ~half the mates to the left of M, the rest to the right,
+                // keeping M central (matches the P1-CENTER-P2 invariant test).
+                const half = Math.floor(partnerObjs.length / 2);
+                partnerObjs.slice(0, half).forEach(p => {
+                    if (!placedInBlock.has(p.id)) { blockMembers.push(p); placedInBlock.add(p.id); }
+                });
                 blockMembers.push(m);
                 placedInBlock.add(m.id);
-                partnerObjs.slice(1).forEach(p => {
-                    if (!placedInBlock.has(p.id)) {
-                        blockMembers.push(p);
-                        placedInBlock.add(p.id);
-                    }
+                partnerObjs.slice(half).forEach(p => {
+                    if (!placedInBlock.has(p.id)) { blockMembers.push(p); placedInBlock.add(p.id); }
                 });
                 blocks.push({ members: blockMembers, anchorX: blockAnchor(blockMembers) });
                 return;
@@ -4630,14 +4639,23 @@ function computeLayout() {
     // No barycenter (avoids center compression), no aggressive packing.
     const positions = {};
 
-    // Pre-compute: for each child, sibling index within their parent group + total siblings
-    const siblingIdx = {}, siblingCount = {};
-    familyData.parentChildLinks.forEach(l => {
-        const key = `${l.parent1}-${l.parent2}`;
-        if (siblingCount[key] == null) siblingCount[key] = 0;
-        siblingIdx[l.childId] = siblingCount[key];
-        siblingCount[key]++;
-    });
+    // Pre-compute the unique parent-pairs that actually have children, derived
+    // from parentChildLinks (NOT from partnerships). The centering passes below
+    // iterate THIS list so that children whose parents are linked but have no
+    // registered partnership entry still get centered under their parents
+    // (bug #6 — reachable via imported JSON where a parentChildLink can exist
+    // without a matching partnership). For every normal case this is identical
+    // to iterating partnerships-with-children.
+    const parentPairs = [];
+    (function collectParentPairs() {
+        const seen = new Set();
+        familyData.parentChildLinks.forEach(l => {
+            const key = `${l.parent1}-${l.parent2}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            parentPairs.push({ partner1: l.parent1, partner2: l.parent2 });
+        });
+    })();
 
     genKeys.forEach((gen, genIdx) => {
         const genMembers = generations[gen];
@@ -4689,7 +4707,7 @@ function computeLayout() {
         const partnerFactor = Math.min(0.3, partnersInGen / 15);
         return 1 + memberFactor + partnerFactor;
     }
-    familyData.partnerships.forEach(p => {
+    parentPairs.forEach(p => {
         const pos1 = positions[p.partner1];
         const pos2 = positions[p.partner2];
         if (!pos1 || !pos2) return;
@@ -4700,10 +4718,20 @@ function computeLayout() {
             .filter(id => positions[id]);
         if (children.length === 0) return;
 
-        // Single child: always centered under parents (overrides customX)
+        // Single child: center under parents UNLESS the user/template has
+        // explicitly placed it (customX). Auto-layout clears customX, so a
+        // freshly laid-out only-child still centers; but once the move tool
+        // sets customX we must respect it — otherwise dragging an only-child
+        // horizontally snaps straight back under the parents (bug #1).
         if (children.length === 1) {
-            positions[children[0]].x = parentCenterX;
-            centeredChildren.add(children[0]);
+            const only = familyData.members.find(m => m.id === children[0]);
+            if (!only || only.customX == null) {
+                positions[children[0]].x = parentCenterX;
+                centeredChildren.add(children[0]);
+            }
+            // If customX is set we leave positions[child].x as-is and do NOT
+            // add it to centeredChildren, so the overlap pass treats it as a
+            // user-locked node (respects its spacing).
             return;
         }
         // Multi-child siblings: apply standard clinical pedigree symmetry rule
@@ -4828,33 +4856,67 @@ function computeLayout() {
         }
     });
 
-    // ============ SECOND PASS: re-center single children after shift ============
-    // If overlap resolution shifted things, single children need to be recentered
-    // Use the base center distance (not affected by per-generation density factor)
+    // ============ SECOND PASS: re-center sibling GROUPS after overlap shift ==========
+    // Overlap resolution (above) only ever pushes nodes to the RIGHT. That can
+    // translate a symmetric sibling group off its parents' center line, and the
+    // old second pass only re-centered SINGLE children — so multi-child groups
+    // stayed visibly off-center whenever a left neighbour bumped them right
+    // (bugs #2 and #3). Here we rigidly re-center EVERY sibling group (1 or many
+    // children) on the parent midpoint, clamped by same-generation neighbours so
+    // we never re-introduce an overlap. A rigid translate preserves the group's
+    // internal symmetric spacing computed by the centering pass.
+    //
+    // We walk generations top-down so a group's parents are already settled
+    // before we re-center their children (parent X feeds the child midpoint).
     const secondPassMinCenterDist = NODE_W + 30; // 90px (same as base BASE_NODE_GAP)
-    familyData.partnerships.forEach(p => {
-        const pos1 = positions[p.partner1];
-        const pos2 = positions[p.partner2];
-        if (!pos1 || !pos2) return;
-        const children = familyData.parentChildLinks
-            .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
-            .map(l => l.childId)
-            .filter(id => positions[id]);
-        if (children.length !== 1) return;
-        const childPos = positions[children[0]];
-        const desiredX = (pos1.x + pos2.x) / 2;
-        // Check neighbors before forcing center
-        const childGen = familyData.members.find(m => m.id === children[0])?.generation;
-        if (childGen == null) return;
-        const sameGenSorted = familyData.members
-            .filter(m => m.generation === childGen && m.id !== children[0] && positions[m.id])
-            .map(m => positions[m.id].x).sort((a, b) => a - b);
-        const leftBound = sameGenSorted.filter(x => x < desiredX).pop();
-        const rightBound = sameGenSorted.find(x => x > desiredX);
-        let centerX = desiredX;
-        if (leftBound != null && centerX < leftBound + secondPassMinCenterDist) centerX = leftBound + secondPassMinCenterDist;
-        if (rightBound != null && centerX > rightBound - secondPassMinCenterDist) centerX = rightBound - secondPassMinCenterDist;
-        childPos.x = centerX;
+    genKeys.forEach(gen => {
+        parentPairs.forEach(p => {
+            const pos1 = positions[p.partner1];
+            const pos2 = positions[p.partner2];
+            if (!pos1 || !pos2) return;
+            const childIds = familyData.parentChildLinks
+                .filter(l => l.parent1 === p.partner1 && l.parent2 === p.partner2)
+                .map(l => l.childId)
+                .filter(id => positions[id] &&
+                    familyData.members.find(m => m.id === id)?.generation === gen);
+            if (childIds.length === 0) return;
+
+            // A manually placed only-child (customX) keeps its position — same
+            // rule as the centering pass, so bug #1's fix isn't undone here.
+            if (childIds.length === 1) {
+                const only = familyData.members.find(m => m.id === childIds[0]);
+                if (only && only.customX != null) return;
+            }
+
+            const groupSorted = childIds
+                .map(id => ({ id, x: positions[id].x }))
+                .sort((a, b) => a.x - b.x);
+            const groupSet = new Set(childIds);
+            const centroid = groupSorted.reduce((s, c) => s + c.x, 0) / groupSorted.length;
+            const desiredCentroid = (pos1.x + pos2.x) / 2;
+            const leftX = groupSorted[0].x;
+            const rightX = groupSorted[groupSorted.length - 1].x;
+
+            // Same-generation neighbours that are NOT part of this group.
+            const others = familyData.members
+                .filter(m => m.generation === gen && !groupSet.has(m.id) && positions[m.id])
+                .map(m => positions[m.id].x)
+                .sort((a, b) => a - b);
+            const leftNbr = others.filter(x => x < leftX).pop();
+            const rightNbr = others.find(x => x > rightX);
+
+            // Clamp the rigid shift so the group's outer edges keep min spacing
+            // to their neighbours (lo = min shift to clear left, hi = max shift
+            // before hitting right). If the two clamps cross, there is no room
+            // to move without an overlap, so leave the group where it is.
+            const lo = (leftNbr != null) ? (leftNbr + secondPassMinCenterDist) - leftX : -Infinity;
+            const hi = (rightNbr != null) ? (rightNbr - secondPassMinCenterDist) - rightX : Infinity;
+            if (lo > hi) return;
+            let shift = desiredCentroid - centroid;
+            shift = Math.max(lo, Math.min(hi, shift));
+            if (Math.abs(shift) < 0.01) return;
+            childIds.forEach(id => { positions[id].x += shift; });
+        });
     });
 
     // Normalize: only shift if nodes are truly outside the safe left/top edge
