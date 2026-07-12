@@ -757,6 +757,46 @@
         body.dark-theme .export-menu { background: #242830; }
         body.dark-theme .export-menu button { color: #ddd; }
         body.dark-theme .export-menu button:hover { background: #2f3540; color: #5dade2; }
+
+        /* ===== Dark theme — Help / Summary / Import modals =====
+           The .help-modal panel is a hardcoded white card and the Summary /
+           Import modals add many INLINE light styles (textareas, the AI
+           settings box, secondary buttons). Inline styles win over class/id
+           selectors, so every override that targets an inline-styled element
+           is marked !important. Colored clinical/warning text (green "copied",
+           red privacy warning, the blue primary CTA) is deliberately left
+           untouched so it keeps its meaning. */
+        body.dark-theme .help-modal { background: #242830; color: #e8e8e8; box-shadow: 0 12px 48px rgba(0,0,0,0.6); }
+        body.dark-theme .help-modal h2 { color: #f0f0f0; }
+        body.dark-theme .help-modal h3 { color: #5dade2; }
+        body.dark-theme .help-modal p, body.dark-theme .help-modal li { color: #c7ccd4; }
+        body.dark-theme .help-modal strong { color: #eef0f3; }
+        body.dark-theme .help-modal kbd { background: #1a1d21; border-color: #3a3f48; color: #ddd; }
+        /* Muted subtitles directly under the modal heading */
+        body.dark-theme #summaryModalOverlay .help-modal > p,
+        body.dark-theme #importModalOverlay .help-modal > p { color: #9aa0aa !important; }
+        /* Text inputs / textareas (readonly summary + editable import + API key) */
+        body.dark-theme #summaryText,
+        body.dark-theme #importText,
+        body.dark-theme #anthropicKeyInput {
+            background: #1a1d21 !important; color: #e8e8e8 !important; border-color: #3a3f48 !important;
+        }
+        /* AI settings disclosure box */
+        body.dark-theme #aiSettings > summary { color: #9aa0aa !important; }
+        body.dark-theme #aiSettings > div { background: #1c2027 !important; border-color: #3a3f48 !important; }
+        body.dark-theme #aiSettings label,
+        body.dark-theme #aiSettings > div > p:not([data-i18n="import.ai.privacy"]) { color: #c7ccd4 !important; }
+        /* Light secondary buttons (copy / example / cancel / clear key) → dark surface */
+        body.dark-theme #summaryModalOverlay button[onclick^="copySummary"],
+        body.dark-theme #importModalOverlay button[onclick^="loadImportExample"],
+        body.dark-theme #importModalOverlay button[onclick^="closeImportModal"],
+        body.dark-theme #aiSettings button {
+            background: #2a2e36 !important; border-color: #3a3f48 !important; color: #cfd4dc !important;
+        }
+        /* AI "structure" button keeps a purple accent, darkened for the dark card */
+        body.dark-theme #aiStructureBtn {
+            background: #2a2440 !important; border-color: #5a4a9e !important; color: #b9a9f0 !important;
+        }
         body.dark-theme .sample-btn { background: #2a2e36; border-color: #3a3f48; color: #aaa; }
         body.dark-theme .sample-btn:hover { background: #2f3540; color: #5dade2; }
         body.dark-theme .empty-state { color: #666; }
