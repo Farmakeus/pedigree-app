@@ -10,7 +10,7 @@
 
 **İki ana mod:** 🧬 Nadir Hastalık (Mendel) · 🩸 Kanser Pedigresi (onkogenetik).
 
-**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **91 otomatik test**.
+**Ana özellikler:** 3 şablon · tıkla-yerleştir semboller · çizgi-çek bağlantı · multi-select + grup taşıma · adaptive fenotip segmentleri · Save/Load JSON · paylaşılabilir link · Export (SVG/PNG/PDF/CSV) · TR/EN · dark tema · undo/redo · klinik validation + olasılık/Bayes motoru (penetrans·recurrence·overlay WIP) · **98 otomatik test**.
 
 ---
 
@@ -20,10 +20,10 @@
 |------|-------|
 | **Stack** | Vanilla HTML/CSS/JS (framework yok) |
 | **Tek dosya** | Tüm kod `index.html` içinde (~9100 satır) |
-| **Bağımlılıklar** | jsPDF (CDN, PDF export); **AI özelliği için Anthropic API (BYOK, tarayıcıdan fetch)** |
+| **Bağımlılıklar** | jsPDF (CDN, PDF export). **Harici API çağrısı YOK** — AI yardımcısı kopyala/yapıştır modeliyle çalışır (2026-11-21'de doğrudan Anthropic API/BYOK yolu kaldırıldı) |
 | **Render** | SVG (viewBox + 1:1 mapping) |
 | **Single source of truth** | `familyData = {members[], partnerships[], parentChildLinks[], diseases(Set), nextId, mode, title}` |
-| **Persistence** | localStorage (autosave, theme, lang, ... + **`pedigreeApp_anthropicKey`**), sessionStorage (`pedigreeApp_aiPrivacyAck`), JSON file, URL hash |
+| **Persistence** | localStorage (autosave, theme, lang, tourSeen, **`pedigreeApp_kvkkAck_v1`** ...), JSON file, URL hash. Eski `pedigreeApp_anthropicKey` / `pedigreeApp_aiPrivacyAck` açılışta **silinir** |
 | **i18n** | `data-i18n*` + `t()`; `applyTranslations()` `textContent` yazar (⚠️ ikon+metin butonlarda metin AYRI `<span>`'de olmalı, yoksa SVG silinir) |
 | **Robustness** | `safeRender()` try/catch'le render hatalarını yutar |
 | **Deploy** | GitHub Pages — https://farmakeus.github.io/pedigree-app/ |
@@ -35,6 +35,14 @@
 ---
 
 ## 3. Bu Session'da Yapılanlar (commit `f44198a` ÜZERİNE)
+
+### 🔒 KVKK katmanı + AI kopyala/yapıştır (2026-11-21)
+- **Tetikleyen:** genetik uzmanı arkadaş geri bildirimi (isim + varyant birlikte → KVKK özel nitelikli veri) ve OPX (Open Pedigree X) karşılaştırması.
+- **İlk açılış KVKK bildirimi** (`#kvkkModalOverlay`, `openKvkkNotice/ackKvkkNotice`, `KVKK_KEY`): tarayıcı başına 1 kez, turdan ÖNCE; "Anladım" sonrası tur başlar. Aynı metin Yardım'da "Veri Güvenliği ve KVKK" bölümü (aynı `kvkk.*` i18n anahtarları).
+- **Ad alanı:** yer tutucu artık gerçek isim önermiyor ("Ör: Proband, Anne, A.Y."), altında KVKK uyarısı (`hint.name.kvkk`); hızlı düzenleme ad alanı da aynı anahtara bağlandı.
+- **Paylaşım linki:** isim/başlık varsa **varsayılan olarak isimsiz** (`encodeStateToHash({anonymize})`, familyData değişmez), kutucukla geri açılabilir; iki dilli net şifresizlik uyarısı; link `textarea.value` ile yazılıyor (innerHTML yok).
+- **AI:** doğrudan Anthropic API yolu + API anahtarı alanı kaldırıldı. "AI talimatını kopyala" → kullanıcı kendi AI'ına yapıştırır → dönen satırlar `fhCleanPastedLines` ile temizlenip (kod çiti, madde/numara, JSON tırnağı, "...:" giriş satırı) parser'a gider. Pano engelliyse elle-kopyala penceresi.
+- **+7 test → 98/98.** Önizlemede ilk açılış akışı, kopyalama (yedek dahil), yapıştır→kur, isimsiz paylaşım, koyu tema + EN doğrulandı.
 
 > **Canlıda: `8f3b522` (PUSH EDİLDİ, Pages build OK, doğrulandı).** İçerik: penetrans/fenokopi + recurrence + overlay + **5 review bulgusunun HEPSİ düzeltildi** + adversarial review'da çıkan döngüsel-ata DoS hardening. 91/91 test.
 
@@ -83,7 +91,7 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 - `parseTextToFamily()`: proband-merkezli, **slot tabanlı graf** kurucu. İngilizce akrabalık terimleri (mother/maternal grandmother/paternal uncle/sister/son/spouse...), eksik ebeveyn/eş **placeholder ile tamamlanır**, **level→generation normalize** (en üst kuşak=1), rol→cinsiyet + cinsiyete-özgü kanserden cinsiyet çıkarımı (ovarian→female, prostate→male; meme HARİÇ).
 - Çıktı düzenlenebilir textarea'ya yazılır → "Pedigri Oluştur" → `saveState()` (tek undo) → `loadFamilyData()`.
 
-### 🆕 AI ile yapılandır — BYOK (`f7d1c53`)
+### ~~AI ile yapılandır — BYOK (`f7d1c53`)~~ → 2026-11-21: kopyala/yapıştır modeline çevrildi (aşağıda "KVKK katmanı")
 - Aynı modalda **✨ AI ile yapılandır** butonu + "AI ayarları" (details): API anahtarı (password), anonimleştirme toggle, gizlilik uyarısı.
 - `aiStructureText()` / `aiConvertToLines()`: kullanıcının **kendi** Anthropic API anahtarıyla (localStorage) serbest anamnez metnini (TR veya EN) tarayıcıdan **doğrudan** Anthropic API'ye gönderir (`anthropic-dangerous-direct-browser-access` header, **model `claude-opus-4-8`**, `output_config.format` JSON schema → `{lines:[...]}`), satır formatı döndürür → textarea → **mevcut deterministik parser** kurar (klinisyen onayı korunur).
 - **AI sadece metni normalize eder; grafiği test edilmiş `parseTextToFamily` kurar.**
@@ -114,8 +122,8 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 **Sonra:**
 6. ✅ **5 bulgu + DoS hardening düzeltildi, PUSH EDİLDİ (`8f3b522`), Pages build OK, canlı doğrulandı.**
 7. **Bekleyen 3 ürün kararı** (güvenlik denetiminden, kod açığı değil — kullanıcıya soruldu, henüz seçmedi):
-   - **API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).
-   - **AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.
+   - ✅ ÇÖZÜLDÜ (anahtar tamamen kaldırıldı) — ~~**API anahtarı localStorage vs sessionStorage**: XSS kapandığı için risk çok düştü; yine de sessionStorage/oturum-içi bellek daha güvenli ama her oturum anahtar yeniden girilir (UX maliyeti).~~
+   - ✅ ÇÖZÜLDÜ (uygulama artık veri göndermiyor) — ~~**AI "anonim" toggle yanıltıcı**: serbest metin (isimler dâhil) Anthropic'e olduğu gibi gider; toggle yalnızca ÇIKTIYI gizler. İstenirse gönderilmeden önce gerçek anonimleştirme eklenebilir.~~
    - **CSP meta yok**: inline-script mimarisi `'unsafe-inline'` gerektirdiğinden tam CSP zor; ama `connect-src`/`img-src` kısıtı, sızıntı kanalını (key exfil) kapatan derinlemesine savunma olabilir — dikkatli denenmeli (export/AI'yi bozmadan).
 3. Opsiyonel #2 genişletme (kullanıcı isterse): X'e bağlı resesif obligat taşıyıcı · iki etkilenmiş ebeveynin sağlam çocuğu (AR'da beklenmez) · konsanguinite + tek-kuşak vurgusu. `fhInheritancePattern()` (Özet) ile `computeValidation()` ayrı duruyor.
 
@@ -131,10 +139,10 @@ Visual polish + multi-select + bağlantı sağ-tık menüsü + fenotip/ikiz/kard
 1. **PDF export raster** (vector değil).
 2. **Help/Özet/Import modalları dark temada beyaz kalır** — metin koyu olduğu için OKUNUR ve kendi içinde tutarlı (3 review'da doğrulandı). İstenirse 3 modal birlikte dark yapılabilir (ayrı iş).
 3. Mobile/tablet optimize değil.
-4. **AI özelliği gizlilik**: serbest metin Anthropic API'ye gider (üçüncü taraf). Anonim toggle yalnızca ÇIKTIYI gizler, gönderilen metni DEĞİL — uyarı UI'da net. Hasta tanımlayıcı veri girilmemeli. (Bölüm 4'teki ürün kararı.)
+4. ~~**AI özelliği gizlilik**~~ → ÇÖZÜLDÜ: uygulama hiçbir veri göndermez; kullanıcı talimatı kendi AI aracına yapıştırır (talimat "isim yazma" kuralı içerir).
 5. **AI halüsinasyon riski**: AI çıktısı düzenlenebilir textarea'da gösterilir (klinisyen onayı zorunlu adım), doğrudan pedigree'ye dönüşmez. Sistem prompt "faithful, do not invent" diyor.
 6. ~~CSV `c.type` escape~~ ve ~~stored-XSS / coordinate injection / proto pollution / DoS~~ → **`d3f8a53` ile KAPATILDI** (bkz. bölüm 3 güvenlik). Güvenilmeyen veri artık `sanitizeImportedFamily()` (loadFamilyData) + tüm sink'lerde `fhEscapeHtml` ile temizleniyor; CSV formül-enjeksiyonu nötr.
-7. **Kalan güvenlik ürün kararları**: API anahtarı localStorage'da · AI gönderdiği metni anonimleştirmiyor · CSP meta yok. (Detay: bölüm 4, madde 2.)
+7. **Kalan güvenlik ürün kararı**: yalnızca CSP meta yok (bölüm 4).
 7. Dosya boyutu ~9100 satır / ~440KB.
 
 ---
@@ -162,10 +170,10 @@ parseTextToFamily, fhResolveRelationship, fhParseImportLine, fhApplyAttribute,
 fhParseCancer, fhIsAttributePart, FH_CANCER_RE,
 openImportModal / closeImportModal / buildFamilyFromText / loadImportExample / importShowStatus
 
-# AI ile yapılandır (BYOK)
+# AI yardımcısı (kopyala/yapıştır — veri göndermez)
 aiStructureText, aiConvertToLines,
-fhGetAnthropicKey / fhSaveAnthropicKey / fhClearAnthropicKey,
-FH_AI_KEY_LS='pedigreeApp_anthropicKey', FH_AI_ACK_LS='pedigreeApp_aiPrivacyAck'
+copyAiPrompt, fhBuildAiPrompt(freeText), fhCleanPastedLines(text), fhCopyToClipboard (Clipboard API → execCommand yedeği), fhShowManualCopy
+(eski aiStructureText/aiConvertToLines/fhGet|Save|ClearAnthropicKey KALDIRILDI)
 
 # Güvenlik
 fhEscapeHtml(s)  ← global; SVG/tooltip/panel/toast'ta kullanıcı verisi basmadan önce ÇAĞIR
@@ -199,8 +207,8 @@ customX:null → auto-layout (computeLayout)
 ```
 pedigreeApp_data_v1, _theme, _lang, _tourSeen_v1, _labelMode,
 _leftPanelCollapsed, _legendVisible, _textScale
-pedigreeApp_anthropicKey        → AI BYOK anahtarı (localStorage)
-pedigreeApp_aiPrivacyAck (sessionStorage) → AI gizlilik onayı (oturum başına)
+pedigreeApp_kvkkAck_v1          → KVKK bildirimi görüldü (ilk açılışta 1 kez, turdan önce)
+(pedigreeApp_anthropicKey / pedigreeApp_aiPrivacyAck → açılışta silinir)
 ```
 
 ### Repo
@@ -222,7 +230,7 @@ try{new Function(m[1]);console.log('JS syntax OK');}catch(e){console.log('ERR:',
 "
 ```
 Preview: `mcp__Claude_Preview__preview_start` "Pedigree App" → http://localhost:5175/
-Console'da: `runAllTests().allPassed` → `true` olmalı (91 test).
+Console'da: `runAllTests().allPassed` → `true` olmalı (98 test).
 
 **Önemli notlar:**
 - Kullanıcı **Türkçe** konuşur. UI TR/EN tam çeviri.

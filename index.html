@@ -658,6 +658,14 @@
             float: right; background: #e74c3c; color: white; border: none;
             padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
         }
+        /* KVKK / privacy notice + inline field hints */
+        #kvkkModalOverlay { z-index: 4000; }
+        #kvkkModalOverlay ul { padding-left: 18px; }
+        #kvkkModalOverlay li { margin-bottom: 9px; }
+        #kvkkModalOverlay .kvkk-foot {
+            font-size: 11.5px; color: #7f8c8d; margin: 14px 0 0; padding-top: 10px; border-top: 1px solid #ecf0f1;
+        }
+        .field-hint { font-size: 10.5px; line-height: 1.4; color: #95a5a6; margin-top: 4px; }
 
         /* ===== Tutorial Tour Tooltip ===== */
         .tour-tooltip {
@@ -775,26 +783,27 @@
         /* Muted subtitles directly under the modal heading */
         body.dark-theme #summaryModalOverlay .help-modal > p,
         body.dark-theme #importModalOverlay .help-modal > p { color: #9aa0aa !important; }
-        /* Text inputs / textareas (readonly summary + editable import + API key) */
+        /* Text inputs / textareas (readonly summary + editable import) */
         body.dark-theme #summaryText,
-        body.dark-theme #importText,
-        body.dark-theme #anthropicKeyInput {
+        body.dark-theme #importText {
             background: #1a1d21 !important; color: #e8e8e8 !important; border-color: #3a3f48 !important;
         }
-        /* AI settings disclosure box */
-        body.dark-theme #aiSettings > summary { color: #9aa0aa !important; }
-        body.dark-theme #aiSettings > div { background: #1c2027 !important; border-color: #3a3f48 !important; }
-        body.dark-theme #aiSettings label,
-        body.dark-theme #aiSettings > div > p:not([data-i18n="import.ai.privacy"]) { color: #c7ccd4 !important; }
-        /* Light secondary buttons (copy / example / cancel / clear key) → dark surface */
+        /* "How to use with your own AI" disclosure box */
+        body.dark-theme #aiHowto > summary { color: #9aa0aa !important; }
+        body.dark-theme #aiHowto > div { background: #1c2027 !important; border-color: #3a3f48 !important; }
+        body.dark-theme #aiHowto li,
+        body.dark-theme #aiHowto > div > p:not([data-i18n="import.ai.privacy"]) { color: #c7ccd4 !important; }
+        /* Light secondary buttons (copy / example / cancel) → dark surface */
         body.dark-theme #summaryModalOverlay button[onclick^="copySummary"],
         body.dark-theme #importModalOverlay button[onclick^="loadImportExample"],
-        body.dark-theme #importModalOverlay button[onclick^="closeImportModal"],
-        body.dark-theme #aiSettings button {
+        body.dark-theme #importModalOverlay button[onclick^="closeImportModal"] {
             background: #2a2e36 !important; border-color: #3a3f48 !important; color: #cfd4dc !important;
         }
-        /* AI "structure" button keeps a purple accent, darkened for the dark card */
-        body.dark-theme #aiStructureBtn {
+        /* KVKK / privacy notice */
+        body.dark-theme #kvkkModalOverlay .kvkk-foot { color: #9aa0aa; border-top-color: #3a3f48; }
+        body.dark-theme .field-hint { color: #8a919c; }
+        /* AI prompt button keeps a purple accent, darkened for the dark card */
+        body.dark-theme #aiPromptBtn {
             background: #2a2440 !important; border-color: #5a4a9e !important; color: #b9a9f0 !important;
         }
         body.dark-theme .sample-btn { background: #2a2e36; border-color: #3a3f48; color: #aaa; }
@@ -1176,9 +1185,10 @@
                 <!-- Wrapper hosts the internal-ID suffix that floats on the
                      right edge of the input. No extra row → no wasted space. -->
                 <div class="name-field-wrapper">
-                    <input type="text" id="memberName" placeholder="Ör: Ahmet Yılmaz" data-i18n-placeholder="placeholder.name" oninput="onMemberNameInput(this.value)">
+                    <input type="text" id="memberName" placeholder="Ör: Proband, Anne, A.Y." data-i18n-placeholder="placeholder.name" oninput="onMemberNameInput(this.value)">
                     <span id="memberInternalIdSuffix" class="name-field-suffix" style="display:none;"></span>
                 </div>
+                <div class="field-hint" data-i18n="hint.name.kvkk">Gerçek ad-soyad girmeyin, özellikle varyant/tanı ile birlikte (KVKK). Kod veya baş harf kullanın.</div>
             </div>
             <div class="form-row">
                 <div class="form-group" data-i18n-title="tip.sex" title="Cinsiyet sembolü">
@@ -1557,7 +1567,7 @@
     </div>
     <div class="qe-body">
         <label data-i18n="qe.name">Ad Soyad</label>
-        <input type="text" id="qeName" placeholder="Örn: Ahmet Yılmaz" oninput="onQuickEditField('name', this.value)">
+        <input type="text" id="qeName" placeholder="Ör: Proband, Anne, A.Y." data-i18n-placeholder="placeholder.name" oninput="onQuickEditField('name', this.value)">
         <label data-i18n="qe.disease">Hastalık / Fenotip</label>
         <input type="text" id="qeDisease" placeholder="Virgülle ayır: Diyabet, KOAH" oninput="onQuickEditField('disease', this.value)">
         <label data-i18n="qe.variant">Gen / Varyant</label>
@@ -1644,6 +1654,14 @@
             <li><strong data-i18n="help.data.export">Export:</strong> <span data-i18n="help.data.export.desc">SVG / PNG / PDF / CSV olarak çıktı al</span></li>
         </ul>
 
+        <h3 data-i18n="kvkk.title">Veri Güvenliği ve KVKK</h3>
+        <ul>
+            <li><strong data-i18n="kvkk.local.h">Veriler cihazınızda kalır.</strong> <span data-i18n="kvkk.local">Bu uygulamanın sunucusu yoktur; girdiğiniz her şey yalnızca bu tarayıcıda saklanır.</span></li>
+            <li><strong data-i18n="kvkk.noid.h">Hasta kimlik bilgisi girmeyin.</strong> <span data-i18n="kvkk.noid">Ad-soyad, T.C. kimlik no veya protokol no yerine kod ya da baş harf kullanın (ör. Proband, II-1, A.Y.). Gerçek isim, varyant ve tanı bilgisiyle birlikte KVKK kapsamında özel nitelikli kişisel veri oluşturur.</span></li>
+            <li><strong data-i18n="kvkk.out.h">Veriyi dışarı yalnızca siz çıkarırsınız.</strong> <span data-i18n="kvkk.out">Paylaşım linki ve dışa aktarılan dosyalar (JSON, PDF, PNG, CSV) pedigrideki her şeyi şifresiz içerir. AI yardımcısı hiçbir veri göndermez; talimatı kendi AI aracınıza siz yapıştırırsınız.</span></li>
+            <li><strong data-i18n="kvkk.shared.h">Ortak bilgisayarda:</strong> <span data-i18n="kvkk.shared">Otomatik kayıt tarayıcıda kalır. İşiniz bitince "Temizle" ile veriyi silin ya da gizli pencere kullanın.</span></li>
+        </ul>
+
         <h3 data-i18n="help.modes.title">🧬 Modlar</h3>
         <ul>
             <li><strong data-i18n="help.modes.rare">🧬 Nadir Hastalık:</strong> <span data-i18n="help.modes.rare.desc">Mendel kalıtım, tek hastalık/fenotip alanı</span></li>
@@ -1677,28 +1695,24 @@
         <h2 style="display:flex; align-items:center; gap:10px;">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#3498db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="2" y2="18"/><polyline points="5 15 2 18 5 21"/></svg>
             <span data-i18n="import.title">Metinden Aile Oluştur</span></h2>
-        <p style="font-size:12px; color:#888; margin:-8px 0 10px;" data-i18n="import.subtitle">Satır başına bir kişi (İngilizce: ilişki, isim, yaş, tanılar) — ya da serbest anamnez yazıp "AI ile yapılandır"ı kullanın.</p>
+        <p style="font-size:12px; color:#888; margin:-8px 0 10px;" data-i18n="import.subtitle">Satır başına bir kişi (İngilizce: ilişki, yaş, tanılar). Serbest anamnezden dönüştürmek için "AI talimatını kopyala"yı kullanın.</p>
         <textarea id="importText" spellcheck="false" placeholder="Proband, Sarah Cohen, female, age 52, breast cancer age 48 bilateral, variant BRCA1+&#10;Mother, Rachel Cohen, age 78, breast cancer age 45, ovarian cancer age 50&#10;Maternal grandmother, Esther Cohen, deceased, breast cancer age 38&#10;Father, David Cohen, age 80&#10;Sister, Emma Cohen, age 50, carrier&#10;Son, Jacob Cohen, age 28" style="width:100%; min-height:300px; padding:14px; border:1px solid #dfe3e8; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.65; resize:vertical; color:#2c3e50; background:#fafbfc; box-sizing:border-box;"></textarea>
         <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">
             <button onclick="loadImportExample()" style="font-size:12px; padding:5px 10px; border:1px solid #dfe3e8; background:#fff; color:#3498db; border-radius:6px; cursor:pointer;" data-i18n="import.example">Örnek doldur</button>
-            <button onclick="aiStructureText().catch(function(e){console.error('AI:',e);})" id="aiStructureBtn" style="font-size:12px; padding:5px 11px; border:1px solid #b9aee0; background:#f5f2fb; color:#6c5ce7; border-radius:6px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
-                <span data-i18n="import.ai.button">AI ile yapılandır</span></button>
+            <button onclick="copyAiPrompt()" id="aiPromptBtn" type="button" style="font-size:12px; padding:5px 11px; border:1px solid #b9aee0; background:#f5f2fb; color:#6c5ce7; border-radius:6px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                <span data-i18n="import.ai.button">AI talimatını kopyala</span></button>
             <span id="importStatus" style="font-size:12px; align-self:center; opacity:0; transition:opacity .2s;"></span>
         </div>
-        <details id="aiSettings" style="margin-top:10px;">
-            <summary style="cursor:pointer; color:#7f8c8d; user-select:none; font-size:12px;" data-i18n="import.ai.settings">AI ayarları — Anthropic API anahtarı &amp; gizlilik</summary>
+        <details id="aiHowto" style="margin-top:10px;">
+            <summary style="cursor:pointer; color:#7f8c8d; user-select:none; font-size:12px;" data-i18n="import.ai.howto">Kendi AI aracınızla nasıl kullanılır?</summary>
             <div style="margin-top:10px; padding:13px; background:#f8f9fb; border:1px solid #e8ecf1; border-radius:8px;">
-                <p style="margin:0 0 9px; color:#555; font-size:12px; line-height:1.55;" data-i18n="import.ai.intro">Serbest anamnez metni yazıp <strong>AI ile yapılandır</strong>'a basın; metin pedigri satır formatına çevrilir, siz gözden geçirip <strong>Pedigri Oluştur</strong>'a basarsınız.</p>
-                <label style="display:block; margin-bottom:5px; color:#555; font-weight:600; font-size:12px;" data-i18n="import.ai.keyLabel">Anthropic API anahtarı</label>
-                <input type="password" id="anthropicKeyInput" autocomplete="off" spellcheck="false" placeholder="sk-ant-..." style="width:100%; padding:8px 10px; border:1px solid #dfe3e8; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; box-sizing:border-box;">
-                <div style="margin-top:6px;"><button onclick="fhClearAnthropicKey()" type="button" style="font-size:11px; padding:3px 9px; border:1px solid #dfe3e8; background:#fff; color:#999; border-radius:5px; cursor:pointer;" data-i18n="import.ai.clear">Kayıtlı anahtarı sil</button></div>
-                <p style="margin:7px 0 0; color:#999; font-size:11px; line-height:1.5;" data-i18n="import.ai.keyNote">Anahtar yalnızca bu tarayıcıda saklanır (localStorage), hiçbir sunucuya gönderilmez. console.anthropic.com → API Keys'ten alabilirsiniz.</p>
-                <label style="display:flex; align-items:flex-start; gap:7px; margin-top:11px; cursor:pointer; color:#555; font-size:12px; line-height:1.45;">
-                    <input type="checkbox" id="aiAnonymize" checked style="margin:2px 0 0;">
-                    <span data-i18n="import.ai.anon">Üretilen pedigride isim kullanma (anonim — II-1, III-2 kodlanır)</span>
-                </label>
-                <p style="margin:11px 0 0; color:#c0392b; font-size:11px; line-height:1.5;" data-i18n="import.ai.privacy">⚠️ Girdiğiniz metin yapılandırma için Anthropic API'ye gönderilir. Tanımlayıcı hasta bilgisi (ad-soyad, kimlik no) girmemeye özen gösterin.</p>
+                <ol style="margin:0 0 0 18px; padding:0; font-size:12px; line-height:1.6; color:#555;">
+                    <li data-i18n="import.ai.step1">Serbest anamnezi bu kutuya yazın (isteğe bağlı) ve "AI talimatını kopyala"ya basın.</li>
+                    <li data-i18n="import.ai.step2">Kopyalanan talimatı kullandığınız AI aracına (ChatGPT, Claude, Gemini…) yapıştırın; metni buraya yazmadıysanız altına ekleyin.</li>
+                    <li data-i18n="import.ai.step3">AI'ın verdiği satırları bu kutuya yapıştırın, gözden geçirin ve "Pedigri Oluştur"a basın.</li>
+                </ol>
+                <p style="margin:11px 0 0; color:#c0392b; font-size:11px; line-height:1.5;" data-i18n="import.ai.privacy">Bu uygulama hiçbir veriyi göndermez. AI aracına yapıştırdığınız metin o hizmete gider: ad-soyad, T.C. kimlik no gibi hasta kimlik bilgisi yapıştırmayın.</p>
             </div>
         </details>
         <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; align-items:center;">
@@ -1706,6 +1720,25 @@
             <button onclick="buildFamilyFromText()" style="padding:9px 18px; border:none; background:#3498db; color:white; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 <span data-i18n="import.build">Pedigri Oluştur</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- KVKK / privacy notice: shown once on first use, reopenable from Help -->
+<div class="help-modal-overlay" id="kvkkModalOverlay" role="dialog" aria-modal="true" aria-labelledby="kvkkTitle">
+    <div class="help-modal" style="max-width:560px;">
+        <h2 style="display:flex; align-items:center; gap:10px;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#27ae60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+            <span id="kvkkTitle" data-i18n="kvkk.title">Veri Güvenliği ve KVKK</span></h2>
+        <ul>
+            <li><strong data-i18n="kvkk.local.h">Veriler cihazınızda kalır.</strong> <span data-i18n="kvkk.local">Bu uygulamanın sunucusu yoktur; girdiğiniz her şey yalnızca bu tarayıcıda saklanır.</span></li>
+            <li><strong data-i18n="kvkk.noid.h">Hasta kimlik bilgisi girmeyin.</strong> <span data-i18n="kvkk.noid">Ad-soyad, T.C. kimlik no veya protokol no yerine kod ya da baş harf kullanın (ör. Proband, II-1, A.Y.). Gerçek isim, varyant ve tanı bilgisiyle birlikte KVKK kapsamında özel nitelikli kişisel veri oluşturur.</span></li>
+            <li><strong data-i18n="kvkk.out.h">Veriyi dışarı yalnızca siz çıkarırsınız.</strong> <span data-i18n="kvkk.out">Paylaşım linki ve dışa aktarılan dosyalar (JSON, PDF, PNG, CSV) pedigrideki her şeyi şifresiz içerir. AI yardımcısı hiçbir veri göndermez; talimatı kendi AI aracınıza siz yapıştırırsınız.</span></li>
+            <li><strong data-i18n="kvkk.shared.h">Ortak bilgisayarda:</strong> <span data-i18n="kvkk.shared">Otomatik kayıt tarayıcıda kalır. İşiniz bitince "Temizle" ile veriyi silin ya da gizli pencere kullanın.</span></li>
+        </ul>
+        <p class="kvkk-foot" data-i18n="kvkk.foot">Bu araç eğitim ve klinik destek amaçlıdır, tek başına tanı koydurmaz. Girilen verilerin sorumluluğu kullanıcıya aittir.</p>
+        <div style="margin-top:14px; text-align:right;">
+            <button id="kvkkAckBtn" type="button" onclick="ackKvkkNotice()" style="padding:9px 20px; border:none; background:#27ae60; color:white; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600;" data-i18n="kvkk.ack">Anladım</button>
         </div>
     </div>
 </div>
@@ -3554,19 +3587,29 @@ const I18N = {
         'btn.import': 'Metinden Oluştur',
         'btn.import.tip': 'Metinden otomatik pedigri oluştur',
         'import.title': 'Metinden Aile Oluştur',
-        'import.subtitle': 'Satır başına bir kişi (İngilizce: ilişki, isim, yaş, tanılar) — ya da serbest anamnez yazıp "AI ile yapılandır"ı kullanın.',
+        'import.subtitle': 'Satır başına bir kişi (İngilizce: ilişki, yaş, tanılar). Serbest anamnezden dönüştürmek için "AI talimatını kopyala"yı kullanın.',
         'import.example': 'Örnek doldur',
         'import.cancel': 'Vazgeç',
         'import.build': 'Pedigri Oluştur',
         'import.close': 'Kapat ✕',
-        'import.ai.button': 'AI ile yapılandır',
-        'import.ai.settings': 'AI ayarları — Anthropic API anahtarı & gizlilik',
-        'import.ai.intro': 'Serbest anamnez metni yazıp AI ile yapılandır\'a basın; metin pedigri satır formatına çevrilir, siz gözden geçirip Pedigri Oluştur\'a basarsınız.',
-        'import.ai.keyLabel': 'Anthropic API anahtarı',
-        'import.ai.keyNote': 'Anahtar yalnızca bu tarayıcıda saklanır (localStorage), hiçbir sunucuya gönderilmez. Paylaşılan/güvenmediğiniz cihazlarda kullanmayın; sızarsa console.anthropic.com\'dan yenileyin.',
-        'import.ai.anon': 'Üretilen pedigride isim gösterme — yalnızca ÇIKTIYI anonimleştirir; girdiğiniz metin AI\'a olduğu gibi gönderilir.',
-        'import.ai.privacy': '⚠️ Girdiğiniz metin yapılandırma için Anthropic API\'ye (üçüncü taraf) gönderilir. Ad-soyad, kimlik no gibi tanımlayıcı hasta bilgisi GİRMEYİN — önce anonimleştirin.',
-        'import.ai.clear': 'Kayıtlı anahtarı sil',
+        'import.ai.button': 'AI talimatını kopyala',
+        'import.ai.howto': 'Kendi AI aracınızla nasıl kullanılır?',
+        'import.ai.step1': 'Serbest anamnezi bu kutuya yazın (isteğe bağlı) ve "AI talimatını kopyala"ya basın.',
+        'import.ai.step2': 'Kopyalanan talimatı kullandığınız AI aracına (ChatGPT, Claude, Gemini…) yapıştırın; metni buraya yazmadıysanız altına ekleyin.',
+        'import.ai.step3': 'AI\'ın verdiği satırları bu kutuya yapıştırın, gözden geçirin ve "Pedigri Oluştur"a basın.',
+        'import.ai.privacy': 'Bu uygulama hiçbir veriyi göndermez. AI aracına yapıştırdığınız metin o hizmete gider: ad-soyad, T.C. kimlik no gibi hasta kimlik bilgisi yapıştırmayın.',
+        'hint.name.kvkk': 'Gerçek ad-soyad girmeyin, özellikle varyant/tanı ile birlikte (KVKK). Kod veya baş harf kullanın.',
+        'kvkk.title': 'Veri Güvenliği ve KVKK',
+        'kvkk.local.h': 'Veriler cihazınızda kalır.',
+        'kvkk.local': 'Bu uygulamanın sunucusu yoktur; girdiğiniz her şey yalnızca bu tarayıcıda saklanır.',
+        'kvkk.noid.h': 'Hasta kimlik bilgisi girmeyin.',
+        'kvkk.noid': 'Ad-soyad, T.C. kimlik no veya protokol no yerine kod ya da baş harf kullanın (ör. Proband, II-1, A.Y.). Gerçek isim, varyant ve tanı bilgisiyle birlikte KVKK kapsamında özel nitelikli kişisel veri oluşturur.',
+        'kvkk.out.h': 'Veriyi dışarı yalnızca siz çıkarırsınız.',
+        'kvkk.out': 'Paylaşım linki ve dışa aktarılan dosyalar (JSON, PDF, PNG, CSV) pedigrideki her şeyi şifresiz içerir. AI yardımcısı hiçbir veri göndermez; talimatı kendi AI aracınıza siz yapıştırırsınız.',
+        'kvkk.shared.h': 'Ortak bilgisayarda:',
+        'kvkk.shared': 'Otomatik kayıt tarayıcıda kalır. İşiniz bitince "Temizle" ile veriyi silin ya da gizli pencere kullanın.',
+        'kvkk.foot': 'Bu araç eğitim ve klinik destek amaçlıdır, tek başına tanı koydurmaz. Girilen verilerin sorumluluğu kullanıcıya aittir.',
+        'kvkk.ack': 'Anladım',
         'title.placeholder': 'Pedigri başlığı (aile adı veya proband)',
         'title.tooltip': 'Başlık ekleyin — pedigri üstünde görünür ve dosya adına yansır',
         'title.useProband': 'Proband adını başlık olarak kullan',
@@ -3634,7 +3677,7 @@ const I18N = {
         'btn.update': 'Güncelle',
         'btn.cancel': 'İptal',
         'btn.delete': 'Sil',
-        'placeholder.name': 'Ör: Ahmet Yılmaz',
+        'placeholder.name': 'Ör: Proband, Anne, A.Y.',
         'placeholder.age': 'Ör: 45',
         'placeholder.disease': 'Ör: Kistik Fibrozis',
         'placeholder.cancer.type': 'Kanser türü...',
@@ -3898,19 +3941,29 @@ const I18N = {
         'btn.import': 'Build from Text',
         'btn.import.tip': 'Build a pedigree from text',
         'import.title': 'Build Family from Text',
-        'import.subtitle': 'One person per line (English: relationship, name, age, diagnoses) — or type free text and use "Structure with AI".',
+        'import.subtitle': 'One person per line (English: relationship, age, diagnoses). To convert a free-text history, use "Copy AI prompt".',
         'import.example': 'Fill example',
         'import.cancel': 'Cancel',
         'import.build': 'Build Pedigree',
         'import.close': 'Close ✕',
-        'import.ai.button': 'Structure with AI',
-        'import.ai.settings': 'AI settings — Anthropic API key & privacy',
-        'import.ai.intro': 'Type a free-text family history and click Structure with AI; it is converted into the pedigree line format for you to review, then click Build Pedigree.',
-        'import.ai.keyLabel': 'Anthropic API key',
-        'import.ai.keyNote': 'The key is stored only in this browser (localStorage) and is never sent to any server. Do not use on shared/untrusted devices; if leaked, rotate it at console.anthropic.com.',
-        'import.ai.anon': 'Hide names in the generated pedigree — anonymizes the OUTPUT only; your input text is still sent to the AI as-is.',
-        'import.ai.privacy': '⚠️ Your input is sent to the Anthropic API for structuring (third party). Do NOT enter identifying patient data (full name, ID) — anonymize it first.',
-        'import.ai.clear': 'Clear saved key',
+        'import.ai.button': 'Copy AI prompt',
+        'import.ai.howto': 'How to use it with your own AI tool',
+        'import.ai.step1': 'Optionally type the free-text history into this box, then click "Copy AI prompt".',
+        'import.ai.step2': 'Paste the copied prompt into the AI tool you use (ChatGPT, Claude, Gemini…); if you did not type the history here, add it below the prompt.',
+        'import.ai.step3': 'Paste the lines the AI returns into this box, review them, and click "Build Pedigree".',
+        'import.ai.privacy': 'This app sends no data anywhere. Whatever you paste into an AI tool goes to that service: do not paste identifying patient data (full name, national ID).',
+        'hint.name.kvkk': 'Do not enter real full names, especially together with variant/diagnosis (data-protection law). Use a code or initials.',
+        'kvkk.title': 'Data Security & Privacy (KVKK)',
+        'kvkk.local.h': 'Your data stays on your device.',
+        'kvkk.local': 'This app has no server; everything you enter is stored only in this browser.',
+        'kvkk.noid.h': 'Do not enter patient identifiers.',
+        'kvkk.noid': 'Use a code or initials (e.g. Proband, II-1, J.S.) instead of full names, national ID or record numbers. A real name combined with variant and diagnosis is special-category personal data under KVKK/GDPR.',
+        'kvkk.out.h': 'Only you move data out.',
+        'kvkk.out': 'Share links and exported files (JSON, PDF, PNG, CSV) contain everything in the pedigree, unencrypted. The AI helper sends nothing; you paste the prompt into your own AI tool.',
+        'kvkk.shared.h': 'On a shared computer:',
+        'kvkk.shared': 'Autosave stays in the browser. When you are done, use "Clear" to delete the data, or use a private window.',
+        'kvkk.foot': 'This tool is for education and clinical support and does not establish a diagnosis on its own. Users are responsible for the data they enter.',
+        'kvkk.ack': 'I understand',
         'title.placeholder': 'Pedigree title (family name or proband)',
         'title.tooltip': 'Add a title — shown above the pedigree and used in export filenames',
         'title.useProband': 'Use proband name as title',
@@ -3976,7 +4029,7 @@ const I18N = {
         'btn.update': 'Update',
         'btn.cancel': 'Cancel',
         'btn.delete': 'Delete',
-        'placeholder.name': 'e.g. John Smith',
+        'placeholder.name': 'e.g. Proband, Mother, J.S.',
         'placeholder.age': 'e.g. 45',
         'placeholder.disease': 'e.g. Cystic Fibrosis',
         'placeholder.cancer.type': 'Cancer type...',
@@ -7430,8 +7483,15 @@ function handleFileLoad(event) {
 
 // ======================== SHAREABLE LINK ========================
 // Encode JSON → base64 → URL hash. Decode on load.
-function encodeStateToHash() {
+function encodeStateToHash(opts) {
     const data = serializeFamilyData();
+    // KVKK: optionally strip names (and the free-text title, which often holds a
+    // family surname) so the link carries no direct identifiers. New objects —
+    // familyData itself is never mutated.
+    if (opts && opts.anonymize) {
+        data.members = data.members.map(m => Object.assign({}, m, { name: '' }));
+        data.title = '';
+    }
     const json = JSON.stringify(data);
     // UTF-8 safe base64 encoding
     const b64 = btoa(unescape(encodeURIComponent(json)));
@@ -7451,46 +7511,75 @@ function decodeStateFromHash() {
     }
 }
 
+function fhShareHasNames() {
+    return familyData.members.some(m => m.name && String(m.name).trim()) || !!(familyData.title && String(familyData.title).trim());
+}
+
+function fhBuildShareLink(anonymize) {
+    return window.location.href.split('#')[0] + encodeStateToHash({ anonymize: !!anonymize });
+}
+
 function generateShareLink() {
+    const TR = currentLang === 'tr';
     if (familyData.members.length === 0) {
-        alert('Önce en az bir birey ekleyin.');
+        alert(TR ? 'Önce en az bir birey ekleyin.' : 'Add at least one individual first.');
         return;
     }
-    const baseUrl = window.location.href.split('#')[0];
-    const link = baseUrl + encodeStateToHash();
-
+    // Privacy by default: if anything identifying is present, strip it unless the user opts back in.
+    const hasNames = fhShareHasNames();
+    const link = fhBuildShareLink(hasNames);
     if (link.length > 8000) {
-        if (!confirm(`Pedigri çok büyük (${link.length} karakter). Bazı tarayıcılar bu kadar uzun URL'leri desteklemeyebilir. Yine de devam edilsin mi?`)) {
+        if (!confirm(TR
+            ? `Pedigri çok büyük (${link.length} karakter). Bazı tarayıcılar bu kadar uzun URL'leri desteklemeyebilir. Yine de devam edilsin mi?`
+            : `The pedigree is very large (${link.length} characters). Some browsers may not support URLs this long. Continue anyway?`)) {
             return;
         }
     }
-
-    // Try to copy to clipboard
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(() => {
-            showShareDialog(link, true);
-        }).catch(() => showShareDialog(link, false));
-    } else {
-        showShareDialog(link, false);
-    }
+    fhCopyToClipboard(link).then(() => showShareDialog(link, true, hasNames))
+        .catch(() => showShareDialog(link, false, hasNames));
 }
 
-function showShareDialog(link, copied) {
-    // Create a simple modal showing the link
+function showShareDialog(link, copied, hasNames) {
+    const TR = currentLang === 'tr';
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;padding:24px;max-width:600px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,0.3);';
     modal.innerHTML = `
-        <h3 style="margin-bottom:12px;color:#2c3e50;">🔗 Paylaşılabilir Link</h3>
-        <p style="font-size:13px;color:#666;margin-bottom:12px;">${copied ? '✓ Link panoya kopyalandı!' : 'Aşağıdaki linki kopyalayıp paylaşabilirsin:'}</p>
-        <textarea readonly style="width:100%;min-height:100px;padding:10px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:11px;resize:vertical;">${link}</textarea>
-        <p style="font-size:11px;color:#999;margin-top:8px;">⚠️ Tüm pedigri verisi linkin içinde kodlanmıştır. Link uzun olabilir.</p>
+        <h3 style="margin-bottom:12px;color:#2c3e50;">${TR ? 'Paylaşılabilir Link' : 'Shareable Link'}</h3>
+        <p class="share-status" style="font-size:13px;color:#666;margin-bottom:12px;"></p>
+        <textarea readonly style="width:100%;min-height:100px;padding:10px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;"></textarea>
+        <label style="display:${hasNames ? 'flex' : 'none'};align-items:flex-start;gap:7px;margin-top:10px;font-size:12.5px;color:#2c3e50;cursor:pointer;">
+            <input type="checkbox" class="share-anon" checked style="margin:2px 0 0;">
+            <span>${TR ? 'İsimleri ve başlığı linkten çıkar (önerilir — KVKK)' : 'Remove names and title from the link (recommended — privacy)'}</span>
+        </label>
+        <p style="font-size:11.5px;color:#c0392b;margin-top:10px;line-height:1.5;">${TR
+            ? 'Link pedigrideki her şeyi (varyant, tanı, notlar) şifresiz taşır; linke sahip herkes açabilir. Hasta kimliği içeren pedigrileri paylaşmayın.'
+            : 'The link carries everything in the pedigree (variants, diagnoses, notes) unencrypted; anyone with the link can open it. Do not share pedigrees that contain patient identifiers.'}</p>
         <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
-            <button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.parentElement.parentElement.querySelector('textarea').value).then(()=>this.textContent='✓ Kopyalandı')" style="padding:8px 16px;border:1px solid #3498db;background:white;color:#3498db;border-radius:6px;cursor:pointer;">📋 Kopyala</button>
-            <button onclick="this.closest('[style*=\\"position:fixed\\"]').remove()" style="padding:8px 16px;border:none;background:#3498db;color:white;border-radius:6px;cursor:pointer;">Kapat</button>
+            <button class="share-copy" style="padding:8px 16px;border:1px solid #3498db;background:white;color:#3498db;border-radius:6px;cursor:pointer;">${TR ? 'Kopyala' : 'Copy'}</button>
+            <button class="share-close" style="padding:8px 16px;border:none;background:#3498db;color:white;border-radius:6px;cursor:pointer;">${TR ? 'Kapat' : 'Close'}</button>
         </div>
     `;
+    const ta = modal.querySelector('textarea');
+    const status = modal.querySelector('.share-status');
+    const setStatus = ok => {
+        status.textContent = ok
+            ? (TR ? '✓ Link panoya kopyalandı.' : '✓ Link copied to the clipboard.')
+            : (TR ? 'Aşağıdaki linki kopyalayıp paylaşabilirsin:' : 'Copy the link below to share it:');
+    };
+    ta.value = link;
+    setStatus(copied);
+    const anon = modal.querySelector('.share-anon');
+    anon.addEventListener('change', () => {
+        ta.value = fhBuildShareLink(anon.checked);
+        fhCopyToClipboard(ta.value).then(() => setStatus(true)).catch(() => setStatus(false));
+    });
+    modal.querySelector('.share-copy').addEventListener('click', e => {
+        const btn = e.currentTarget;
+        fhCopyToClipboard(ta.value).then(() => { btn.textContent = TR ? '✓ Kopyalandı' : '✓ Copied'; setStatus(true); }).catch(() => setStatus(false));
+    });
+    modal.querySelector('.share-close').addEventListener('click', () => overlay.remove());
     overlay.appendChild(modal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
@@ -8199,6 +8288,25 @@ document.addEventListener('keydown', (e) => {
 
 // ======================== FIRST-USE TUTORIAL ========================
 const TOUR_KEY = 'pedigreeApp_tourSeen_v1';
+const KVKK_KEY = 'pedigreeApp_kvkkAck_v1';
+let _kvkkAfterAck = null;
+
+// First-use data-protection notice. Shown once per browser (before the tour);
+// "Anladım" records the acknowledgement and runs the queued follow-up.
+function openKvkkNotice(afterAck) {
+    _kvkkAfterAck = typeof afterAck === 'function' ? afterAck : null;
+    const ov = document.getElementById('kvkkModalOverlay');
+    if (!ov) { if (_kvkkAfterAck) _kvkkAfterAck(); return; }
+    ov.classList.add('open');
+    const btn = document.getElementById('kvkkAckBtn'); if (btn) setTimeout(() => btn.focus(), 50);
+}
+
+function ackKvkkNotice() {
+    try { localStorage.setItem(KVKK_KEY, '1'); } catch (e) {}
+    const ov = document.getElementById('kvkkModalOverlay'); if (ov) ov.classList.remove('open');
+    const next = _kvkkAfterAck; _kvkkAfterAck = null;
+    if (next) next();
+}
 // Tour steps now use translation keys (TR/EN supported)
 const tourSteps = [
     { target: '.left-panel',      titleKey: 'tour.welcome.title', bodyKey: 'tour.welcome.body' },
@@ -8671,10 +8779,13 @@ try {
 const loadedFromHash = tryLoadFromHash();
 const loadedAutosave = loadedFromHash || tryLoadAutosave();
 
-// Show first-use tutorial if not seen and no data loaded
+// First use: data-protection (KVKK) notice once per browser, then the
+// tutorial (if not seen and no data loaded). The tour waits for the ack.
 try {
-    const tourSeen = localStorage.getItem(TOUR_KEY);
-    if (!tourSeen && !loadedAutosave) {
+    const tourWanted = !localStorage.getItem(TOUR_KEY) && !loadedAutosave;
+    if (!localStorage.getItem(KVKK_KEY)) {
+        setTimeout(() => openKvkkNotice(tourWanted ? () => setTimeout(startTour, 250) : null), 400);
+    } else if (tourWanted) {
         setTimeout(startTour, 600);
     }
 } catch (e) {}
@@ -9446,6 +9557,48 @@ window.runRegressionTests = function() {
             pCheck('Prob RP17: engine does not stack-overflow on a residual ancestry cycle', noCrash, 1);
         }
 
+        // ----- Privacy / KVKK layer + copy-paste AI helper -----
+        {   // Pasted AI output is cleaned of fences, bullets, numbering, JSON quoting, chatter headers
+            const raw = 'Here are the lines:\n```\n1. Proband, female, age 30\n- Mother, female, age 60, breast cancer age 45\n"Father, male, age 62",\n```';
+            const cleaned = fhCleanPastedLines(raw);
+            const ok = cleaned === 'Proband, female, age 30\nMother, female, age 60, breast cancer age 45\nFather, male, age 62';
+            tests.push({ name: 'KVKK/AI: pasted AI output is cleaned to plain lines', passed: ok, errors: ok ? [] : ['got ' + JSON.stringify(cleaned)] });
+            const fam = parseTextToFamily(cleaned);
+            tests.push({ name: 'KVKK/AI: cleaned lines build 3 linked members', passed: fam.members.length === 3 && !(fam._warnings || []).some(w => /Unknown relationship/.test(w)), errors: ['members=' + fam.members.length + ' warnings=' + JSON.stringify(fam._warnings)] });
+        }
+        {   // The prompt carries the user's text + the no-names rule, and the app has no direct-API path left
+            const pr = fhBuildAiPrompt('Annesi 45 yaşında meme kanseri');
+            const ok = pr.indexOf('Annesi 45 yaşında meme kanseri') > 0 && /never output personal names/.test(pr) && /Relationship terms/.test(pr);
+            tests.push({ name: 'KVKK/AI: copied prompt includes history + no-names rule', passed: ok, errors: ok ? [] : ['prompt missing parts'] });
+            const gone = typeof aiConvertToLines === 'undefined' && typeof fhGetAnthropicKey === 'undefined' && !document.getElementById('anthropicKeyInput');
+            tests.push({ name: 'KVKK/AI: direct Anthropic API path and key field removed', passed: gone, errors: gone ? [] : ['legacy AI code still present'] });
+        }
+        {   // Anonymized share link strips names + title without mutating familyData
+            const saved = { members: familyData.members, title: familyData.title };
+            try {
+                familyData.members = [{ id: 1, name: 'Ayşe Yılmaz', sex: 'female', generation: 1 }];
+                familyData.title = 'Yılmaz ailesi';
+                const decode = h => JSON.parse(decodeURIComponent(escape(atob(h.slice(6)))));
+                const anon = decode(encodeStateToHash({ anonymize: true }));
+                const full = decode(encodeStateToHash());
+                const ok = anon.members[0].name === '' && anon.title === '' && full.members[0].name === 'Ayşe Yılmaz' && familyData.members[0].name === 'Ayşe Yılmaz';
+                tests.push({ name: 'KVKK: anonymized share link removes names/title, familyData untouched', passed: ok, errors: ok ? [] : [JSON.stringify({ anon: anon.members[0].name, title: anon.title, full: full.members[0].name })] });
+                tests.push({ name: 'KVKK: share defaults to anonymize when names exist', passed: fhShareHasNames() === true, errors: [] });
+            } finally { familyData.members = saved.members; familyData.title = saved.title; }
+        }
+        {   // KVKK notice: ack closes it, records consent, then runs the queued follow-up (the tour)
+            let prev = null; try { prev = localStorage.getItem(KVKK_KEY); localStorage.removeItem(KVKK_KEY); } catch (e) {}
+            let ran = 0;
+            openKvkkNotice(() => { ran++; });
+            const ov = document.getElementById('kvkkModalOverlay');
+            const opened = !!(ov && ov.classList.contains('open'));
+            ackKvkkNotice();
+            let stored = null; try { stored = localStorage.getItem(KVKK_KEY); } catch (e) {}
+            const ok = opened && !ov.classList.contains('open') && ran === 1 && stored === '1';
+            tests.push({ name: 'KVKK: notice opens, ack closes + stores consent + runs follow-up once', passed: ok, errors: ok ? [] : [JSON.stringify({ opened, ran, stored })] });
+            try { if (prev === null) localStorage.removeItem(KVKK_KEY); else localStorage.setItem(KVKK_KEY, prev); } catch (e) {}
+        }
+
         // ----- Untrusted-input sanitization (loadFamilyData trust boundary) -----
         window.__secXss = 0;
         const evilData = {
@@ -10172,14 +10325,6 @@ function parseTextToFamily(text) {
 
 function openImportModal() {
     const st = document.getElementById('importStatus'); if (st) st.style.opacity = '0';
-    // Anahtarı DOM'a yükleme — yalnızca kayıtlı olduğunu placeholder ile bildir (sızıntı yüzeyini azaltır)
-    const keyInput = document.getElementById('anthropicKeyInput');
-    if (keyInput) {
-        keyInput.value = '';
-        keyInput.placeholder = fhGetAnthropicKey()
-            ? (currentLang === 'tr' ? '•••• kayıtlı anahtar kullanılacak' : '•••• saved key will be used')
-            : 'sk-ant-...';
-    }
     const ov = document.getElementById('importModalOverlay'); if (ov) ov.classList.add('open');
     const ta = document.getElementById('importText'); if (ta) setTimeout(() => ta.focus(), 50);
 }
@@ -10214,7 +10359,7 @@ function buildFamilyFromText() {
     const ta = document.getElementById('importText');
     if (!ta || !ta.value.trim()) { importShowStatus(currentLang === 'tr' ? 'Önce metin girin.' : 'Enter some text first.', 'error'); return; }
     let parsed;
-    try { parsed = parseTextToFamily(ta.value); }
+    try { parsed = parseTextToFamily(fhCleanPastedLines(ta.value)); }
     catch (err) { importShowStatus((currentLang === 'tr' ? 'Hata: ' : 'Error: ') + err.message, 'error'); return; }
     if (!parsed.members.length) { importShowStatus(currentLang === 'tr' ? 'Geçerli birey bulunamadı.' : 'No valid individuals found.', 'error'); return; }
     saveState('import_text', currentLang === 'tr' ? 'Metinden oluşturuldu' : 'Built from text');
@@ -10231,85 +10376,25 @@ function buildFamilyFromText() {
 }
 
 // ============================================================
-// AI ile yapılandırma (Yol 2) — serbest anamnez metnini Claude API
-// (BYOK, tarayıcıdan doğrudan) ile pedigri satır formatına çevirir.
-// Çıktı düzenlenebilir textarea'ya yazılır; grafiği yine deterministik
-// parseTextToFamily kurar (klinisyen onayı korunur).
+// AI yardımcısı — kopyala/yapıştır modeli. Uygulama hiçbir veriyi
+// hiçbir yere GÖNDERMEZ: kullanıcı talimatı kendi seçtiği AI aracına
+// kendisi yapıştırır, dönen satırları geri yapıştırır. Grafiği yine
+// deterministik parseTextToFamily kurar (klinisyen onayı korunur).
+// Eski doğrudan-API (BYOK) yolu kaldırıldı; kayıtlı anahtarlar silinir.
 // ============================================================
-const FH_AI_KEY_LS = 'pedigreeApp_anthropicKey';
-const FH_AI_ACK_LS = 'pedigreeApp_aiPrivacyAck';
+try {
+    localStorage.removeItem('pedigreeApp_anthropicKey');
+    sessionStorage.removeItem('pedigreeApp_aiPrivacyAck');
+} catch (e) {}
 
-function fhGetAnthropicKey() { try { return localStorage.getItem(FH_AI_KEY_LS) || ''; } catch (e) { return ''; } }
-function fhSaveAnthropicKey(k) { try { if (k) localStorage.setItem(FH_AI_KEY_LS, k); else localStorage.removeItem(FH_AI_KEY_LS); } catch (e) {} }
-
-async function aiStructureText() {
-    const TR = currentLang === 'tr';
-    const ta = document.getElementById('importText');
-    const keyInput = document.getElementById('anthropicKeyInput');
-    const btn = document.getElementById('aiStructureBtn');
-    if (!ta) return;
-
-    const key = ((keyInput && keyInput.value.trim()) || fhGetAnthropicKey()).trim();
-    if (!key) {
-        const det = document.getElementById('aiSettings'); if (det) det.open = true;
-        importShowStatus(TR ? 'Önce Anthropic API anahtarı girin (AI ayarları).' : 'Enter your Anthropic API key first (AI settings).', 'error');
-        if (keyInput) keyInput.focus();
-        return;
-    }
-    if (key.slice(0, 7) !== 'sk-ant-') {
-        const det = document.getElementById('aiSettings'); if (det) det.open = true;
-        importShowStatus(TR ? 'Anahtar "sk-ant-" ile başlamalı.' : 'The key should start with "sk-ant-".', 'error');
-        if (keyInput) keyInput.focus();
-        return;
-    }
-    fhSaveAnthropicKey(key);
-
-    const text = ta.value.trim();
-    if (!text) { importShowStatus(TR ? 'Önce serbest metin girin.' : 'Enter free text first.', 'error'); return; }
-
-    // Gizlilik onayı — her OTURUMDA bir kez (sessionStorage; sekme kapanınca yeniden sorulur)
-    let ack = false; try { ack = sessionStorage.getItem(FH_AI_ACK_LS) === '1'; } catch (e) {}
-    if (!ack) {
-        const ok = window.confirm(TR
-            ? 'Girdiğiniz metin, pedigriye dönüştürülmek üzere üçüncü bir tarafa (Anthropic API) gönderilecek. Ad-soyad, kimlik numarası gibi tanımlayıcı hasta bilgisi içermediğinden emin olun (anonimleştirme yalnızca ÇIKTIYI gizler, gönderilen metni değil). Devam edilsin mi?'
-            : 'Your text will be sent to a third party (the Anthropic API) to be converted into a pedigree. Make sure it contains no identifying patient information (full name, ID) — anonymization hides only the OUTPUT, not the text you send. Continue?');
-        if (!ok) return;
-        try { sessionStorage.setItem(FH_AI_ACK_LS, '1'); } catch (e) {}
-    }
-
-    const anonymize = document.getElementById('aiAnonymize') ? document.getElementById('aiAnonymize').checked : true;
-
-    btn.disabled = true;
-    const lblSpan = btn.querySelector('span');
-    const oldLbl = lblSpan ? lblSpan.textContent : '';
-    if (lblSpan) lblSpan.textContent = TR ? 'Dönüştürülüyor…' : 'Converting…';
-    importShowStatus(TR ? 'AI metni yapılandırıyor…' : 'AI is structuring the text…', 'ok');
-    try {
-        const lines = await aiConvertToLines(key, text, anonymize);
-        ta.value = lines.join('\n');
-        importShowStatus(TR ? '✓ Yapılandırıldı — satırları GÖZDEN GEÇİRİP "Pedigri Oluştur"a basın.' : '✓ Structured — REVIEW the lines, then click "Build Pedigree".', 'ok');
-    } catch (err) {
-        importShowStatus((TR ? 'AI hatası: ' : 'AI error: ') + (err && err.message ? err.message : err), 'error');
-    } finally {
-        btn.disabled = false;
-        if (lblSpan) lblSpan.textContent = oldLbl;
-    }
-}
-
-function fhClearAnthropicKey() {
-    const TR = currentLang === 'tr';
-    if (!window.confirm(TR ? 'Kayıtlı API anahtarı silinsin mi?' : 'Delete the saved API key?')) return;
-    fhSaveAnthropicKey('');
-    const ki = document.getElementById('anthropicKeyInput');
-    if (ki) { ki.value = ''; ki.placeholder = 'sk-ant-...'; }
-    importShowStatus(TR ? 'Kayıtlı anahtar silindi.' : 'Saved key cleared.', 'ok');
-}
-
-async function aiConvertToLines(key, freeText, anonymize) {
-    const TR = currentLang === 'tr';
-    const grammar = [
-        'OUTPUT — one person per line, comma-separated, ENGLISH relationship terms.',
-        'Line shape: <Relationship>, [Name], [male|female], [age N], [deceased], [proband], [carrier], [affected], [consanguineous], [variant X], [note Y], [<disease>], [<organ> cancer age N bilateral]',
+function fhBuildAiPrompt(freeText) {
+    const lines = [
+        'Convert the family / medical history below into a strict pedigree LINE FORMAT for a clinical pedigree drawing tool.',
+        'The history may be written in Turkish or English; translate every relationship and finding into the standard ENGLISH terms listed here.',
+        'Extract every mentioned relative with their relationship to the proband, sex, age, vital status, and any diseases or cancers with diagnosis ages.',
+        '',
+        'OUTPUT: one person per line, comma-separated, ENGLISH relationship terms.',
+        'Line shape: <Relationship>, [male|female], [age N], [deceased], [proband], [carrier], [affected], [consanguineous], [variant X], [note Y], [<disease>], [<organ> cancer age N bilateral]',
         'Relationship terms (use these exact words): proband, mother, father, sister, brother, son, daughter, spouse, husband, wife,',
         '  maternal grandmother, maternal grandfather, paternal grandmother, paternal grandfather,',
         '  maternal aunt, maternal uncle, paternal aunt, paternal uncle.',
@@ -10319,74 +10404,87 @@ async function aiConvertToLines(key, freeText, anonymize) {
         '- Set sex explicitly (male/female) whenever it is known or clearly implied.',
         '- Cancers: "<organ> cancer age N bilateral" (e.g. "breast cancer age 45 bilateral"). Other diseases: write the name (e.g. "cystic fibrosis").',
         '- Mark deceased / carrier / affected / consanguineous only when the text states them.',
-        '- Be FAITHFUL to the source: never invent relatives, diagnoses, ages, or sexes that are not stated. Omit anything missing.'
-    ].join('\n');
-    const anonNote = anonymize
-        ? 'ANONYMIZE: do NOT output real patient names. Leave the Name field empty — write only the relationship and attributes (e.g. "Mother, age 60, breast cancer age 45"). Pedigree position codes are assigned automatically.'
-        : 'Include a name only when one is clearly given in the text.';
-    const system = 'You convert a free-text family / medical history into a strict pedigree LINE FORMAT for a clinical pedigree drawing tool. '
-        + 'The input may be written in Turkish or English; translate every relationship and finding into the standard ENGLISH terms listed below. '
-        + 'Extract every mentioned relative with their relationship to the proband, sex, age, vital status, and any diseases or cancers with diagnosis ages. '
-        + anonNote + '\n\n' + grammar + '\n\nReturn ONLY the array of lines via the structured output schema — no commentary.';
+        '- Be FAITHFUL to the source: never invent relatives, diagnoses, ages, or sexes that are not stated. Omit anything missing.',
+        '- PRIVACY: never output personal names or ID numbers. Write only the relationship and attributes (e.g. "Mother, female, age 60, breast cancer age 45").',
+        '',
+        'Reply with ONLY the lines as plain text: no numbering, no bullets, no code block, no heading, no commentary.',
+        '',
+        'Family / medical history:'
+    ];
+    const txt = String(freeText || '').trim();
+    lines.push(txt ? txt : '[paste or type the family history here]');
+    return lines.join('\n');
+}
 
-    const body = {
-        model: 'claude-opus-4-8',
-        max_tokens: 4000,
-        system: system,
-        messages: [{ role: 'user', content: 'Family / medical history:\n\n' + freeText }],
-        output_config: {
-            format: {
-                type: 'json_schema',
-                schema: {
-                    type: 'object', additionalProperties: false,
-                    properties: { lines: { type: 'array', items: { type: 'string' } } },
-                    required: ['lines']
-                }
-            }
-        }
-    };
-
-    let resp;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
-    try {
-        resp = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': key,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        });
-    } catch (e) {
-        if (e && e.name === 'AbortError') throw new Error(TR ? 'İstek zaman aşımına uğradı (45 sn).' : 'Request timed out (45 s).');
-        throw new Error(TR ? 'Ağ hatası (internet bağlantısını kontrol edin).' : 'Network error (check your connection).');
-    } finally {
-        clearTimeout(timer);
+function fhCopyToClipboard(text) {
+    // Async Clipboard API first; if it is unavailable or the permission is
+    // denied (embedded browsers, some privacy settings) fall back to execCommand.
+    const legacy = () => new Promise((resolve, reject) => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0;';
+            document.body.appendChild(ta); ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            ok ? resolve() : reject(new Error('copy failed'));
+        } catch (e) { reject(e); }
+    });
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+        return navigator.clipboard.writeText(text).catch(() => legacy());
     }
+    return legacy();
+}
 
-    if (!resp.ok) {
-        let msg = 'HTTP ' + resp.status;
-        try { const e = await resp.json(); if (e && e.error && e.error.message) msg = e.error.message; } catch (_) {}
-        if (resp.status === 401) msg = TR ? 'Geçersiz API anahtarı.' : 'Invalid API key.';
-        else if (resp.status === 429) msg = TR ? 'Hız limiti — biraz sonra tekrar deneyin.' : 'Rate limited — try again shortly.';
-        else if (resp.status === 529) msg = TR ? 'API yoğun — biraz sonra deneyin.' : 'API overloaded — try again shortly.';
-        throw new Error(msg);
-    }
+// Last resort when the clipboard is blocked: show the text pre-selected so the
+// user can copy it by hand. Never a dead end.
+function fhShowManualCopy(text) {
+    const TR = currentLang === 'tr';
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:3100;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const box = document.createElement('div');
+    box.className = 'help-modal';
+    box.style.cssText = 'max-width:640px;width:100%;';
+    box.innerHTML = `<h3 style="margin:0 0 8px;">${TR ? 'Talimatı elle kopyalayın' : 'Copy the prompt manually'}</h3>
+        <p style="margin:0 0 10px;">${TR ? 'Tarayıcı panoya erişime izin vermedi. Metin seçili: Ctrl+C (Mac: Cmd+C) ile kopyalayın.' : 'The browser blocked clipboard access. The text is selected: press Ctrl+C (Mac: Cmd+C).'}</p>
+        <textarea readonly style="width:100%;min-height:240px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;box-sizing:border-box;"></textarea>
+        <div style="margin-top:12px;text-align:right;"><button type="button" style="padding:8px 16px;border:none;background:#3498db;color:white;border-radius:6px;cursor:pointer;">${TR ? 'Kapat' : 'Close'}</button></div>`;
+    const ta = box.querySelector('textarea');
+    ta.value = text;
+    box.querySelector('button').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    setTimeout(() => { ta.focus(); ta.select(); }, 30);
+}
 
-    const data = await resp.json();
-    let parsed = data.parsed_output || null;
-    if (!parsed) {
-        const txt = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-        if (!txt) throw new Error(TR ? 'AI boş yanıt döndürdü — tekrar deneyin.' : 'AI returned an empty response — please retry.');
-        try { parsed = JSON.parse(txt); } catch (e) { throw new Error(TR ? 'AI çıktısı çözümlenemedi.' : 'Could not parse AI output.'); }
-    }
-    const lines = (parsed && Array.isArray(parsed.lines)) ? parsed.lines.filter(l => l && String(l).trim()).map(l => String(l).trim()) : [];
-    if (!lines.length) throw new Error(TR ? 'AI hiç satır üretemedi (metni netleştirip tekrar deneyin).' : 'AI produced no lines (clarify the text and retry).');
-    return lines;
+function copyAiPrompt() {
+    const TR = currentLang === 'tr';
+    const ta = document.getElementById('importText');
+    const free = ta ? ta.value.trim() : '';
+    fhCopyToClipboard(fhBuildAiPrompt(free)).then(() => {
+        importShowStatus(free
+            ? (TR ? 'Talimat + metniniz kopyalandı. AI aracınıza yapıştırın, dönen satırları buraya yapıştırın.' : 'Prompt + your text copied. Paste into your AI tool, then paste its lines back here.')
+            : (TR ? 'Talimat kopyalandı. AI aracınıza yapıştırıp altına aile öyküsünü yazın.' : 'Prompt copied. Paste it into your AI tool and add the family history below it.'), 'ok');
+        const det = document.getElementById('aiHowto'); if (det) det.open = true;
+    }).catch(() => {
+        importShowStatus(TR ? 'Pano engellendi; talimatı elle kopyalayın.' : 'Clipboard blocked; copy the prompt manually.', 'warn');
+        const det = document.getElementById('aiHowto'); if (det) det.open = true;
+        fhShowManualCopy(fhBuildAiPrompt(free));
+    });
+}
+
+// AI çıktısı yapıştırıldığında sık görülen süsleri temizler: kod çitleri,
+// madde işaretleri/numaralar, tırnak + sondaki virgül (JSON dizisi kopyası),
+// "İşte satırlar:" gibi iki nokta ile biten giriş cümleleri.
+function fhCleanPastedLines(text) {
+    return String(text || '').split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l && !/^```/.test(l) && !/^[\[\]{}]$/.test(l))
+        .map(l => l.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, ''))
+        .map(l => l.replace(/,\s*$/, '').replace(/^"(.*)"$/, '$1').trim())
+        .filter(l => l && !/:$/.test(l))
+        .join('\n');
 }
 
 // Initialize
